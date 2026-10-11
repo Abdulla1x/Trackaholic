@@ -5,6 +5,7 @@ import { SECTION_HOME, routeKey, screenDepth, screenMotion, sectionFor } from '.
 
 test('each tab owns its pages', () => {
   assert.equal(sectionFor('/'), 'today')
+  assert.equal(sectionFor('/setup'), 'today')
   for (const path of ['/progress', '/progress/weigh-ins', '/progress/review']) assert.equal(sectionFor(path), 'progress', path)
   assert.equal(sectionFor('/log'), 'log')
   for (const path of ['/settings', '/settings/goals', '/settings/account', '/whats-new']) {
@@ -29,7 +30,7 @@ test('the day in detail and its meal screens belong to Today', () => {
 
 test('every screen with a back arrow sits below its tab', () => {
   for (const path of ['/', '/progress', '/settings', '/settings/goals', '/whats-new', '/admin']) assert.equal(screenDepth(path), 0, path)
-  for (const path of ['/day/2026-10-10', '/progress/weigh-ins', '/progress/days', '/progress/review', '/progress/accuracy']) {
+  for (const path of ['/day/2026-10-10', '/setup', '/progress/weigh-ins', '/progress/days', '/progress/review', '/progress/accuracy']) {
     assert.equal(screenDepth(path), 1, path)
   }
   assert.equal(screenDepth('/day/2026-10-10/meal/42'), 2)

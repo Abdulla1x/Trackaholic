@@ -36,6 +36,7 @@ import type {
   User,
   Supplement,
   SupplementDay,
+  TargetPreviewRequest,
   WaterDay,
   WaterEntry,
   WeightEntry,
@@ -525,6 +526,12 @@ export const api = {
 
   getSettings: () => request<Settings>('/api/settings'),
   getBodyTargets: () => request<BodyTargets>('/api/settings/targets'),
+  /** The target setup's answers would give, without saving anything. */
+  previewTargets: (answers: TargetPreviewRequest) =>
+    request<BodyTargets>('/api/settings/targets/preview', {
+      method: 'POST',
+      body: JSON.stringify(answers),
+    }),
   updateSettings: (settings: Settings) =>
     request<Settings>('/api/settings', {
       method: 'PUT',

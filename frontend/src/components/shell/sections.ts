@@ -14,8 +14,8 @@ const under = (pathname: string, base: string) => pathname === base || pathname.
 /** Which tab is current for a path, or null for a page that belongs to none
  *  (Admin, an unknown address). */
 export function sectionFor(pathname: string): Section | null {
-  // The day in detail and its meal screens are pushed from Today.
-  if (pathname === '/' || under(pathname, '/day')) return 'today'
+  // The day in detail, its meal screens and setup are pushed from Today.
+  if (pathname === '/' || under(pathname, '/day') || pathname === '/setup') return 'today'
   if (under(pathname, '/progress')) return 'progress'
   if (under(pathname, '/log')) return 'log'
   if (under(pathname, '/settings') || under(pathname, '/whats-new')) return 'you'
@@ -29,6 +29,7 @@ export function sectionFor(pathname: string): Section | null {
 export function screenDepth(pathname: string): number {
   if (/^\/day\/[^/]+\/meal\/[^/]+$/.test(pathname)) return 2
   if (/^\/day\/[^/]+$/.test(pathname)) return 1
+  if (pathname === '/setup') return 1
   if (pathname.startsWith('/progress/')) return 1
   return 0
 }

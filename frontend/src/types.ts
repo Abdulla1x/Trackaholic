@@ -284,6 +284,20 @@ export interface BodyTargets {
   protein_reference_kg?: number | null
 }
 
+/** Setup's answers, sent before anything is saved
+ *  (POST /api/settings/targets/preview). The reply is a BodyTargets worked
+ *  out the same way a save would be, so the number shown is the number kept. */
+export interface TargetPreviewRequest {
+  weight_kg: number
+  height_cm: number
+  birth_date: string
+  sex: Sex
+  activity_level: ActivityLevel
+  /** Signed: negative to lose. */
+  goal_rate_kg_per_week: number
+  protein_focus: 'muscle' | 'scale' | null
+}
+
 export interface WeightEntry {
   id: number
   date: string
