@@ -111,6 +111,8 @@ const router = createBrowserRouter(
           {/* Log is a panel over the current page now (components/log/), not a
               page; the address only redirects there. */}
           <Route path="/log" element={<LogRedirect />} />
+          {/* Progress: the weight trend and nutrition on one range (0a). */}
+          <Route path="/progress" lazy={page(() => import('./pages/Progress'))} />
           <Route path="/weight" lazy={page(() => import('./pages/Weight'))} />
           <Route path="/analytics" lazy={page(() => import('./pages/Analytics'))} />
           {/* In the tab bar, unlike /whats-new below. It was kept out at first on
