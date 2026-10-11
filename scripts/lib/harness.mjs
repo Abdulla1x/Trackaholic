@@ -170,6 +170,10 @@ export const PRIVATE_ROUTES = [
   '/settings/food',
   '/settings/account',
   '/whats-new',
+  // First use (2026-10-11). Setup's first screen (the seeded account already
+  // has a target, so this is someone changing it), and the guide.
+  '/setup',
+  '/how-it-works',
   '/admin',
   '/nope',
 ]

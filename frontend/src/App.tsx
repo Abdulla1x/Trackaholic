@@ -110,6 +110,8 @@ const router = createBrowserRouter(
           <Route path="/day/:date/meal/:id" lazy={page(() => import('./pages/Meal'))} />
           {/* Set your target: first use's questions, one per screen. */}
           <Route path="/setup" lazy={page(() => import('./pages/Setup'))} />
+          {/* The optional guide (no tour), under You. */}
+          <Route path="/how-it-works" lazy={page(() => import('./pages/HowItWorks'))} />
           {/* Log is a panel over the current page now (components/log/), not a
               page; the address only redirects there. */}
           <Route path="/log" element={<LogRedirect />} />

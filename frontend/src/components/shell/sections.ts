@@ -18,7 +18,7 @@ export function sectionFor(pathname: string): Section | null {
   if (pathname === '/' || under(pathname, '/day') || pathname === '/setup') return 'today'
   if (under(pathname, '/progress')) return 'progress'
   if (under(pathname, '/log')) return 'log'
-  if (under(pathname, '/settings') || under(pathname, '/whats-new')) return 'you'
+  if (under(pathname, '/settings') || under(pathname, '/whats-new') || under(pathname, '/how-it-works')) return 'you'
   return null
 }
 
@@ -30,6 +30,7 @@ export function screenDepth(pathname: string): number {
   if (/^\/day\/[^/]+\/meal\/[^/]+$/.test(pathname)) return 2
   if (/^\/day\/[^/]+$/.test(pathname)) return 1
   if (pathname === '/setup') return 1
+  if (pathname === '/how-it-works') return 1
   if (pathname.startsWith('/progress/')) return 1
   return 0
 }

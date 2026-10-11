@@ -179,14 +179,20 @@ export default function Settings() {
         {/* Off the tab bar on purpose -- see the inBar note in tabs.ts. A link
             keeps it one tap away without putting account deletion next to the
             tab you were reaching for. */}
-        <NavLink
-          to="/settings/account"
-          className={({ isActive }) =>
-            `text-sm ${isActive ? 'text-emerald-300' : 'text-ink-faint hover:text-slate-300'}`
-          }
-        >
-          Account &amp; data →
-        </NavLink>
+        <div className="flex flex-col items-end gap-1">
+          <NavLink
+            to="/settings/account"
+            className={({ isActive }) =>
+              `text-sm ${isActive ? 'text-emerald-300' : 'text-ink-faint hover:text-slate-300'}`
+            }
+          >
+            Account &amp; data →
+          </NavLink>
+          {/* The optional guide; You is rebuilt in phase 3 with a Help section. */}
+          <NavLink to="/how-it-works" className="text-sm text-ink-faint hover:text-slate-300">
+            How it works →
+          </NavLink>
+        </div>
       </header>
 
       <nav

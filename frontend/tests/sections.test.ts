@@ -34,6 +34,8 @@ test('every screen with a back arrow sits below its tab', () => {
     assert.equal(screenDepth(path), 1, path)
   }
   assert.equal(screenDepth('/day/2026-10-10/meal/42'), 2)
+  assert.equal(screenDepth('/how-it-works'), 1)
+  assert.equal(sectionFor('/how-it-works'), 'you')
 })
 
 test('pushing slides in, coming back slides back, a tab crossfades', () => {
