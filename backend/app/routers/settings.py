@@ -1,9 +1,10 @@
 import json
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..auth.deps import get_current_user
+from ..calculations import KCAL_PER_G_CARB, KCAL_PER_G_FAT, KCAL_PER_G_PROTEIN
 from ..db import get_db
 from ..models import Setting, User
 from ..schemas import BodyTargets, Settings
@@ -95,6 +96,36 @@ def get_targets(
     return compute_targets(db, _get_or_create(db, user.id))
 
 
+def _refuse_goals_that_cannot_add_up(settings: Settings) -> None:
+    """Typed goals whose tracked macros need more calories than the total.
+
+    Protein is always tracked; carbs and fat count only when switched on,
+    since an untracked goal is never shown. Checked only when a goal changes,
+    so an account saved before this rule can still save everything else.
+    Ten kcal of slack covers whole-gram rounding.
+    """
+    parts = [("protein", settings.protein_goal * KCAL_PER_G_PROTEIN)]
+    if settings.track_carbs:
+        parts.append(("carbs", settings.carbs_goal * KCAL_PER_G_CARB))
+    if settings.track_fat:
+        parts.append(("fat", settings.fat_goal * KCAL_PER_G_FAT))
+    needed = sum(kcal for _, kcal in parts)
+    if needed > settings.calorie_goal + 10:
+        names = [name for name, _ in parts]
+        which = (
+            names[0].capitalize() + " alone needs" if len(names) == 1
+            else ", ".join(names[:-1]).capitalize() + f" and {names[-1]} need"
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"{which} {round(needed):,} kcal a day, more than the "
+                f"{round(settings.calorie_goal):,} kcal target. Lower "
+                f"{'it' if len(names) == 1 else 'one of them'}, or raise calories."
+            ),
+        )
+
+
 @router.put("", response_model=Settings)
 def update_settings(
     settings: Settings,
@@ -125,9 +156,12 @@ def update_settings(
     """
     row = _get_or_create(db, user.id)
     goals = ("calorie_goal", "protein_goal", "carbs_goal", "fat_goal")
+    changed = any(getattr(row, name) != getattr(settings, name) for name in goals)
+    if changed and not settings.targets_auto:
+        _refuse_goals_that_cannot_add_up(settings)
     # A changed goal is a chosen target. Compared before the assignment below,
     # because every PUT sends all four whether or not they moved.
-    if any(getattr(row, name) != getattr(settings, name) for name in goals):
+    if changed:
         row.target_set = True
     # On only, never off: see schemas.Settings.target_set.
     if "target_set" in settings.model_fields_set and settings.target_set:
