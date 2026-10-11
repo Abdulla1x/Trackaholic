@@ -23,7 +23,6 @@ const MAX_MODAL_NOTES = 3
 
 type View =
   | { kind: 'hidden' }
-  | { kind: 'welcome'; total: number }
   | { kind: 'notes'; shown: Announcement[]; pending: string[]; remaining: number }
 
 /** "What's new", shown once per release note per device.
@@ -32,28 +31,32 @@ type View =
  * older-dated note, or shipping two at once, can't silently skip one. */
 export default function AnnouncementsModal({
   items,
+  hold = false,
   onShownChange,
 }: {
   items: Announcement[]
+  /** True while the account has not chosen a target: someone getting started
+   *  sees no release notes. Nothing is marked seen meanwhile, so a note
+   *  published in that time still shows once they are set up. */
+  hold?: boolean
   /** Told when the notes open and close, so a popup waiting behind them
-   *  opens only after. The first-run view marks every note seen as it OPENS,
-   *  so the seen list alone cannot say whether the notes are on screen. */
+   *  opens only after. */
   onShownChange?: (shown: boolean) => void
 }) {
   const [view, setView] = useState<View>({ kind: 'hidden' })
 
   useEffect(() => {
-    if (items.length === 0) return
+    if (items.length === 0 || hold) return
 
-    // First run on this device. Every note is marked seen without being shown:
-    // the backlog is history this account was not present for, and a changelog
-    // is the wrong first thing to meet. Capping the *display* while leaving the
-    // rest unseen would be worse than not capping -- the next reload would serve
-    // the next three, and the one after that the next three.
+    // First run on this device. Every note is marked seen, silently: the
+    // backlog is history this account was not present for, and a changelog is
+    // the wrong first thing to meet. It used to open a "Welcome" view saying
+    // so; a brand-new user now meets no popup at all (decided 2026-10-11).
+    // Capping the *display* while leaving the rest unseen would be worse than
+    // not capping -- the next reload would serve the next three, and the one
+    // after that the next three.
     if (!hasEverSeenAnnouncements()) {
       markAnnouncementsSeen(items.map((item) => item.id))
-      setView({ kind: 'welcome', total: items.length })
-      onShownChange?.(true)
       return
     }
 
@@ -70,7 +73,7 @@ export default function AnnouncementsModal({
       pending: unseen.map((item) => item.id),
       remaining: Math.max(0, unseen.length - MAX_MODAL_NOTES),
     })
-  }, [items, onShownChange])
+  }, [items, hold, onShownChange])
 
   if (view.kind === 'hidden') return null
 
@@ -88,50 +91,37 @@ export default function AnnouncementsModal({
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">
           <span aria-hidden="true">✨</span>{' '}
-          {view.kind === 'welcome' ? 'Welcome' : 'What’s new'}
+          What’s new
         </h2>
         <button onClick={close} aria-label="Close" className="text-ink-faint hover:text-slate-300">
           ✕
         </button>
       </div>
 
-      {view.kind === 'welcome' ? (
-        <p className="text-sm text-slate-300">
-          You’re all set — there’s nothing to catch up on. The {view.total} release notes
-          written before you arrived are in{' '}
+      <ul className="space-y-4">
+        {view.shown.map((item) => (
+          <li key={item.id} className="rounded-control border border-line bg-slate-800/40 p-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-sm font-semibold text-emerald-300">{item.title}</h3>
+              <time dateTime={item.date} className="shrink-0 text-[11px] text-ink-faint">
+                {parseIsoDate(item.date).toLocaleDateString(undefined, {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </time>
+            </div>
+            <AnnouncementBody text={item.body} />
+          </li>
+        ))}
+      </ul>
+      {view.remaining > 0 && (
+        <p className="mt-3 text-center text-xs text-ink-faint">
+          and {view.remaining} older {view.remaining === 1 ? 'note' : 'notes'} in{' '}
           <Link to="/whats-new" className="text-emerald-400 underline hover:text-emerald-300">
             What’s new
-          </Link>{' '}
-          if you ever want the history.
+          </Link>
         </p>
-      ) : (
-        <>
-          <ul className="space-y-4">
-            {view.shown.map((item) => (
-              <li key={item.id} className="rounded-control border border-line bg-slate-800/40 p-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-emerald-300">{item.title}</h3>
-                  <time dateTime={item.date} className="shrink-0 text-[11px] text-ink-faint">
-                    {parseIsoDate(item.date).toLocaleDateString(undefined, {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </time>
-                </div>
-                <AnnouncementBody text={item.body} />
-              </li>
-            ))}
-          </ul>
-          {view.remaining > 0 && (
-            <p className="mt-3 text-center text-xs text-ink-faint">
-              and {view.remaining} older {view.remaining === 1 ? 'note' : 'notes'} in{' '}
-              <Link to="/whats-new" className="text-emerald-400 underline hover:text-emerald-300">
-                What’s new
-              </Link>
-            </p>
-          )}
-        </>
       )}
 
       <Button

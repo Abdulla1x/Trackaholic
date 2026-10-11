@@ -35,7 +35,7 @@ import {
   type Question,
   type SetupScreen,
 } from '../lib/setup'
-import { readLocal, writeLocal } from '../lib/storage'
+import { accountKey, readLocal, removeLocal, writeLocal } from '../lib/storage'
 import { CHANGE_TRACKERS, TRACKERS, withTracker } from '../lib/trackers'
 import { KG_PER_LB } from '../lib/units'
 import { useSettings } from '../settings/SettingsContext'
@@ -60,7 +60,7 @@ const TITLES: Record<Question, string> = {
 /** The answers so far, per account, so a reload or a closed tab picks up
  *  where it left off and a second account on the same phone starts fresh.
  *  Cleared once the target is saved. */
-const draftKey = (userId: number) => `trackaholic_setup_draft:${userId}`
+const draftKey = (userId: number) => accountKey('trackaholic_setup_draft', userId)
 
 function readDraft(userId: number): Answers | null {
   const raw = readLocal(draftKey(userId))
@@ -271,7 +271,7 @@ export default function Setup() {
     }
     try {
       const saved = await updateSettings(autoSettings(settings, a, rate))
-      writeLocal(draftKey(userId), '')
+      removeLocal(draftKey(userId))
       toast.show({
         text: `Your target: ${Math.round(saved.calorie_goal).toLocaleString()} kcal and ${Math.round(saved.protein_goal)} g protein. A guide, not a rule.`,
       })
@@ -288,7 +288,7 @@ export default function Setup() {
     setSaveProblem(null)
     try {
       const saved = await updateSettings(ownSettings(settings, a))
-      writeLocal(draftKey(userId), '')
+      removeLocal(draftKey(userId))
       toast.show({
         text: `Your target: ${Math.round(saved.calorie_goal).toLocaleString()} kcal and ${Math.round(saved.protein_goal)} g protein. A guide, not a rule.`,
       })

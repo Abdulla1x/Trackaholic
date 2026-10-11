@@ -164,6 +164,19 @@
   /* Server waking (DESIGN.md): six segments light in turn where a spinner
    * would be; each segment's delay is set where it is drawn. */
   --animate-wake-segment: wake-segment 1.2s ease-in-out infinite;
+
+  /* First target (DESIGN.md): the gauge draws in from the left while the
+   * number counts up, over the same 900ms. */
+  --animate-gauge-draw: gauge-draw 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes gauge-draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 @keyframes wake-segment {
@@ -312,6 +325,7 @@
     /* Loops stop: the block is simply there. */
     --animate-shimmer: none;
     --animate-wake-segment: none;
+    --animate-gauge-draw: route-in 120ms linear both;
     --animate-rise: route-in 120ms linear backwards;
     --animate-unlock: route-in 120ms linear both;
   }

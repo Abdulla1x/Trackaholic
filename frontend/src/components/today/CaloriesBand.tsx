@@ -4,7 +4,9 @@ import { useOnTargetMoment } from '../../hooks/useOnTargetMoment'
 import { calorieBalance, litSegments, type DayTotals } from '../../lib/today'
 import Gauge from '@/ui/gauge'
 import { NextIcon } from '@/ui/icons'
+import CountUp from '@/ui/count-up'
 import RollingNumber from '@/ui/rolling-number'
+import { cn } from '@/lib/utils'
 
 export interface BandTargets {
   calorie_goal: number
@@ -77,6 +79,7 @@ export default function CaloriesBand({
   eaten,
   targets,
   targetSet,
+  firstTarget = false,
   caption,
   trackCarbs,
   trackFat,
@@ -86,6 +89,9 @@ export default function CaloriesBand({
   eaten: DayTotals
   targets: BandTargets
   targetSet: boolean
+  /** The First target moment: the number counts up from zero and the gauge
+   *  draws in, once, right after setup. */
+  firstTarget?: boolean
   caption?: string
   trackCarbs: boolean
   trackFat: boolean
@@ -175,7 +181,7 @@ export default function CaloriesBand({
       ) : (
         <p className="flex items-end gap-3">
           <span className="text-display-number desk:text-[132px]">
-            <RollingNumber value={amount} />
+            {firstTarget ? <CountUp value={amount} /> : <RollingNumber value={amount} />}
           </span>
           <span className="pb-1.5 text-small text-band-ink-2">
             of <b className="font-semibold text-band-ink">{n(targets.calorie_goal)}</b>
@@ -190,7 +196,7 @@ export default function CaloriesBand({
         target
         lift={moment}
         tone="band"
-        className="h-3.5"
+        className={cn('h-3.5', firstTarget && 'animate-gauge-draw')}
       />
       {(over || caption) && (
         <div className="grid gap-0.5 text-small text-band-ink-2">

@@ -12,7 +12,7 @@
 // Same reasoning lib/dismissals.ts gives for living in localStorage: a UI
 // preference, not user data.
 
-import { readLocal, writeLocal } from './storage'
+import { accountKey, readLocal, writeLocal } from './storage'
 
 /** How many ids to remember. Twice the six Saved meals shows, so the visible row
  *  keeps settling as habits change instead of being pinned by one busy week,
@@ -23,7 +23,7 @@ const REMEMBERED = 12
  *  signed in on it, and template ids are small integers assigned per user -- so
  *  an unkeyed list would let one account float a template in another's Saved meals
  *  purely because the two ids collided. */
-const keyFor = (userId: number) => `macros_recent_templates:${userId}`
+const keyFor = (userId: number) => accountKey('macros_recent_templates', userId)
 
 export function recentTemplateIds(userId: number): number[] {
   const raw = readLocal(keyFor(userId))

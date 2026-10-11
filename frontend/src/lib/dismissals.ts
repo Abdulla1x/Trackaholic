@@ -37,11 +37,12 @@ export function hasEverSeenAnnouncements(): boolean {
 }
 
 /** Whether the release-notes popup has something to show on this device:
- *  the first-run view, or any note not yet seen. Read synchronously, so a
- *  popup that must not open on top of the notes can wait for them first. */
+ *  any note not yet seen. A device's first run shows none (they are marked
+ *  seen silently). Read synchronously, so a popup that must not open on top
+ *  of the notes can wait for them first. */
 export function announcementsWaiting(items: readonly { id: string }[]): boolean {
   if (items.length === 0) return false
-  if (!hasEverSeenAnnouncements()) return true
+  if (!hasEverSeenAnnouncements()) return false
   const seen = seenAnnouncementIds()
   return items.some((item) => !seen.includes(item.id))
 }
