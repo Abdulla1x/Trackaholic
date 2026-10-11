@@ -109,7 +109,9 @@ export default function Day() {
               )}
             </StatGrid>
             {caption && <p className="text-small text-ink-2">{caption}</p>}
-            {balance.over && (
+            {/* The stat above stays exact ("Over 8"); the reassurance is for a
+                day past the on-target band, as on Today's band. */}
+            {balance.over && !balance.onTarget && (
               <p className="text-small text-ink-2">Over is fine. The week evens out, or make it up below.</p>
             )}
           </>

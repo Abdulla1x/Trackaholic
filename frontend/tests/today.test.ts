@@ -78,9 +78,27 @@ test('a gauge fills towards its goal and stops there', () => {
 })
 
 test('the headline is always positive; over says which way', () => {
-  assert.deepEqual(calorieBalance(860.4, 2100), { amount: 1240, over: false })
-  assert.deepEqual(calorieBalance(2100, 2100), { amount: 0, over: false })
-  assert.deepEqual(calorieBalance(2350, 2100), { amount: 250, over: true })
+  assert.deepEqual(calorieBalance(860.4, 2100), { amount: 1240, over: false, onTarget: false })
+  assert.deepEqual(calorieBalance(2100, 2100), { amount: 0, over: false, onTarget: true })
+  assert.deepEqual(calorieBalance(2350, 2100), { amount: 250, over: true, onTarget: false })
+})
+
+test('within 2% of the target, either side, the day is on target', () => {
+  const on = (eaten: number, target = 2000) => calorieBalance(eaten, target).onTarget
+  // 2% of 2,000 is 40 kcal, and the edge is inside, as in the weekly review.
+  assert.equal(on(1959), false)
+  assert.equal(on(1960), true)
+  assert.equal(on(1995), true)
+  assert.equal(on(2008), true)
+  assert.equal(on(2040), true)
+  assert.equal(on(2041), false)
+  // It scales with the target: 30 kcal on 1,500.
+  assert.equal(on(1530, 1500), true)
+  assert.equal(on(1531, 1500), false)
+  // Over and under stay exact underneath, for the screens that show them.
+  assert.equal(calorieBalance(2008, 2000).over, true)
+  // No target, nothing to be on.
+  assert.equal(on(0, 0), false)
 })
 
 test('the viewed day is a real past date from the address, or today', () => {

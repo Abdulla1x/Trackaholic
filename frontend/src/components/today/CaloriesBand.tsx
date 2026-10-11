@@ -35,6 +35,12 @@ function Unit({ children }: { children: ReactNode }) {
  *  tick, then Eaten and Protein as fields; carbs and fat join them only when
  *  tracked, and are never mentioned otherwise.
  *
+ *  Within 2% of the target, either side, the headline is the words "On
+ *  target" instead of a number. Nothing under it argues back ("8 kcal over"
+ *  would), and the exact figure moves into Eaten as "2,008 / 2,000 kcal", the
+ *  way Protein shows its goal, so the target is still on screen once (chosen
+ *  from a prototype, 2026-10-11).
+ *
  *  Tapping anywhere on it opens the day in detail, where calorie plans live.
  *
  *  Going over is drawn calmly: the label changes to "Kcal over", the gauge is
@@ -55,7 +61,9 @@ export default function CaloriesBand({
   trackCarbs: boolean
   trackFat: boolean
 }) {
-  const { amount, over } = calorieBalance(eaten.calories, targets.calorie_goal)
+  const { amount, over: past, onTarget } = calorieBalance(eaten.calories, targets.calorie_goal)
+  // Over in words only beyond the band: 8 kcal over is on target.
+  const over = past && !onTarget
   const macro = (value: number, goal: number) => (
     <Gauge
       segments={10}
@@ -71,7 +79,7 @@ export default function CaloriesBand({
       className="relative -mx-4 grid grid-cols-[minmax(0,1fr)] gap-2.5 border-b border-band-rule bg-band px-4 pt-3.5 text-band-ink desk:mx-0 desk:px-7 desk:pt-5"
     >
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-field-label text-band-ink-2">{over ? 'Kcal over' : 'Kcal left'}</h2>
+        <h2 className="text-field-label text-band-ink-2">{onTarget ? 'Calories' : over ? 'Kcal over' : 'Kcal left'}</h2>
         {/* The whole band opens the day in detail: this link's hit area is
             stretched over it (after:inset-0), so the band is one big target
             with one short, honest name, rather than a link whose name would
@@ -84,16 +92,22 @@ export default function CaloriesBand({
           <NextIcon size={14} aria-hidden="true" />
         </Link>
       </div>
-      <p className="flex items-end gap-3">
-        <span className="text-display-number desk:text-[132px]">
-          <RollingNumber value={amount} />
-        </span>
-        <span className="pb-1.5 text-small text-band-ink-2">
-          of <b className="font-semibold text-band-ink">{n(targets.calorie_goal)}</b>
-          <br />
-          target
-        </span>
-      </p>
+      {onTarget ? (
+        // The display style at about two thirds of the number's size: nine
+        // characters at 92px would not fit a phone.
+        <p className="pb-1 text-display-number text-[58px] leading-[0.9] desk:text-[84px]">On target</p>
+      ) : (
+        <p className="flex items-end gap-3">
+          <span className="text-display-number desk:text-[132px]">
+            <RollingNumber value={amount} />
+          </span>
+          <span className="pb-1.5 text-small text-band-ink-2">
+            of <b className="font-semibold text-band-ink">{n(targets.calorie_goal)}</b>
+            <br />
+            target
+          </span>
+        </p>
+      )}
       <Gauge
         segments={20}
         lit={litSegments(eaten.calories, targets.calorie_goal, 20)}
@@ -121,7 +135,7 @@ export default function CaloriesBand({
       <div className="grid grid-cols-2 border-t border-band-rule">
         <Field label="Eaten">
           <RollingNumber value={eaten.calories} />
-          <Unit>kcal</Unit>
+          <Unit>{onTarget ? `/ ${n(targets.calorie_goal)} kcal` : 'kcal'}</Unit>
         </Field>
         <Field label="Protein" meter={macro(eaten.protein, targets.protein_goal)}>
           <RollingNumber value={eaten.protein} />
