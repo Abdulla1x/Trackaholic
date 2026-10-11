@@ -36,12 +36,16 @@ export default function Gauge({
   lit,
   target = false,
   tone = 'ground',
+  lift,
   className,
 }: {
   segments: number
   lit: number
   target?: boolean
   tone?: keyof typeof TONES
+  /** Lift the target tick once, after this many ms: reaching the target
+   *  (DESIGN.md Motion: On target). */
+  lift?: number | null
   className?: string
 }) {
   const colours = TONES[tone]
@@ -91,7 +95,15 @@ export default function Gauge({
           )}
         </i>
       ))}
-      {target && <i className={colours.plan} />}
+      {target && (
+        <i
+          className={cn(
+            colours.plan,
+            lift != null && 'animate-tick-lift [animation-delay:var(--lift)] motion-reduce:[animation-delay:0ms]',
+          )}
+          style={lift != null ? ({ '--lift': `${lift}ms` } as CSSProperties) : undefined}
+        />
+      )}
     </span>
   )
 }

@@ -78,11 +78,24 @@ export function litSegments(value: number, goal: number, segments: number): numb
   return Math.round((Math.min(value, goal) / goal) * segments)
 }
 
-/** The headline number: calories left, or by how much the day went over. The
- *  number shown is always positive; `over` says which word goes above it. */
-export function calorieBalance(eaten: number, target: number): { amount: number; over: boolean } {
-  const left = Math.round(target) - Math.round(eaten)
-  return { amount: Math.abs(left), over: left < 0 }
+/** How close to the day's target counts as on it, either side, as a fraction
+ *  of the target: 40 kcal on 2,000. Mirrors INTAKE_TOLERANCE_FRACTION in
+ *  backend/app/review.py, so a week the review calls on track is made of days
+ *  Today called on target. Change both or neither. */
+export const ON_TARGET_FRACTION = 0.02
+
+/** The headline: calories left, or by how much the day went over, and whether
+ *  that is close enough to call on target. `amount` is always positive; `over`
+ *  says which side of the target it is on, exactly, to the calorie.
+ *  `onTarget` is the band around it: a few calories either way is not worth a
+ *  word of its own, let alone "over" (decided 2026-10-11, at 2%). */
+export function calorieBalance(
+  eaten: number,
+  target: number,
+): { amount: number; over: boolean; onTarget: boolean } {
+  const goal = Math.round(target)
+  const left = goal - Math.round(eaten)
+  return { amount: Math.abs(left), over: left < 0, onTarget: goal > 0 && Math.abs(left) <= goal * ON_TARGET_FRACTION }
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/

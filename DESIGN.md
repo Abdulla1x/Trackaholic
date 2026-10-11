@@ -220,7 +220,8 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 ### The calories band (signature)
 - **What:** the top of Today. A "KCAL LEFT" (or "KCAL OVER") label, the display number, "of 2,100 target", a 20-segment gauge with the plan-coloured target tick, then two fields: Eaten and Protein (with a 10-segment bar).
 - **Colour:** the palette's band colour. In Daylight the band is the ground; in the other palettes it is a deep coloured panel with light ink.
-- **Over target:** the gauge is full, the label reads "KCAL OVER", and one plain line reads "Over is fine. The week evens out." with a link to spread it.
+- **On target:** within 2% of the day's target, either side (40 kcal on 2,000; the weekly review uses the same band), the label reads "CALORIES" and the display number is replaced by the words "On target" (58px phone / 84px desktop), with nothing under them. Eaten reads "2,008 / 2,000 kcal", like Protein, so the target is still on screen once. "Kcal left" and "Kcal over" stay exact outside the band.
+- **Over target:** past the band, the gauge is full, the label reads "KCAL OVER", and one plain line reads "Over is fine. The week evens out." with a link to spread it.
 - **Tap:** opens the day in detail, with calorie plans.
 - **Carbs and fat:** when switched on, they are added as fields under protein. When off, nothing mentions them.
 
@@ -326,6 +327,7 @@ Motion says what changed. Nothing moves for decoration. Animations are built wit
 - **Delete:** the struck-through line draws its strike (350ms); the Undo bar drains linearly over 10 seconds; the line then folds closed (280ms).
 - **Unlock:** a locked Progress section is replaced by its content (350ms), and its trend line draws itself (1.1s).
 - **Charts:** a range change redraws the trend line (700ms) and grows the bars from the baseline.
+- **On target:** when a meal logged today brings the day within 2% of its target, the gauge sweeps as usual, the target tick lifts once in the action colour (620ms), and "On target" rolls up into place (420ms) as the sweep ends. Once a day per device; never on first sight of a day, a past day, or leaving the band. Chosen ("Settle") over a ripple along the gauge, from a prototype.
 - **Weekly review:** the checks appear one by one (80ms apart).
 - **Once-a-day rewards:** ticking the last supplement pops the checkboxes in turn; reaching the water goal ripples the meter. Each shows once per day.
 - **Server waking:** six segments light in sequence where a spinner would be.
@@ -404,6 +406,7 @@ Wry, in small doses. Humour lives in quiet, good moments. Errors, going over a t
 | Weekly review, nothing to fix | Nothing to fix this week. Carry on. |
 | Server waking up | Waking the server. It's on a free plan and naps a lot. About a minute; you can keep going. |
 | Target set | Your target: 2,100 kcal and 150 g protein. A guide, not a rule. |
+| Within 2% of the calorie target | On target |
 | Over the calorie target (plain) | Over is fine. The week evens out. Spread it across the next few days if you like. |
 | A save fails (plain) | That didn't save. Check your connection, then try again. |
 | Deleting an account (plain) | This deletes everything: meals, weigh-ins, foods. It can't be undone. |
