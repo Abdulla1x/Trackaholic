@@ -269,6 +269,8 @@ export interface BodyTargets {
   max_gain_kg_per_week?: number | null
   floor_kcal?: number | null
   loss_refused?: boolean
+  /** The weight trend reached the goal weight, so the plan maintains. */
+  goal_reached?: boolean
   /** Protein's g/kg for the goal, the range around the target, and the weight
    *  it is worked out from (capped at BMI 30). */
   protein_g_per_kg?: number | null

@@ -24,6 +24,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .calculations import (
+    GOAL_REACHED_TOLERANCE_KG,
     RATE_WINDOW_DAYS,
     TDEE_MIN_LOGGED_DAYS,
     TDEE_MIN_LOGGED_FRACTION,
@@ -131,6 +132,8 @@ class TargetsResult:
     max_gain_kg_per_week: float | None = None
     floor_kcal: float | None = None
     loss_refused: bool = False
+    # The trend has reached the goal weight, so the plan maintains.
+    goal_reached: bool = False
     # Protein: grams per kg for the goal and "What matters most?", the range
     # around it, and the weight it is worked out from (capped at BMI 30).
     protein_g_per_kg: float | None = None
@@ -358,9 +361,23 @@ def compute_targets(
     tdee = measured if measured is not None else estimated
     tdee_source = "measured" if measured is not None else "estimated"
 
+    # At the goal weight, maintain. The trend (not one reading) has to reach
+    # it, within the tolerance Progress uses to call a goal reached; drift
+    # back past it and the plan heads for the goal again, which is what
+    # keeping a goal weight means. Worked out each time rather than stored, so
+    # nothing has to be undone when the goal changes.
+    rate = setting.goal_rate_kg_per_week
+    goal = setting.goal_weight_kg
+    goal_reached = goal is not None and (
+        (rate < 0 and weight_kg <= goal + GOAL_REACHED_TOLERANCE_KG)
+        or (rate > 0 and weight_kg >= goal - GOAL_REACHED_TOLERANCE_KG)
+    )
+    if goal_reached:
+        rate = 0.0
+
     target = target_calories(
         tdee,
-        setting.goal_rate_kg_per_week,
+        rate,
         setting.sex,
         weight_kg=weight_kg,
         height_cm=setting.height_cm,
@@ -374,7 +391,14 @@ def compute_targets(
     # Both clamps can fire at once and both are the user's business: one says
     # the burn was implausible, the other that the requested rate was. Joined
     # rather than prioritised, the way target_calories already joins its two.
-    clamp_reasons = [r for r in (measure_clamp, target.clamped_reason) if r]
+    reached_note = (
+        f"You've reached your goal weight of {goal:g} kg, so this now plans "
+        f"to maintain. Set a new goal any time."
+        if goal_reached else None
+    )
+    clamp_reasons = [
+        r for r in (measure_clamp, reached_note, target.clamped_reason) if r
+    ]
 
     return TargetsResult(
         missing=[],
@@ -399,6 +423,7 @@ def compute_targets(
         max_gain_kg_per_week=target.max_gain_kg_per_week,
         floor_kcal=target.floor_kcal,
         loss_refused=target.loss_refused,
+        goal_reached=goal_reached,
         protein_g_per_kg=per_kg,
         protein_low_g=float(round(per_kg_low * reference_kg)),
         protein_high_g=float(round(per_kg_high * reference_kg)),

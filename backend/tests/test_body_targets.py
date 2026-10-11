@@ -499,3 +499,31 @@ def test_deleting_a_weigh_in_recomputes_the_target_without_it(client):
 
     assert client.delete(f"/api/weights/{typo['id']}").status_code == 204
     assert settings(client)["calorie_goal"] == before
+
+
+def test_at_the_goal_weight_the_plan_maintains_and_says_so(client):
+    weigh_in(client, 80.0)
+    set_profile(client, targets_auto=True, goal_weight_kg=80.0)  # losing 0.5
+
+    body = targets(client)
+    assert body["goal_reached"] is True
+    assert body["applied_rate_kg_per_week"] == 0
+    assert body["target_calories"] == round(body["tdee"])
+    assert "reached your goal weight of 80 kg" in body["clamped_reason"]
+
+
+def test_short_of_the_goal_the_plan_keeps_heading_for_it(client):
+    weigh_in(client, 80.0)
+    set_profile(client, targets_auto=True, goal_weight_kg=75.0)
+
+    body = targets(client)
+    assert body["goal_reached"] is False
+    assert body["applied_rate_kg_per_week"] == -0.5
+
+
+def test_a_gaining_plan_maintains_once_the_goal_is_reached(client):
+    weigh_in(client, 80.0)
+    set_profile(
+        client, targets_auto=True, goal_weight_kg=79.95, goal_rate_kg_per_week=0.25
+    )
+    assert targets(client)["goal_reached"] is True
