@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { localIsoDate } from '../../lib/dates'
+import { useEstimateDay } from './estimateDay'
 import { dateParam, dayOnShow, logDepth, logScreen, withLog, withoutLog, type LogScreen } from './logPanelUrl'
 
 /** What a screen can hand the by-hand form through router state. */
@@ -22,19 +23,22 @@ export function useLogPanel() {
   const navigate = useNavigate()
   const screen = logScreen(location.search)
   const depth = logDepth(location.state)
+  const estimateDay = useEstimateDay()
 
   /** Open the panel over the current page, or move to another screen of it.
    *  Always a new history entry, so Back undoes exactly this step.
    *
-   *  Opened with no `date`, the panel is for the day the page is showing:
-   *  logging from yesterday on Today, or from a past day in detail, is for
-   *  that day. Inside the panel, no `date` keeps the one it has. */
+   *  Opened with no `date`, the panel is for the day of the AI estimate in
+   *  play, if there is one, so the estimate lands on the day it was started
+   *  for. Otherwise it is for the day the page is showing: logging from
+   *  yesterday on Today, or from a past day in detail, is for that day.
+   *  Inside the panel, no `date` keeps the one it has. */
   const open = useCallback(
     (target: LogScreen = 'start', options: { date?: string | null; state?: LogState } = {}) => {
       let date = options.date
       if (date === undefined && !screen) {
         const today = localIsoDate()
-        date = dateParam(dayOnShow(location.pathname, location.search, today), today)
+        date = dateParam(estimateDay ?? dayOnShow(location.pathname, location.search, today), today)
       }
       navigate(
         { pathname: location.pathname, search: withLog(location.search, target, date) },
@@ -49,7 +53,7 @@ export function useLogPanel() {
         },
       )
     },
-    [navigate, location.pathname, location.search, screen, depth],
+    [navigate, location.pathname, location.search, screen, depth, estimateDay],
   )
 
   /** Change the day without adding a history entry: picking "Yesterday" is not

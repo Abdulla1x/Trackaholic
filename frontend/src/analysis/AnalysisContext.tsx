@@ -8,6 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
+import { useLocation } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAnalysisProgress } from '../hooks/useAnalysisProgress'
 import { useAudioRecorder, voiceNoteFilename } from '../hooks/useAudioRecorder'
@@ -17,7 +18,10 @@ import { clearNoteDraft, readNoteDraft, writeNoteDraft } from '../lib/draft'
 import { downscaleForUpload } from '../lib/photoDownscale'
 import type { Food, MealAnalysisResponse } from '../types'
 import { useToast } from '../ui/toast'
+import { EstimateDayContext } from '../components/log/estimateDay'
+import { dateParam, logDate } from '../components/log/logPanelUrl'
 import { useLogPanel } from '../components/log/useLogPanel'
+import { localIsoDate } from '../lib/dates'
 
 // Mirrors MAX_IMAGES in backend/app/routers/ai.py, which is the real limit --
 // this copy exists only so the UI can stop you before a round trip does. If the
@@ -69,6 +73,11 @@ interface AnalysisState {
   /** Called by whatever shows the estimate, for as long as it is on screen.
    *  Returns the cleanup. */
   watch: () => () => void
+  /** The day the estimate is for: the Log panel's day when Analyze was
+   *  pressed, moved with the panel's day picker after that. Null before the
+   *  first analysis and after a reset. */
+  day: string | null
+  setDay: (day: string) => void
   /** Clear everything for the next meal: note, photos, estimate, attachments. */
   reset: () => void
 }
@@ -96,6 +105,11 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   const { open: openLog } = useLogPanel()
   const openLogRef = useRef(openLog)
   openLogRef.current = openLog
+  // The address the Log panel is reading, for the day an analysis is started
+  // for. A ref, so the analysis reads it as it was when Analyze was pressed.
+  const { search } = useLocation()
+  const searchRef = useRef(search)
+  searchRef.current = search
   const [note, setNote] = useState(readNoteDraft)
   const noteRef = useRef<HTMLTextAreaElement>(null)
   const [files, setFiles] = useState<File[]>([])
@@ -116,6 +130,10 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   // back to itself a moment later, dressed up as an independent source.
   const [savedToLibrary, setSavedToLibrary] = useState<Record<string, string>>({})
   const [unseen, setUnseen] = useState(false)
+  // The day the estimate is for. It travels with the estimate rather than with
+  // the address: the panel can be closed while the model works, and reopened
+  // from a toast or the Log button on a page showing another day.
+  const [day, setDay] = useState<string | null>(null)
 
   // What the estimate on screen was built from, and -- when a button was
   // pressed with nothing changed since -- which one, so the question can run it
@@ -316,6 +334,13 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     setAnalyzing(true)
     setUnseen(false)
     setError(null)
+    // Pressed inside the Log panel, so its address says which day this is for.
+    // Kept as a date, not "today": a meal started at 23:58 belongs to that day.
+    const forDay = logDate(searchRef.current) ?? localIsoDate()
+    setDay(forDay)
+    // The toasts below reopen the panel on this day. This provider sits above
+    // its own EstimateDayContext, so useLogPanel cannot read it here.
+    const reopen = () => openLogRef.current('start', { date: dateParam(forDay, localIsoDate()) })
     // Photos are what make a body worth showing a bar for. A note-only analysis
     // uploads a few hundred bytes and goes straight to waiting on the model.
     // Shrunk on this device first (lib/photoDownscale.ts). Usually already
@@ -346,7 +371,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         setUnseen(true)
         readyToast.current = toast.show({
           text: 'Your estimate is ready.',
-          action: { label: 'View', onSelect: () => openLogRef.current() },
+          action: { label: 'View', onSelect: reopen },
         })
       }
     } catch (err) {
@@ -357,7 +382,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       if (watchers.current === 0) {
         toast.show({
           text: "The estimate didn't come through.",
-          action: { label: 'See why', onSelect: () => openLogRef.current() },
+          action: { label: 'See why', onSelect: reopen },
         })
       }
     } finally {
@@ -389,6 +414,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     setUnchangedRerun(null)
     setError(null)
     setUnseen(false)
+    setDay(null)
     lastSent.current = null
   }
 
@@ -428,10 +454,15 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         correctAssumption,
         unseen,
         watch,
+        day,
+        setDay,
         reset,
       }}
     >
-      {children}
+      {/* Only while an estimate is in play: one that failed before giving an
+          answer holds nothing to land, so the panel goes back to opening on
+          the page's own day. */}
+      <EstimateDayContext.Provider value={analyzing || analysis ? day : null}>{children}</EstimateDayContext.Provider>
     </AnalysisContext.Provider>
   )
 }

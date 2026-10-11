@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { useAnalysis } from '../../analysis/AnalysisContext'
 import MealAnalyzer from '../MealAnalyzer'
 import MealCodeInput from '../MealCodeInput'
 import { localIsoDate } from '../../lib/dates'
 import { NextIcon } from '@/ui/icons'
 import DayChips from './DayChips'
-import { logDate } from './logPanelUrl'
+import { dateParam, logDate } from './logPanelUrl'
 import MealShortcuts from './MealShortcuts'
 import { useLogPanel } from './useLogPanel'
 
@@ -19,6 +20,7 @@ const ROW =
 export default function LogStart() {
   const { search } = useLocation()
   const { open, setDate } = useLogPanel()
+  const { setDay: setEstimateDay } = useAnalysis()
   const [pasting, setPasting] = useState(false)
 
   const today = localIsoDate()
@@ -31,7 +33,16 @@ export default function LogStart() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
       {/* "For" rather than a date field: the day travels in the address, so
           the by-hand form and a saved estimate land on it. */}
-      <DayChips legend="For" value={date} onChange={(day) => setDate(day === today ? null : day)} />
+      {/* Picking a day moves an estimate in play to it too, so the estimate
+          and the address never disagree about where it will be saved. */}
+      <DayChips
+        legend="For"
+        value={date}
+        onChange={(day) => {
+          setDate(dateParam(day, today))
+          setEstimateDay(day)
+        }}
+      />
 
       <MealAnalyzer
         alwaysOpen
