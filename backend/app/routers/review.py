@@ -229,6 +229,11 @@ def build_review(db: Session, user_id: int, window_end: date_type):
     setting = _get_or_create(db, user_id)
     days = _intake_days(db, user_id, window_start, window_end)
     daily_target, plan_touched = _daily_calorie_target(db, user_id, setting, days)
+    protein_goal = float(setting.protein_goal)
+    if not setting.target_set:
+        # The stored goals are signup defaults nobody chose; the checks that
+        # compare against them answer "unknown" instead (review.py).
+        daily_target, plan_touched, protein_goal = 0.0, False, 0.0
     rate, weigh_ins, days_since = _weight_facts(db, user_id, window_end)
 
     # `today` for the target machinery is the day after the window closes, so
@@ -244,7 +249,7 @@ def build_review(db: Session, user_id: int, window_end: date_type):
         window_end=window_end,
         days=days,
         daily_calorie_target=daily_target,
-        protein_goal=float(setting.protein_goal),
+        protein_goal=protein_goal,
         plan_touched=plan_touched,
         targets=TargetsFacts(
             missing=tuple(targets.missing),
