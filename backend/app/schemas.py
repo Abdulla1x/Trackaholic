@@ -966,6 +966,16 @@ class BodyTargets(BaseModel):
     # either way it is information the user is entitled to.
     tdee_estimated: float | None = None
     tdee_basis: TdeeBasis | None = None
+    # The pace limits, so a screen can explain a target in its own words: the
+    # pace planned (signed kg a week), the fastest this person can be planned
+    # to lose or gain, the lowest target set for them, and whether a loss was
+    # refused because they are already below a healthy weight. Mirrored on
+    # targets.TargetsResult for the reason tdee_source gives.
+    applied_rate_kg_per_week: float | None = None
+    max_loss_kg_per_week: float | None = None
+    max_gain_kg_per_week: float | None = None
+    floor_kcal: float | None = None
+    loss_refused: bool = False
 
 
 class DayTotals(BaseModel):

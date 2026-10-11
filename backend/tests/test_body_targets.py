@@ -146,8 +146,14 @@ def test_an_over_ambitious_rate_is_answered_with_an_explanation(client):
     weigh_in(client, 80)
 
     body = client.get("/api/settings/targets").json()
+    # 1% of 80 kg is 0.8 kg a week: the reason names what was asked and what
+    # is planned, and the same limits travel as data for the screens.
     assert body["clamped_reason"] is not None
-    assert "Rate limited" in body["clamped_reason"]
+    assert "You asked to lose 3 kg a week" in body["clamped_reason"]
+    assert "plans 0.8 kg" in body["clamped_reason"]
+    assert body["applied_rate_kg_per_week"] == -0.8
+    assert body["max_loss_kg_per_week"] == 0.8
+    assert body["floor_kcal"] == 1500
 
 
 def test_targets_auto_rewrites_the_goals_on_save(client):

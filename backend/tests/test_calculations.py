@@ -254,38 +254,89 @@ def test_the_activity_levels_rise_in_order():
 
 def test_target_calories_applies_the_requested_rate_when_it_is_reasonable():
     # -0.5 kg/week * 7700 kcal/kg / 7 days = -550 kcal/day, off a 3000 TDEE.
-    result = target_calories(3000, -0.5, "male")
+    result = target_calories(3000, -0.5, "male", 80, 180)
     assert result.calories == 2450
     assert result.clamped_reason is None
+    assert result.applied_rate == -0.5
 
 
-def test_target_calories_reports_both_clamps_when_both_fire():
-    """Asking for -5 kg/week trips the rate cap, and the result trips the floor.
-
-    The rate is capped at -1 kg/week, giving 3000 - 1100 = 1900; the floor is
-    max(1500 absolute, 0.75 * 3000 = 2250), so 1900 is raised again. The user
-    asked for a rate and got neither it nor the target it implies, and needs
-    telling twice over.
-    """
-    result = target_calories(3000, -5, "male")
-    assert result.calories == 2250
-    assert "Rate limited" in result.clamped_reason
-    assert "Raised to" in result.clamped_reason
+def test_loss_is_capped_at_one_percent_of_body_weight_a_week():
+    """Helms 2014: 0.5-1% of body weight a week. 1% of 80 kg is 0.8 kg."""
+    result = target_calories(3000, -1, "male", 80, 180)
+    assert result.applied_rate == -0.8
+    assert result.calories == 3000 - 880
+    assert "1% of your body weight" in result.clamped_reason
+    assert "0.8 kg" in result.clamped_reason
 
 
-def test_target_calories_never_returns_below_the_floor():
-    """A legal rate can still land somewhere nobody should eat."""
-    result = target_calories(2000, -1, "female")
-    # 2000 - 1100 = 900, below both the 1200 absolute floor and the 1500
-    # fractional one (0.75 * 2000). The higher of the two wins.
+def test_loss_is_never_more_than_one_kilo_a_week_however_heavy():
+    # 1% of 130 kg would be 1.3 kg; the cap is 1 kg, measured burn or not.
+    result = target_calories(3500, -1.5, "male", 130, 185)
+    assert result.applied_rate == -1.0
+    assert result.calories == 3500 - 1100
+    assert "1 kg a week is the most" in result.clamped_reason
+
+
+def test_the_floor_limits_the_pace_and_says_which_floor():
+    # 62 kg on a 1600 burn: 1% would be 0.62 kg, but anything past 400 kcal a
+    # day (0.36 kg a week) goes under the 1,200 kcal floor for women.
+    result = target_calories(1600, -1, "female", 62, 165)
+    assert result.calories == 1200
+    assert result.max_loss_kg_per_week == pytest.approx(0.364, abs=0.001)
+    assert "below 1,200 kcal a day, the lowest target set for women" in (
+        result.clamped_reason
+    )
+
+
+def test_over_113_kg_the_floor_is_1500_for_anyone():
+    # NHLBI's weight-based guidance: 1,500 kcal or more from 250 lb.
+    result = target_calories(2400, -1, "female", 120, 170)
+    assert result.floor_kcal == 1500
     assert result.calories == 1500
-    assert "Raised to" in result.clamped_reason
+    assert "anyone over 113 kg" in result.clamped_reason
 
 
-def test_target_calories_leaves_a_surplus_alone():
-    result = target_calories(2500, 0.25, "male")
+def test_no_loss_is_planned_below_a_healthy_bmi():
+    # 50 kg at 178 cm is a BMI of 15.8: the plan maintains instead.
+    result = target_calories(2000, -0.5, "female", 50, 178)
+    assert result.loss_refused is True
+    assert result.applied_rate == 0
+    assert result.calories == 2000
+    assert "18.5" in result.clamped_reason
+
+
+def test_gain_is_capped_at_half_a_percent_of_body_weight_a_week():
+    """Iraki 2019: about 0.25-0.5% of body weight a week."""
+    result = target_calories(2500, 1, "male", 80, 180)
+    assert result.applied_rate == 0.4
+    assert result.calories == 2500 + 440
+    assert "half a percent" in result.clamped_reason
+
+
+def test_below_a_healthy_bmi_a_gain_may_add_up_to_500_kcal_a_day():
+    """NHS, underweight adults: around 300 to 500 extra calories a day."""
+    result = target_calories(2000, 1, "female", 50, 178)
+    assert result.calories == 2500
+    assert "500 kcal" in result.clamped_reason
+
+
+def test_a_burn_below_the_floor_is_raised_to_it_and_says_so():
+    result = target_calories(1100, 0, "female", 45, 150)
+    assert result.calories == 1200
+    assert "Raised to 1,200" in result.clamped_reason
+
+
+def test_target_calories_leaves_a_reasonable_surplus_alone():
+    result = target_calories(2500, 0.25, "male", 80, 180)
     assert result.calories == pytest.approx(2775, abs=1)
     assert result.clamped_reason is None
+
+
+def test_the_limits_are_reported_as_data_not_only_as_prose():
+    result = target_calories(3000, -0.5, "male", 80, 180)
+    assert result.max_loss_kg_per_week == 0.8
+    assert result.max_gain_kg_per_week == 0.4
+    assert result.floor_kcal == 1500
 
 
 def test_macro_targets_sum_back_to_the_calorie_target():
@@ -313,6 +364,13 @@ def test_macro_targets_scale_protein_with_body_weight_not_calories():
     cutting = macro_targets(1600, 80)
     maintaining = macro_targets(2400, 80)
     assert cutting["protein"] == maintaining["protein"]
+
+
+def test_fat_never_drops_below_half_a_gram_per_kilo():
+    """Iraki 2019: 0.5-1.5 g/kg. A quarter of 1,200 kcal is only 33 g."""
+    assert macro_targets(1200, 80)["fat"] == 40
+    # Above the minimum, fat stays a quarter of calories.
+    assert macro_targets(2400, 80)["fat"] == round(2400 * 0.25 / 9)
 
 
 def test_macro_targets_floor_carbs_at_zero_rather_than_going_negative():

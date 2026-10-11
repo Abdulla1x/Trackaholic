@@ -8,8 +8,8 @@ way `calculations.py` and `calibration.py` are.
 
 That is not a stylistic preference, it is the whole reason this feature is
 shaped the way it is. Every safety guarantee in this app is a clamp on a
-computed number -- `MAX_GOAL_RATE_KG_PER_WEEK`, `MIN_TARGET_KCAL`,
-`MIN_TARGET_FRACTION_OF_TDEE`, `clamp_measured_tdee` -- and **there is no clamp
+computed number -- `MAX_LOSS_FRACTION_OF_WEIGHT`, `MIN_TARGET_KCAL`,
+`UNDERWEIGHT_BMI`, `clamp_measured_tdee` -- and **there is no clamp
 on prose**. A review that told someone what to eat would route around all of it
 in one sentence. So no string built here may contain a recommended intake, rate
 or target: every number in every sentence is one the app already computed *and*
