@@ -27,6 +27,24 @@ function Field({ label, children, meter }: { label: string; children: ReactNode;
   )
 }
 
+const BAND =
+  'relative -mx-4 grid grid-cols-[minmax(0,1fr)] gap-2.5 border-b border-band-rule bg-band px-4 pt-3.5 text-band-ink desk:mx-0 desk:px-7 desk:pt-5'
+
+/** The whole band opens the day in detail: this link's hit area is stretched
+ *  over it (after:inset-0), so the band is one big target with one short,
+ *  honest name, rather than a link whose name would be every number on it. */
+function DayLink({ day }: { day: string }) {
+  return (
+    <Link
+      to={`/day/${day}`}
+      className="flex items-center gap-0.5 text-field-label text-band-ink-2 after:absolute after:inset-0 after:content-[''] hover:text-band-ink focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-action"
+    >
+      Day in detail
+      <NextIcon size={14} aria-hidden="true" />
+    </Link>
+  )
+}
+
 function Unit({ children }: { children: ReactNode }) {
   return <small className="ml-1 text-[14px] font-semibold text-band-ink-2 [font-stretch:100%]">{children}</small>
 }
@@ -79,23 +97,10 @@ export default function CaloriesBand({
   )
 
   return (
-    <section
-      aria-label="Calories"
-      className="relative -mx-4 grid grid-cols-[minmax(0,1fr)] gap-2.5 border-b border-band-rule bg-band px-4 pt-3.5 text-band-ink desk:mx-0 desk:px-7 desk:pt-5"
-    >
+    <section aria-label="Calories" className={BAND}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-field-label text-band-ink-2">{onTarget ? 'Calories' : over ? 'Kcal over' : 'Kcal left'}</h2>
-        {/* The whole band opens the day in detail: this link's hit area is
-            stretched over it (after:inset-0), so the band is one big target
-            with one short, honest name, rather than a link whose name would
-            be every number on it. */}
-        <Link
-          to={`/day/${day}`}
-          className="flex items-center gap-0.5 text-field-label text-band-ink-2 after:absolute after:inset-0 after:content-[''] hover:text-band-ink focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-action"
-        >
-          Day in detail
-          <NextIcon size={14} aria-hidden="true" />
-        </Link>
+        <DayLink day={day} />
       </div>
       {onTarget ? (
         // The display style at about two thirds of the number's size: nine
