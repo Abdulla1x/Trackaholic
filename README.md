@@ -106,6 +106,14 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - Optional **body profile** (height, date of birth, sex, activity level, goal
   weight, goal rate) turns into BMI, a daily burn, and calorie/macro targets —
   every figure shown next to the input it came from
+- **Every limit on a target comes from a source and says what it changed**:
+  activity levels from measured data (FAO/WHO/UNU), loss at most 1% of body
+  weight a week and never over 1 kg, gain at most 0.5%, no loss plan below a
+  healthy BMI, a calorie floor, and protein set by your goal, worked out from
+  weight capped at BMI 30. When a limit moves your target, the reason names
+  what you asked for and what it plans. Reach your goal weight and it switches
+  to maintaining. The rules and their sources are in
+  [`docs/goal-setting-rules.md`](docs/goal-setting-rules.md)
 - **Your daily burn is measured, not guessed**, once you have logged enough:
   roughly two weeks of weigh-ins and meals turns into a real energy-balance
   figure from your own data, shown beside what the formula would have said.
@@ -411,7 +419,7 @@ Trackaholic
 │                                #   DailyTotals, WeeklyReview, AiAccuracy, Admin, WhatsNew,
 │                                #   settings/ (five tab panels), and the four auth pages
 ├── docs/                        # AI provider runbook, the Gemini EEA-region incident write-up,
-│                                #   and the photo-size A/B note
+│                                #   the photo-size A/B note, and the goal-setting rules
 ├── scripts/                     # check.sh (all six gates), dev.sh, review-changes.sh,
 │                                #   dom-snapshot.mjs (the refactor DOM-diff harness)
 ├── screenshots/                 # desktop/ and mobile/ captures used by this README
@@ -770,6 +778,7 @@ only on the caller's data, except these public ones: `/api/health`,
 | GET | `/api/analytics/daily` | Per-day totals + averages for a date range |
 | GET/PUT | `/api/settings` | Daily goals, tracked-macro toggles, body profile, tracker goals, weigh-in reminder |
 | GET | `/api/settings/targets` | BMI, BMR, measured-or-estimated TDEE, calorie + macro targets |
+| POST | `/api/settings/targets/preview` | The target first-use setup would save, from its answers, without saving them |
 | GET | `/api/data/export` | CSV backup of every meal |
 | POST | `/api/data/import` | Restore meals from CSV, with duplicate detection |
 | GET | `/api/data/export/all` | Full JSON export of everything the account owns |
@@ -833,6 +842,13 @@ The generic foods in the search come from open national food-composition tables,
   model's estimates upward on every plate it changed. Covers the experiment design (run
   against the model's own run-to-run noise), why 1536 px shipped instead, and exactly what
   the numbers can and cannot claim.
+- [**Setting a calorie target from sources, not round numbers**](docs/goal-setting-rules.md) —
+  every rule behind a day-one target checked against a primary source before the first-use
+  screens were built. Five proposed rules didn't survive and were replaced; the activity
+  multipliers turned out to be a decades-old convention that set desk workers' targets too
+  low; and four everyday gaps turned up, from a goal weight that changed nothing to typed
+  macros that couldn't add up. Covers each rule with its source, three decisions in detail,
+  how it's tested, and where a competitor is still ahead.
 
 ---
 
