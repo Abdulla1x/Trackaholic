@@ -1,7 +1,7 @@
 // Run with `npm test` (see photoSize.test.ts for how).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { SECTION_HOME, sectionFor } from '../src/components/shell/sections.ts'
+import { SECTION_HOME, routeKey, screenDepth, screenMotion, sectionFor } from '../src/components/shell/sections.ts'
 
 test('each tab owns its pages', () => {
   assert.equal(sectionFor('/'), 'today')
@@ -25,4 +25,35 @@ test('every tab’s home is a page of that tab', () => {
 test('the day in detail and its meal screens belong to Today', () => {
   for (const path of ['/day/2026-10-09', '/day/2026-10-09/meal/12']) assert.equal(sectionFor(path), 'today', path)
   assert.equal(sectionFor('/days'), null)
+})
+
+test('every screen with a back arrow sits below its tab', () => {
+  for (const path of ['/', '/progress', '/settings', '/settings/goals', '/whats-new', '/admin']) assert.equal(screenDepth(path), 0, path)
+  for (const path of ['/day/2026-10-10', '/progress/weigh-ins', '/progress/days', '/progress/review', '/progress/accuracy']) {
+    assert.equal(screenDepth(path), 1, path)
+  }
+  assert.equal(screenDepth('/day/2026-10-10/meal/42'), 2)
+})
+
+test('pushing slides in, coming back slides back, a tab crossfades', () => {
+  assert.equal(screenMotion(null, '/progress/days'), 'fade')
+  assert.equal(screenMotion('/progress', '/progress/days'), 'push')
+  assert.equal(screenMotion('/progress/days', '/progress'), 'back')
+  assert.equal(screenMotion('/', '/day/2026-10-10'), 'push')
+  assert.equal(screenMotion('/day/2026-10-10', '/day/2026-10-10/meal/42'), 'push')
+  assert.equal(screenMotion('/day/2026-10-10/meal/42', '/day/2026-10-10'), 'back')
+  assert.equal(screenMotion('/day/2026-10-10/meal/42', '/'), 'back')
+  // Monday's review card on Today opens a Progress screen: a push.
+  assert.equal(screenMotion('/', '/progress/review'), 'push')
+  // Tabs crossfade, even from deep inside another tab.
+  assert.equal(screenMotion('/', '/progress'), 'fade')
+  assert.equal(screenMotion('/progress/review', '/'), 'fade')
+  assert.equal(screenMotion('/day/2026-10-10/meal/42', '/settings'), 'fade')
+})
+
+test('the Settings tabs share one key, so the draft survives', () => {
+  assert.equal(routeKey('/settings/goals'), routeKey('/settings/body'))
+  assert.equal(routeKey('/settings'), routeKey('/settings/account'))
+  assert.notEqual(routeKey('/progress'), routeKey('/progress/days'))
+  assert.notEqual(routeKey('/day/2026-10-10'), routeKey('/day/2026-10-10/meal/42'))
 })

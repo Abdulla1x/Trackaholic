@@ -313,7 +313,7 @@ Motion says what changed. Nothing moves for decoration. Animations are built wit
 - **Ease (default):** `cubic-bezier(0.16, 1, 0.3, 1)`, an exponential ease-out.
 - **Fast:** 150ms (tab changes: a crossfade).
 - **Base:** 240ms (most transitions).
-- **Screen push and back:** 260ms; content slides 28px from the right on push, from the left on back, and fades in.
+- **Screen push and back:** 260ms; content slides 28px from the right on push, from the left on back, and fades in. The direction comes from how deep the screen sits below its tab (a meal is below the day in detail, which is below Today), not from which button was pressed, so the phone's back button and a screen's back arrow look the same. Under reduced motion it is the plain fade. CSS keyframes, like the tab crossfade, so the first screen never waits on Motion.
 - **Log panel open:** spring, stiffness 380, damping 36. It rises from the bottom on phones and slides from the right on desktop. The scrim fades in over 200ms.
 - **Log panel close:** 240ms, `cubic-bezier(0.4, 0, 1, 1)`.
 - **Toast in:** spring, stiffness 420, damping 32, rising 18px.
