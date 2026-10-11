@@ -15,7 +15,15 @@ import {
 } from 'recharts'
 import { api } from '../api/client'
 import { localIsoDate } from '../lib/dates'
-import { everyDay, foodWindow, resolveRange, RANGES, type Range, type RangeKey } from '../lib/progress'
+import {
+  everyDay,
+  foodWindow,
+  REMEMBERED_RANGE_KEY,
+  resolveRange,
+  RANGES,
+  type Range,
+  type RangeKey,
+} from '../lib/progress'
 import { readLocal, writeLocal } from '../lib/storage'
 import { formatRate, formatWeight, unitLabel } from '../lib/units'
 import {
@@ -50,10 +58,6 @@ import { RowLink } from '@/ui/row'
 import Skeleton from '@/ui/skeleton'
 import { Stat, StatGrid } from '@/ui/stat'
 
-/** Where this device last left the range: a per-device convenience, so the
- *  page reopens where it was. The address still wins (a link, back, reload). */
-const RANGE_KEY = 'trackaholic_progress_range'
-
 const n = (value: number) => Math.round(value).toLocaleString()
 
 /** The series the Nutrition chart can show. Carbs and fat only when tracked:
@@ -75,11 +79,11 @@ export default function Progress() {
   const { settings } = useSettings()
   const today = localIsoDate()
   const [params, setParams] = useSearchParams()
-  const range = resolveRange(params.get('range'), readLocal(RANGE_KEY))
+  const range = resolveRange(params.get('range'), readLocal(REMEMBERED_RANGE_KEY))
   const floorPassed = useSkeletonFloor()
 
   const chooseRange = (key: RangeKey) => {
-    writeLocal(RANGE_KEY, key)
+    writeLocal(REMEMBERED_RANGE_KEY, key)
     setParams(
       (now) => {
         const next = new URLSearchParams(now)
@@ -512,6 +516,12 @@ function NutritionBlock({
         </figure>
       )}
       <p className="text-small text-ink-2">Today is left out until it’s over.</p>
+      <RowLink
+        to={`/progress/days?range=${range.key}`}
+        label="Daily totals"
+        detail="Each day’s calories and macros"
+        className="border-t border-rule"
+      />
     </Block>
   )
 }

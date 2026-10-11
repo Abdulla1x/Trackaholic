@@ -160,6 +160,7 @@ export const PRIVATE_ROUTES = [
   '/progress',
   '/progress?range=all',
   '/progress/weigh-ins',
+  '/progress/days',
   '/weight',
   '/analytics',
   '/review',
