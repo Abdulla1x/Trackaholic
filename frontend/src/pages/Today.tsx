@@ -6,12 +6,16 @@ import DateBar from '../components/today/DateBar'
 import MealList from '../components/today/MealList'
 import ReviewCard from '../components/today/ReviewCard'
 import WeighInCard from '../components/today/WeighInCard'
+import GettingStarted from '../components/today/GettingStarted'
 import TrackersSheet from '../components/today/TrackersSheet'
 import StepsCard from '../components/StepsCard'
 import SupplementsCard from '../components/SupplementsCard'
 import WaterCard from '../components/WaterCard'
 import { localIsoDate } from '../lib/dates'
+import { gettingStartedView, readMemory, type GettingStartedMemory } from '../lib/firstUse'
 import { isReviewDay } from '../lib/review'
+import { accountKey, readLocal, writeLocal } from '../lib/storage'
+import { useAuth } from '../auth/AuthContext'
 import { canChooseTrackers, CHANGE_TRACKERS, shownTrackers } from '../lib/trackers'
 import { countedMeals, dayTotals, planCaption, shownMeals, targetIsSet, viewedDay } from '../lib/today'
 import { useSettings } from '../settings/SettingsContext'
@@ -203,11 +207,65 @@ export default function Today() {
   const trackers = settings ? shownTrackers(settings, true) : []
   const [choosing, setChoosing] = useState(false)
 
+  // ----- First use -----
+  // Getting started, remembered per account on this device (lib/firstUse.ts).
+  const { user } = useAuth()
+  const userId = user?.id ?? 0
+  const memoryKey = accountKey('trackaholic_getting_started', userId)
+  const [memory, setMemory] = useState<GettingStartedMemory>(() => readMemory(readLocal(memoryKey)))
+  const remember = (next: GettingStartedMemory) => {
+    const merged = { ...memory, ...next }
+    setMemory(merged)
+    writeLocal(memoryKey, JSON.stringify(merged))
+  }
+  const hasTarget = settings ? targetIsSet(settings) : true
+  // Whether any meal was ever logged: today's list answers it at once when it
+  // has one, the most recent meal otherwise. Asked only while it matters.
+  const [everLogged, setEverLogged] = useState<boolean | null>(null)
+  const asking = settings !== null && !memory.done && (!hasTarget || memory.open === true)
+  useEffect(() => {
+    if (!asking) return
+    let live = true
+    const check = () =>
+      api
+        .getRecentMeals(1)
+        .then((recent) => live && setEverLogged(recent.length > 0))
+        .catch(() => {})
+    check()
+    const stop = onMealsChanged(() => check())
+    return () => {
+      live = false
+      stop()
+    }
+  }, [asking])
+  const hasMeal = everLogged === true || (meals !== null && meals.length > 0) ? true : everLogged
+  const started = settings && isToday ? gettingStartedView(hasTarget, hasMeal, memory) : 'hidden'
+  useEffect(() => {
+    if ((started === 'steps' || started === 'row') && !memory.open) remember({ open: true })
+    // remember is recreated each render; `started` is what this follows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started])
+  const gettingStarted = started !== 'hidden' && (
+    <GettingStarted
+      view={started}
+      targetSet={hasTarget}
+      hasMeal={hasMeal === true}
+      onSetTarget={() => navigate('/setup')}
+      onLog={() => openLog()}
+      onLater={() => remember({ later: true })}
+      onShow={() => remember({ later: false })}
+      onDone={() => remember({ done: true })}
+    />
+  )
+
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-y-2 desk:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] desk:gap-x-10 desk:gap-y-4">
       <div className="grid grid-cols-[minmax(0,1fr)] gap-3 desk:col-span-2">
         <DateBar day={viewedDate} today={realToday} onChange={showDay} />
+        {/* Above the calories until there is a target to show, then under
+            them (chosen from the first-use prototype). */}
+        {!hasTarget && gettingStarted}
         {!settings || !goals || meals === null ? (
           <div aria-hidden="true" className="-mx-4 h-[226px] bg-track/40 motion-safe:animate-pulse desk:mx-0 desk:h-[274px]" />
         ) : (
@@ -222,6 +280,7 @@ export default function Today() {
             trackFat={settings.track_fat}
           />
         )}
+        {hasTarget && gettingStarted}
       </div>
 
       <MealList
