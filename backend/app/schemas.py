@@ -905,6 +905,19 @@ class Settings(BaseModel):
     # just the scale; None means not answered. Patched, so a stale bundle
     # can't clear it and sending null clears it on purpose.
     protein_focus: Literal["muscle", "scale"] | None = None
+    # Which trackers Today shows besides the weigh-in. None = not chosen yet
+    # (keeps the old cards and asks once); [] = the weigh-in only. Patched and
+    # converted by hand in routers/settings.py: the column is trackers_json.
+    trackers: list[Literal["water", "steps", "supplements"]] | None = Field(
+        default=None, max_length=3
+    )
+
+    @field_validator("trackers")
+    @classmethod
+    def each_tracker_once(cls, value: list[str] | None) -> list[str] | None:
+        if value is not None and len(set(value)) != len(value):
+            raise ValueError("each tracker can be listed once")
+        return value
 
     @field_validator("birth_date")
     @classmethod

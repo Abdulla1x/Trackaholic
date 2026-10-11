@@ -179,6 +179,11 @@ def export_all(user: User = Depends(get_current_user), db: Session = Depends(get
             # A fifth meaning for null in this block: not answered, which
             # keeps the protein every account had before the question existed.
             "protein_focus": setting.protein_focus,
+            # Exported as the list the API speaks. Null means not chosen yet.
+            "trackers": (
+                None if setting.trackers_json is None
+                else json.loads(setting.trackers_json)
+            ),
         },
         "meals": [
             # `date` is when it was eaten, `created_at` when it was logged,

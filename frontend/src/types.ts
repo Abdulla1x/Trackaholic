@@ -115,6 +115,11 @@ export interface Settings {
    *  target. null = not answered (1.8 g/kg, as before). Optional for the
    *  same reason as target_set. */
   protein_focus?: 'muscle' | 'scale' | null
+  /** Which trackers Today shows besides the weigh-in, which is always on.
+   *  null = not chosen yet (an account from before the choice existed: it
+   *  keeps the old cards and is asked once); [] = the weigh-in only. Absent
+   *  on the live API, which predates it: the old cards, and no question. */
+  trackers?: ('water' | 'steps' | 'supplements')[] | null
 }
 
 /** One logged drink. */

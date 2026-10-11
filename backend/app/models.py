@@ -603,6 +603,13 @@ class Setting(Base):
     # moves only the protein target (calculations.protein_g_per_kg), and it is
     # stored because automatic targets are recomputed on every weigh-in.
     protein_focus: Mapped[str | None] = mapped_column(String(6), default=None)
+    # Which trackers Today shows besides the weigh-in (always on): a JSON list
+    # from "water", "steps", "supplements". A fifth meaning for an empty
+    # settings column: NULL is "not chosen yet" -- every account from before
+    # this existed keeps the cards it sees and is asked once -- while a new
+    # signup starts at "[]" and chooses during setup. `_json` for the reason
+    # water_quick_adds_json gives.
+    trackers_json: Mapped[str | None] = mapped_column(Text, default="[]")
 
     __table_args__ = (
         CheckConstraint(

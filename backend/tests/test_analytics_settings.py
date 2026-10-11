@@ -150,6 +150,9 @@ UNSET_OPTIONALS = {
     "show_meal_times": True,
     "target_set": False,
     "protein_focus": None,
+    # A new signup starts with only the weigh-in; null is for accounts that
+    # predate the column (see the trackers tests below).
+    "trackers": [],
 }
 
 
@@ -190,6 +193,7 @@ def test_body_profile_round_trips(client):
         # here chooses a target.
         "target_set": False,
         "protein_focus": "muscle",
+        "trackers": ["water", "supplements"],
     }
     assert client.put("/api/settings", json=profile).json() == profile
     assert client.get("/api/settings").json() == profile
@@ -569,3 +573,27 @@ def test_protein_focus_is_kept_by_a_stale_save_and_cleared_on_purpose(client):
     assert client.put(
         "/api/settings", json={**saved, "protein_focus": "bulk"}
     ).status_code == 422
+
+
+def test_a_new_account_starts_with_the_weigh_in_only_and_chooses(client):
+    settings = client.get("/api/settings").json()
+    assert settings["trackers"] == []
+
+    chosen = client.put(
+        "/api/settings", json={**settings, "trackers": ["water", "steps"]}
+    ).json()
+    assert chosen["trackers"] == ["water", "steps"]
+
+    # A stale bundle sends no trackers at all, and must not clear the choice.
+    stale = {key: value for key, value in chosen.items() if key != "trackers"}
+    assert client.put("/api/settings", json=stale).json()["trackers"] == ["water", "steps"]
+    exported = client.get("/api/data/export/all").json()["settings"]
+    assert exported["trackers"] == ["water", "steps"]
+
+
+def test_trackers_must_be_known_and_listed_once(client):
+    settings = client.get("/api/settings").json()
+    for bad in (["water", "water"], ["workouts"], ["weigh_in"]):
+        assert client.put(
+            "/api/settings", json={**settings, "trackers": bad}
+        ).status_code == 422, bad
