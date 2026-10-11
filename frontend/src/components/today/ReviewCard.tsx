@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
-import { addDays, parseIsoDate } from '../../lib/dates'
+import { addDays, shortDate } from '../../lib/dates'
 import { reviewHeadline } from '../../lib/review'
 import type { WeeklyReview } from '../../types'
 import { Button } from '@/ui/button'
@@ -27,16 +27,14 @@ export default function ReviewCard({ today }: { today: string }) {
     }
   }, [end])
 
-  const span = (iso: string) => parseIsoDate(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
-
   return (
-    <Block label="Weekly review" value={review ? `${span(review.window_start)} to ${span(review.window_end)}` : undefined}>
+    <Block label="Weekly review" value={review ? `${shortDate(review.window_start)} to ${shortDate(review.window_end)}` : undefined}>
       <p>
         <b className="font-semibold">Your week is in.</b> {review ? reviewHeadline(review) : null}
       </p>
       <div>
         <Button asChild>
-          <Link to="/review">Open the review</Link>
+          <Link to="/progress/review">Open the review</Link>
         </Button>
       </div>
     </Block>

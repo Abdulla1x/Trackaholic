@@ -6,70 +6,26 @@ import type { ReviewCheck, WeeklyReview } from '../types'
 import Card from '../components/ui/Card'
 import { primaryButtonClass } from '../components/ui/Button'
 import { useLiveMessage } from '../hooks/useLiveMessage'
+import { checkFigure, checkLabel, checkStatus } from '../lib/review'
 
-/** What each check is called on screen.
- *
- * Presentation only — the server owns every sentence, and this owns the
- * heading above it. `?? key` rather than an exhaustive record on purpose: a
- * server that grows an eighth check should render it with an ugly heading
- * rather than crash a page that is otherwise fine. */
-const LABELS: Record<string, string> = {
-  logging: 'How much you logged',
-  intake: 'Calories',
-  protein: 'Protein',
-  weight: 'Weight',
-  targets: 'Your daily burn',
-  water: 'Water',
-  steps: 'Steps',
-  calibration: "The AI's estimates",
-}
-
-/** The pill beside each heading.
- *
- * ⚠️ No amber and no red anywhere on this page. Amber means *incident* in this
- * app — it is what StatusBanner uses for an outage — and a column of amber
- * cards would read as several things being wrong rather than as a summary.
- * "Off target" is also the honest wording: the number is off the target the
- * user themselves set, which is not a judgement about them. Only "on track"
- * gets colour, so the page is calm by default and green is the exception. */
-const STATUS: Record<ReviewCheck['status'], { label: string; className: string } | null> = {
-  on_track: { label: 'On track', className: 'text-emerald-300' },
-  off_track: { label: 'Off target', className: 'text-ink-muted' },
-  unknown: { label: 'Not enough data', className: 'text-ink-faint' },
-  note: null,
-}
-
-/** The scannable number, or null when the check is a sentence and nothing more.
- *
- * Every figure here also appears inside `detail`, in prose. That is not
- * duplication for its own sake: the sentence is what makes a number honest and
- * the figure is what makes the page readable at a glance, and dropping either
- * one costs something real. */
-function figure(check: ReviewCheck): string | null {
-  if (check.value === null) return null
-  switch (check.unit) {
-    case 'days':
-      return `${Math.round(check.value)} of ${Math.round(check.target ?? 0)}`
-    case 'kg/week':
-      // Two decimals, because a rate rounded to one is mostly zeroes and the
-      // difference between 0.35 and 0.5 kg/week is the whole comparison.
-      return `${check.value > 0 ? '+' : ''}${check.value.toFixed(2)} kg/wk`
-    case '%':
-      return `${check.value > 0 ? '+' : ''}${Math.round(check.value)}%`
-    default:
-      return `${Math.round(check.value).toLocaleString()} ${check.unit}`
-  }
+/** The colour beside each check's word. Only "on track" gets one, so the page
+ *  is calm by default (no amber, which means an incident in this app). */
+const STATUS_CLASS: Record<ReviewCheck['status'], string> = {
+  on_track: 'text-emerald-300',
+  off_track: 'text-ink-muted',
+  unknown: 'text-ink-faint',
+  note: '',
 }
 
 function CheckCard({ check }: { check: ReviewCheck }) {
-  const status = STATUS[check.status]
-  const value = figure(check)
+  const status = checkStatus(check)
+  const value = checkFigure(check)
 
   return (
     <Card as="section">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="font-semibold">{LABELS[check.key] ?? check.key}</h2>
-        {status && <span className={`text-xs ${status.className}`}>{status.label}</span>}
+        <h2 className="font-semibold">{checkLabel(check)}</h2>
+        {status && <span className={`text-xs ${STATUS_CLASS[check.status]}`}>{status}</span>}
       </div>
 
       {value && <p className="mt-2 text-2xl font-bold">{value}</p>}
