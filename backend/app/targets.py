@@ -463,6 +463,42 @@ def compute_targets(
     )
 
 
+def preview_targets(
+    weight_kg: float,
+    height_cm: float,
+    birth_date: date_type,
+    sex: str,
+    activity_level: str,
+    goal_rate_kg_per_week: float,
+    protein_focus: str | None,
+    today: date_type | None = None,
+) -> TargetsResult:
+    """What saving these setup answers would produce, without saving them.
+
+    The formula's estimate only: a new account has no history to measure a
+    burn from, and setup is where accounts are new. The target, macros and
+    limits come from the same `_plan_from_burn` the stored targets use, so the
+    number shown is the number saved.
+    """
+    age = age_years(birth_date, on=today)
+    bmr = bmr_mifflin_st_jeor(weight_kg, height_cm, age, sex)
+    tdee = estimated_tdee(weight_kg, height_cm, age, sex, activity_level)
+    plan = _plan_from_burn(
+        tdee, weight_kg, height_cm, sex, goal_rate_kg_per_week, protein_focus
+    )
+    return TargetsResult(
+        missing=[],
+        bmi=bmi(weight_kg, height_cm),
+        bmr=bmr,
+        tdee=tdee,
+        weight_kg=weight_kg,
+        clamped_reason=plan.target.clamped_reason,
+        tdee_source="estimated",
+        tdee_estimated=tdee,
+        **plan.fields(),
+    )
+
+
 def apply_auto_targets(
     setting: Setting, db: Session, today: date_type | None = None
 ) -> None:

@@ -7,8 +7,8 @@ from ..auth.deps import get_current_user
 from ..calculations import KCAL_PER_G_CARB, KCAL_PER_G_FAT, KCAL_PER_G_PROTEIN
 from ..db import get_db
 from ..models import Setting, User
-from ..schemas import BodyTargets, Settings
-from ..targets import apply_auto_targets, compute_targets
+from ..schemas import BodyTargets, Settings, TargetPreviewRequest
+from ..targets import apply_auto_targets, compute_targets, preview_targets
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -94,6 +94,29 @@ def get_targets(
     `targets_auto` is on.
     """
     return compute_targets(db, _get_or_create(db, user.id))
+
+
+@router.post("/targets/preview", response_model=BodyTargets)
+def preview_settings_targets(
+    body: TargetPreviewRequest,
+    user: User = Depends(get_current_user),
+):
+    """The target first-use setup would save, shown live before it is saved.
+
+    Writes nothing and reads nothing of the account: the answers in the body
+    are the whole input. Signed-in only, like everything else here. The limits
+    travel as data (max_loss_kg_per_week and the rest) so the screen can say
+    the fastest pace before the user picks one.
+    """
+    return preview_targets(
+        body.weight_kg,
+        body.height_cm,
+        body.birth_date,
+        body.sex,
+        body.activity_level,
+        body.goal_rate_kg_per_week,
+        body.protein_focus,
+    )
 
 
 def _refuse_goals_that_cannot_add_up(settings: Settings) -> None:
