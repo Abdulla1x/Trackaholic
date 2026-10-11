@@ -8,7 +8,7 @@ import StatusBanner from './StatusBanner'
 import WakingNotice from './WakingNotice'
 import { RailNav, TabBar } from './shell/AppNav'
 import LogPanelSlot from './log/LogPanelSlot'
-import { sectionFor } from './shell/sections'
+import { routeKey, screenMotion, sectionFor, type ScreenMotion } from './shell/sections'
 import Wordmark from './shell/Wordmark'
 
 // A warm server answers settings in well under a second, so this never fires in
@@ -18,10 +18,22 @@ import Wordmark from './shell/Wordmark'
 // MealAnalyzer: say nothing until the wait stops looking normal.
 const COLD_START_NOTICE_AFTER_MS = 3_000
 
+const ENTRANCE: Record<ScreenMotion, string> = {
+  fade: 'animate-route-in',
+  push: 'animate-screen-push',
+  back: 'animate-screen-back',
+}
+
 export default function Layout() {
   const { user } = useAuth()
   const { pathname } = useLocation()
   const section = sectionFor(pathname)
+  // How the page arrives, worked out when the path changes and then held: a
+  // re-render for any other reason must not swap the class and cut the
+  // animation short. Adjusting state during render is React's sanctioned way
+  // to follow a changing value without an effect's extra frame.
+  const [entrance, setEntrance] = useState({ path: pathname, motion: screenMotion(null, pathname) })
+  if (entrance.path !== pathname) setEntrance({ path: pathname, motion: screenMotion(entrance.path, pathname) })
   // /admin is the one route in this app that is genuinely desktop-only — a
   // twelve-column table of per-account counts, read by one person on a big
   // screen. Every other page is designed phone-first and 5xl is right for it,
@@ -87,10 +99,14 @@ export default function Layout() {
       {/* The bottom padding clears the fixed tab bar and its safe-area inset
           (--shell-bottom, index.css), so the last thing on a page is never
           trapped underneath it; the top one clears a notch. */}
+      {/* overflow-x-clip: a pushed screen starts 28px to the right, which
+          must not show a sideways scrollbar for its 260ms. clip, not hidden,
+          so main does not become a scroll container and sticky children
+          (Settings' Save bar) keep working. */}
       <main
         id="main"
         tabIndex={-1}
-        className="min-w-0 flex-1 px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-[calc(var(--shell-bottom)+1.5rem)] desk:px-8 desk:py-8"
+        className="min-w-0 flex-1 overflow-x-clip px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-[calc(var(--shell-bottom)+1.5rem)] desk:px-8 desk:py-8"
       >
         <div className={`mx-auto ${wide ? 'max-w-7xl' : 'max-w-5xl'}`}>
           <StatusBanner banner={announcements?.banner ?? null} />
@@ -100,12 +116,13 @@ export default function Layout() {
               className="mb-4 rounded-control bg-surface px-3 py-2 text-center text-xs text-ink-muted"
             />
           )}
-          {/* A 150ms fade when the page changes (DESIGN.md: tab changes are a
-              crossfade). Keyed by the first path segment, NOT the whole path:
-              moving between Settings tabs must keep the Settings shell, and
-              its unsaved draft, mounted. Plain CSS rather than Motion, so the
+          {/* The page's entrance (DESIGN.md Motion): a pushed screen slides in
+              from the right, coming back slides in from the left, and a tab
+              change crossfades. Keyed by routeKey, which gives every Settings
+              tab one key, so moving between them keeps the Settings shell and
+              its unsaved draft mounted. Plain CSS rather than Motion, so the
               first screen never waits on Motion's features to download. */}
-          <div key={pathname.split('/')[1] ?? ''} className="animate-route-in">
+          <div key={routeKey(pathname)} className={ENTRANCE[entrance.motion]}>
             <Outlet />
           </div>
         </div>

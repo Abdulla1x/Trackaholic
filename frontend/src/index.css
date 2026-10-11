@@ -118,6 +118,11 @@
 
   /* The page changing: DESIGN.md's tab-change crossfade, 150ms. */
   --animate-route-in: route-in 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* A screen pushed from a tab, and coming back from one (DESIGN.md: Screen
+   * push and back): 260ms, sliding 28px (lib/motion.ts SCREEN_SHIFT) from the
+   * right on push and from the left on back, fading in. */
+  --animate-screen-push: screen-push 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-screen-back: screen-back 260ms cubic-bezier(0.16, 1, 0.3, 1);
 
   /* DESIGN.md's catalogue, Today's two: a gauge segment lighting and a
    * changed digit rolling into place (320ms, 0.45em, 40ms apart from the
@@ -246,6 +251,18 @@
     opacity: 0;
   }
 }
+@keyframes screen-push {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+@keyframes screen-back {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
 
 /* How much of the bottom of the screen the app shell covers, for anything
  * pinned to the bottom of a page (Settings' Save bar) and for the page's own
@@ -264,6 +281,8 @@
 @media (prefers-reduced-motion: reduce) {
   :root {
     --animate-route-in: route-in 120ms linear;
+    --animate-screen-push: route-in 120ms linear;
+    --animate-screen-back: route-in 120ms linear;
     /* A short fade with no stagger, and numbers that simply change. */
     --animate-segment-on: segment-on 120ms linear;
     --animate-segment-sweep: segment-on 120ms linear;
