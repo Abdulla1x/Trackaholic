@@ -105,6 +105,12 @@ export interface Settings {
   weigh_in_reminder_days: number
   /** Whether Today's meal rows show the time each meal was logged. */
   show_meal_times: boolean
+  /** Whether a target has ever been chosen; the four goals above start at
+   *  2000/150/250/70 on every signup, so they can't say. Server-owned: a save
+   *  can turn it on, never off. Optional because the live API predates it: a
+   *  response without it is an account from before first use existed, which
+   *  counts as set. */
+  target_set?: boolean
 }
 
 /** One logged drink. */

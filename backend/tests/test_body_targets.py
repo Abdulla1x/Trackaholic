@@ -378,3 +378,72 @@ def test_a_measured_tdee_drives_the_auto_written_goals(client):
 
     assert body["tdee_source"] == "measured"
     assert stored["calorie_goal"] == pytest.approx(body["target_calories"], abs=1)
+
+
+# --- target_set: whether a target was ever chosen (migration 0020) ----------
+#
+# Every signup starts at 2000/150/250/70, so first use needs the server to say
+# whether any of that was chosen. The flag only ever turns on.
+
+
+def settings(client):
+    return client.get("/api/settings").json()
+
+
+def test_a_new_account_has_not_set_a_target(client):
+    assert settings(client)["target_set"] is False
+
+
+def test_saving_the_untouched_defaults_does_not_set_a_target(client):
+    # A Settings save sends all four goals every time; sending back the
+    # defaults it read is not a choice.
+    saved = client.put("/api/settings", json={**BASE_SETTINGS, "target_set": False})
+    assert saved.json()["target_set"] is False
+
+
+def test_changing_a_goal_sets_the_target(client):
+    saved = client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2200})
+    assert saved.json()["target_set"] is True
+
+
+def test_a_typed_target_equal_to_the_defaults_can_still_be_chosen(client):
+    # "I have my own numbers" with exactly 2,000 kcal is still a choice, so the
+    # client says so explicitly.
+    chosen = client.put("/api/settings", json={**BASE_SETTINGS, "target_set": True})
+    assert chosen.json()["target_set"] is True
+
+
+def test_the_target_flag_never_turns_off(client):
+    client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2200})
+    # A form that read the flag before the save above sends back false.
+    stale = client.put(
+        "/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2200, "target_set": False}
+    )
+    assert stale.json()["target_set"] is True
+    # And a bundle that predates the field sends nothing at all.
+    older = client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2200})
+    assert older.json()["target_set"] is True
+
+
+def test_auto_targets_set_the_target_only_once_they_can_be_worked_out(client):
+    # The profile alone cannot produce a number: there is no weigh-in yet, so
+    # the goals are still the shipped defaults and nothing has been chosen.
+    assert set_profile(client, targets_auto=True)["target_set"] is False
+
+    # The first weigh-in completes it, the formula writes real goals, and from
+    # then on a target exists. This is setup's save order: weigh-in, then the
+    # profile, though either order ends here (the next test).
+    weigh_in(client, 80.0)
+    assert settings(client)["target_set"] is True
+
+
+def test_the_target_flag_is_in_the_export(client):
+    client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2200})
+    exported = client.get("/api/data/export/all").json()["settings"]
+    assert exported["target_set"] is True
+
+
+def test_a_weigh_in_before_the_profile_also_sets_the_target(client):
+    weigh_in(client, 80.0)
+    assert settings(client)["target_set"] is False
+    assert set_profile(client, targets_auto=True)["target_set"] is True

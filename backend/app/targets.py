@@ -397,3 +397,6 @@ def apply_auto_targets(
     setting.protein_goal = max(result.protein_g, MIN_WRITTEN_GOAL)
     setting.carbs_goal = max(result.carbs_g, MIN_WRITTEN_GOAL)
     setting.fat_goal = max(result.fat_g, MIN_WRITTEN_GOAL)
+    # The formula has written real goals, so a target now exists. Setup's
+    # save lands here, and so does a weigh-in that completes a profile.
+    setting.target_set = True

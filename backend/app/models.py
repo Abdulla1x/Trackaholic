@@ -585,6 +585,18 @@ class Setting(Base):
     show_meal_times: Mapped[bool] = mapped_column(
         default=True, server_default=sa_true()
     )
+    # Whether this account has ever chosen a target. The four goals above are
+    # NOT NULL and start at 2000/150/250/70 on every signup, so without this
+    # nothing can tell a number somebody picked from one nobody did -- and the
+    # app must not show a target nobody set. False for a new account; set by
+    # the server, never cleared: when the formula first writes the goals
+    # (apply_auto_targets), when a save changes a goal, or when a client says
+    # so explicitly (typing exactly 2,000 by hand is still a choice).
+    # NOT NULL with a server_default, the show_meal_times pairing; migration
+    # 0020 backfilled every account that had touched anything as set.
+    target_set: Mapped[bool] = mapped_column(
+        default=False, server_default=sa_false()
+    )
 
     __table_args__ = (
         CheckConstraint(

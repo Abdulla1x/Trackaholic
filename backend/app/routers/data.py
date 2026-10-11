@@ -173,6 +173,9 @@ def export_all(user: User = Depends(get_current_user), db: Session = Depends(get
             "weigh_in_reminder_days": setting.weigh_in_reminder_days,
             # Whether Today shows the time each meal was logged. Never null.
             "show_meal_times": setting.show_meal_times,
+            # Whether a target was ever chosen, or the shipped 2000 is still
+            # standing in. Never null.
+            "target_set": setting.target_set,
         },
         "meals": [
             # `date` is when it was eaten, `created_at` when it was logged,
