@@ -31,11 +31,11 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **Layered AI quotas**: 12 analyses + 16 voice notes + 3 review summaries per user per day, under a **global ceiling** of 40 calls/day across every account — sized for Gemini's free tier of 20 requests a day per model, and checked against the heaviest real user's busiest days. The per-user caps stop one person using up the shared quota, the global one stops mass signups draining it (or running up a bill on a paid key). All of them are env-tunable
 - **What the AI sees**: your photos, voice note and description are sent to Google Gemini to estimate the meal, and the app says so under the Estimate button. Photos are shrunk on your phone first, which also strips their location data, and only the text of the estimate is kept: the photo and audio are discarded. On Gemini's free tier, Google may use what it is sent to improve its products
 - **What you search for is not logged**: the food searches send what you type as a URL parameter, and both the server's access log and its outgoing-request log blank that value before writing the line. The app's own log lines count results and time them, never the text
-- **Own your data**: change your password (revokes all previously issued tokens), download everything as JSON, or permanently delete your account from Settings
+- **Own your data**: change your password (revokes all previously issued tokens), download everything as JSON, export or import your meals as CSV (duplicates are skipped and dates normalized), or permanently delete your account, all from Settings → Account
 - **Password reset by email — built, deployed, and switched off.** The endpoints, the single-use link (hashed at rest, valid an hour, revoking every session when used) and 38 tests are all here and running in production. They answer **503 to every address**, because no email provider is configured — three free providers were tried and all three refused a domainless free account, which is the profile their fraud screening targets. Until one is wired up **a forgotten password means a lost account**, and the signup page says so rather than letting you find out later. Nothing about the feature needs a deploy to switch on; it activates on credentials alone
 
 ### 🧭 Getting around
-- **Four places, each one tap away**: **Today**, **Progress** and **You** as tabs, with **Log** as a button in the middle. A bottom bar on phones; from 900 px a side rail with the wordmark. Weight and the weekly review sit under Progress
+- **Four places, each one tap away**: **Today**, **Progress** and **You** as tabs, with **Log** as a button in the middle. A bottom bar on phones; from 900 px a side rail with the wordmark. Progress holds the weight trend, nutrition, daily burn, the weekly review and the AI's accuracy
 - **Log opens over the page you are on**, as a sheet rising from the bottom on a phone and a panel from the right on a desktop, so Today, Progress or a half-edited setting is still underneath when you close it. It is in the address (`?log`), so the phone's back button closes it, and "Enter it by hand" is one step in that Back steps out of. Top to bottom: the day the meal is for (Today, Yesterday or any other), the AI box, your saved meals and recent meals, then entering a meal by hand or pasting a meal code. Saving closes it with a short confirmation, and the page underneath updates; on Today it first scrolls back to the top, so the numbers roll and the gauge fills where you can see them
 - **Unsaved settings are never dropped silently.** Leaving Settings with changes asks first ("Leave without saving?"); reloading or closing the tab gets the browser's own prompt
 - **Each page loads its own code the first time you open it**, so the sign-in page no longer downloads the charts: the first download went from 911 KB to 334 KB when it was split, and is about 470 KB (145 KB compressed) with the redesign's shell, its animation library and icons. The Log panel is fetched the first time it opens, or quietly beforehand once the page is idle. A tab still running the previous version when a new one deploys reloads itself once rather than failing to open a page
@@ -86,41 +86,41 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **Share a meal by code**: turn a meal or a saved template into a short code, hand it to someone, and they get an **editable copy in their own account**. The code is a self-contained encoded payload — there is no shared row, no invite, nothing to revoke, and no account id inside it, so per-user isolation is untouched by the feature existing
 - Single- or multi-ingredient meals with live-updating totals as you type
 
-### ⚖️ Weight & trends
-- Log a weigh-in and read the **trend**, not the daily noise — an exponentially weighted line over the raw points, with the weekly rate fitted over the last 28 days
+### 📈 Progress
+- **One range for the whole page**: 7 days, 30 days, 90 days, a year, or everything, opening on 30 and remembered on your device. It changes what the charts draw and what the averages cover. The trend weight, this week's change and the goal date deliberately do *not* follow it: they are measured over their own fixed windows, so the app cannot report a different "current rate" depending on which range you happen to be looking at
+- **Food ends yesterday; a weigh-in counts today.** A day that still has dinner to come would end every chart in a cliff, so meals join the charts once the day is over. A weigh-in made this morning is already real
+- **Weight**: read the **trend**, not the daily noise — an exponentially weighted line over the raw weigh-ins, with the weekly rate fitted over the last 28 days
 - **Set a goal weight and it works out when you would reach it** — from the rate you are actually moving at, never the rate you asked for, because projecting from your own target would just hand your input back as a prediction. The goal is drawn on the chart, the gap is spelled out, and when a date cannot honestly be named the app says why instead: too few weigh-ins to fit a rate, a trend going the other way, a log that has stopped, or a pace that puts the date more than two years out
-- **Zoom the chart** to 7, 14, 30 or 90 days, a year, or everything — for when you cut for a while and are now bulking and want to see just the part you care about. The trend weight and weekly rate deliberately do *not* follow the zoom: they are measured over their own fixed windows, so the app cannot report a different "current rate" depending on which range you happen to be looking at
+- **Every weigh-in, editable**: one row a day, newest first, 30 at a time. Tap one to change it or delete it. New weigh-ins come from the card on Today
 - Kilograms or pounds, switchable at any time; the stored value never changes, only how it's shown
+- **Nutrition**: one bar chart with a switch between calories and protein (and carbs and fat if you track them), your target as a dashed line, and the average **per day you logged**, not per day in the range — a day with nothing recorded is missing data, not a day of zero intake. **Daily totals** lists each day as a row, calories with the macros under them, so nothing scrolls off the side of a phone
+- **Daily burn, measured from your own logs** once there are enough of them (below), with what it was built from one tap away
+- **Locked until it means something.** A new account sees how close each part is instead of an empty chart: the trend after 7 weigh-ins, the measured burn after 10 weigh-ins across 14 days with enough of them logged, the review after a week with meals in it, the AI's accuracy after 10 corrected estimates. Each says "3 of 7" on a meter, and the moment one unlocks is marked, once
 - Your weigh-ins are not just a chart: they are what the measured daily burn and — if you enable them — the automatic daily targets are worked out from
 - **An optional weigh-in reminder.** Set a time and how many days you want between weigh-ins, and on a day one is due the weigh-in card on Today says "Due today" once that time has come. Leave the time empty, which is how every account starts, and the card simply sits there
 
 ### ⚙️ Configurable tracking
 - Calories + protein always on; **carbs and fat are opt-in**
-- Per-macro daily goals drive Today's calories and macro fields, the log form, and analytics
+- Per-macro daily goals drive Today's calories and macro fields, the log form, and Progress
 - Optional **body profile** (height, date of birth, sex, activity level, goal
   weight, goal rate) turns into BMI, a daily burn, and calorie/macro targets —
   every figure shown next to the input it came from
 - **Your daily burn is measured, not guessed**, once you have logged enough:
   roughly two weeks of weigh-ins and meals turns into a real energy-balance
   figure from your own data, shown beside what the formula would have said.
-  Until then it says exactly what it is still waiting for
+  Until then Progress shows a meter for each thing it is still waiting for
 - Let the app **keep those goals in step with your weight**: with auto-targets
   on, the daily goals are recalculated on every weigh-in instead of staying
   wherever you first set them
 - Settings (under **You**) is five addressable tabs — Goals, Body, Trackers, Library, Account — each with its own URL, and a save bar that follows you between them rather than scrolling away. **Log out** is in Account
 
 ### 🗓️ Weekly review
-- **Everything the app already knew, added up in one place**: how much you logged, calories and protein against target, whether your weight is moving the way you asked, where your daily burn figure came from, water, steps, and one line on estimate accuracy
+- **Everything the app already knew, added up in one place**, opened from Progress (and from Today on Mondays): how much you logged, calories and protein against target, whether your weight is moving the way you asked, where your daily burn figure came from, water, steps, and one line on estimate accuracy
 - **Every sentence is arithmetic, not opinion.** Each section shows the number, what it is compared with, and how many days it was worked out from — and where there isn't enough to answer, it says what is missing instead of guessing
 - **Today is left out on purpose.** The week ends yesterday, because averaging in a day that still has dinner to come makes every week look better than it was
 - **Not every section is about the same seven days, and each one says which.** The weight rate is fitted over four weeks, not one, because a seven-day weight slope is mostly water. Calling that "this week" would have been a tidier page and a less honest one
 - **Sections appear only for things you already track** — no step goal, no steps section. Nothing new to switch on
 - And an optional **plain-English reading** of it. That one button asks the AI; it is handed the figures and nothing else, and is not allowed to work anything out, introduce a number, or tell you what to eat. It isn't stored — come back tomorrow and you get the figures, not yesterday's wording
-
-### 📈 Analytics
-- Any date range: totals, daily averages, per-macro trend charts, daily table
-- Averages are **per day you logged**, not per day in the range — a day with nothing recorded is missing data, not a day of zero intake
-- **CSV export/import** with duplicate detection and date normalization
 
 ### 🔭 Operator metrics
 - **A funnel, not a headcount.** `/admin` reports how far accounts actually get: how many ever logged a meal, how many logged on two separate days, and the median hours from signing up to the first meal. Three strangers once signed up and none of them wrote a single row, and there was no figure anywhere that said so — it had to be counted off a table by eye
@@ -374,7 +374,7 @@ Trackaholic
 │       │                        #   so it keeps running while you move around the app
 │       ├── ui/                  # the redesign's components: shadcn/ui (Radix) restyled from
 │       │                        #   DESIGN.md (button, chip, field, toast), the segmented
-│       │                        #   gauge, rolling numbers, quiet blocks, rows and stats, and icons
+│       │                        #   gauge, rolling numbers, quiet blocks, rows and stats, skeletons, and icons
 │       │                        #   (Phosphor + the weigh-in scale)
 │       ├── theme.css            # DESIGN.md's colour tokens, 8 palettes × light/dark + Label;
 │       │                        #   generated from DESIGN.md and tested against it
@@ -382,6 +382,7 @@ Trackaholic
 │       │   ├── shell/           # the app shell: tab bar, side rail, wordmark, which tab is current
 │       │   ├── today/           # Today: the calories band, date control, meal list, the
 │       │   │                    #   weigh-in card, the tracker block, the review card
+│       │   ├── progress/        # Progress: daily burn and its meters, "Looking back"
 │       │   ├── log/             # the Log panel: its address (?log), start screen, saved and
 │       │   │                    #   recent meals, the estimate's stages and result, the AI tips
 │       │   ├── ui/              # the six older primitives (Modal, Card, TextInput, OptionChip,
@@ -390,7 +391,8 @@ Trackaholic
 │       │   └── ...              # Layout, DailyTrackerCard, MealAnalyzer,
 │       │                        #   FoodAutocomplete, ShareCodePanel
 │       ├── hooks/               # useAudioRecorder (MediaRecorder voice notes), useWarmup,
-│       │                        #   useHeldDelete (a meal's delete, held ten seconds for Undo), ...
+│       │                        #   useHeldDelete (a meal's delete, held ten seconds for Undo),
+│       │                        #   useUnlockMoment (a lock opening, marked once), ...
 │       ├── lib/                 # dates, parse, limits (mirrors the server's bounds), units,
 │       │                        #   chartTheme (one place for every recharts colour), libraryMatch,
 │       │                        #   photoSize + photoDownscale (shrink photos before upload),
@@ -400,11 +402,13 @@ Trackaholic
 │       │                        #   mealRows + saveMeal (one meal arithmetic for the form and
 │       │                        #   the AI result), aiGuidance (the hidden-extras question),
 │       │                        #   motion (animation tokens), utils (cn, the class merger),
-│       │                        #   today + weighIn + review (Today's arithmetic and rules)
+│       │                        #   today + weighIn + review (Today's arithmetic and rules),
+│       │                        #   progress + weight + accuracy (Progress's range, trend and
+│       │                        #   locks)
 │       └── pages/               # Today, Day (the day in detail), Meal (one meal's screen),
-│                                #   LogMeal (the panel's by-hand form), Weight,
-│                                #   Analytics, Review, Admin, WhatsNew, settings/ (five tab
-│                                #   panels), and the four auth pages
+│                                #   LogMeal (the panel's by-hand form), Progress, WeighIns,
+│                                #   DailyTotals, WeeklyReview, AiAccuracy, Admin, WhatsNew,
+│                                #   settings/ (five tab panels), and the four auth pages
 ├── docs/                        # AI provider runbook, the Gemini EEA-region incident write-up,
 │                                #   and the photo-size A/B note
 ├── scripts/                     # check.sh (all six gates), dev.sh, review-changes.sh,
@@ -458,7 +462,7 @@ managed by Alembic (`alembic upgrade head`). All 23 env vars are documented in
 
 **Migrating from the single-user version:** the old `macros.db` isn't read by
 the multi-user schema. Export your meals as CSV from the old app (or keep the
-file), create an account, and use **Analytics → Import meals (CSV)**.
+file), create an account, and use **Settings → Account → Import meals (CSV)**.
 
 ### 2. Frontend (React)
 

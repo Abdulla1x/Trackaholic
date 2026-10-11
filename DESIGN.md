@@ -229,6 +229,20 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - **Tracker figures** (water, steps) roll their changed digits like the calories number, and their meters fill like the calories gauge, so a tap on +250 is seen as well as counted.
 - **Never** rings. Progress is always segmented bars.
 
+### Unlock meters
+- **What:** a feature that needs history (the weight trend, measured daily burn, the weekly review, the AI's accuracy) shows how close it is instead of an empty or invented chart: a 10-segment meter in the ground tone, "3 of 7" as the block value or beside the meter's label, and one plain sentence of what it is waiting for. A feature with several conditions (measured burn) has one meter each.
+- **The moment:** the first visit after a lock opens plays the Unlock motion and its line from Voice. Once per device; a device that first sees it already unlocked never plays it.
+
+### Charts
+- **Marks:** data is ink (the trend line, a day's bar); context is ink 2 (the raw weigh-ins under the trend, axis text); grid lines are rule, horizontal only. Targets and goals are the plan colour, dashed 6/4, labelled ("Goal 85.0 kg", "Target") — the Plan Rule on a chart.
+- **Colours by token:** charts take the palette's colours by reference, so they follow the palette and the light or dark mode like everything else.
+- **Reading values:** tap (or hover) a point for a small panel on the ground colour with a rule border. No legend: the block's label and the series switch say what is drawn.
+- **Axes:** dates as "Sep 28"; a weight axis steps in even whole numbers and always includes the goal.
+- **Days without data** are gaps, never zero bars.
+
+### Range control
+- Five chips sharing the full width (7 days · 30 days · 90 days · 1 year · All), so they never wrap to a second row, even at 320px. One control for the whole of Progress.
+
 ### Buttons
 - **Shape:** 5px radius, 42px tall (40px minimum touch target, 44px preferred for primary actions).
 - **Primary:** action colour fill, action-ink text.
@@ -269,7 +283,7 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - Ink ground, ground-coloured text, 8px radius, above the tab bar on phones and bottom-right on desktop. They last 5 seconds and have a close button. One optional action ("View").
 
 ### Skeletons
-- Track-coloured blocks with a slow shimmer, shown for at least 650 ms on first load of a data screen. No spinners in content.
+- Track-coloured blocks with a slow shimmer, shown for at least 650 ms on first load of a data screen, standing where the content will land. No spinners in content. Under reduced motion the shimmer stops and the blocks simply sit there.
 
 ## Do's and Don'ts
 
