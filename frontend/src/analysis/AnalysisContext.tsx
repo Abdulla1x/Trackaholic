@@ -58,6 +58,10 @@ interface AnalysisState {
   transcribing: boolean
   error: string | null
   setError: (error: string | null) => void
+  /** The last estimate failed (the AI's limit, a timeout, an outage), as
+   *  opposed to a hint like "add a photo first" in the same error slot: the
+   *  panel then offers the other ways to log. */
+  estimateFailed: boolean
   unchangedRerun: 'again' | 'refine' | null
   dismissUnchangedRerun: () => void
   progress: Progress
@@ -118,6 +122,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [analyzing, setAnalyzing] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [estimateFailed, setEstimateFailed] = useState(false)
   const [library, setLibrary] = useState<Food[]>([])
   const [attached, setAttached] = useState<Food[]>([])
   // What each saved item was stored as, keyed by the name the model gave it.
@@ -334,6 +339,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     setAnalyzing(true)
     setUnseen(false)
     setError(null)
+    setEstimateFailed(false)
     // Pressed inside the Log panel, so its address says which day this is for.
     // Kept as a date, not "today": a meal started at 23:58 belongs to that day.
     const forDay = logDate(searchRef.current) ?? localIsoDate()
@@ -377,6 +383,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       if (!mounted.current) return
       setError(err instanceof Error ? err.message : 'Analysis failed')
+      setEstimateFailed(true)
       // Nobody is looking at the Log page to see the error there, and the Log
       // button has no "failed" state, so the toast is the only way they learn.
       if (watchers.current === 0) {
@@ -409,6 +416,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     setNote('')
     clearNoteDraft()
     setAnalysis(null)
+    setEstimateFailed(false)
     setAttached([])
     setSavedToLibrary({})
     setUnchangedRerun(null)
@@ -446,6 +454,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         transcribing,
         error,
         setError,
+        estimateFailed,
         unchangedRerun,
         dismissUnchangedRerun: () => setUnchangedRerun(null),
         progress,

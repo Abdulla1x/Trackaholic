@@ -21,13 +21,16 @@ interface Props {
   /** Always shown, with no Hide: the Log panel puts AI first, so folding it
    *  away behind a button would undo that. */
   alwaysOpen?: boolean
+  /** Where "You can still log it" goes when an estimate fails: true for the
+   *  food search, false for typing the numbers. */
+  onOtherWays?: (search: boolean) => void
 }
 
 /** The AI box on the Log page. Every piece of its state -- the note, the
  *  photos, the call in flight and its answer -- lives in AnalysisProvider, so
  *  leaving the page no longer throws an estimate away; this component only
  *  draws it. */
-export default function MealAnalyzer({ onApply, alwaysOpen = false }: Props) {
+export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays }: Props) {
   const {
     note,
     setNote,
@@ -45,6 +48,7 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false }: Props) {
     analyzing,
     transcribing,
     error,
+    estimateFailed,
     unchangedRerun,
     dismissUnchangedRerun,
     progress,
@@ -320,6 +324,25 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false }: Props) {
 
       {/* Ink and words, never red (DESIGN.md, the No Red Rule). */}
       {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
+      {/* A failed estimate is not a dead end, for anyone (decided 2026-10-11):
+          the AI's daily limit is shared by the whole app and can run out on
+          a busy day, and the server's message alone points nowhere useful. */}
+      {estimateFailed && onOtherWays && (
+        <div className="grid gap-2">
+          <p className="font-semibold">You can still log it.</p>
+          <p className="text-small text-ink-2">
+            Search a food to get its numbers, or type the calories and protein yourself.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => onOtherWays(true)}>
+              Search a food
+            </Button>
+            <Button variant="ghost" onClick={() => onOtherWays(false)}>
+              Enter it by hand
+            </Button>
+          </div>
+        </div>
+      )}
 
       <p className="text-small text-ink-2">
         Your note, photos and voice notes go to Google Gemini to be estimated.
