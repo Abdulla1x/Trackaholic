@@ -52,6 +52,7 @@ import { useLiveMessage } from '../hooks/useLiveMessage'
 import { useSkeletonFloor } from '../hooks/useSkeletonFloor'
 import type { AnalyticsSummary, BodyTargets, Settings, WeightTrend } from '../types'
 import DailyBurnBlock from '../components/progress/DailyBurnBlock'
+import LookingBackBlock from '../components/progress/LookingBackBlock'
 import Block from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import Gauge from '@/ui/gauge'
@@ -168,6 +169,7 @@ export default function Progress() {
           </div>
           <div className="grid content-start grid-cols-[minmax(0,1fr)]">
             <SkeletonBlock short />
+            <SkeletonBlock short />
           </div>
         </div>
       ) : (
@@ -189,6 +191,7 @@ export default function Progress() {
               numbers that keep their own windows rather than the range's. */}
           <div className="grid content-start grid-cols-[minmax(0,1fr)]">
             <DailyBurnBlock targets={burn ?? null} onRetry={loadBurn} />
+            <LookingBackBlock today={today} />
           </div>
         </div>
       )}
