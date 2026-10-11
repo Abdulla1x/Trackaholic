@@ -11,7 +11,7 @@
 // If a bound changes server-side, change it here too. The pairing is asserted
 // nowhere, which is the honest cost of a hand-written client.
 
-import type { Settings } from '../types'
+import type { Settings } from '../types.ts'
 
 /** schemas.py MAX_HEIGHT_CM — taller than the tallest recorded human. */
 export const MAX_HEIGHT_CM = 272
@@ -348,4 +348,42 @@ export function validateWaterQuickAdd(value: number | null): string | null {
     return `A single button should not add more than ${MAX_WATER_QUICK_ADD_ML.toLocaleString()} ml.`
   }
   return null
+}
+
+// --- Measured daily burn ---------------------------------------------------
+//
+// Mirrors of backend/app/calculations.py's TDEE minimums, for Progress's
+// unlock meters. The server sends the counts (tdee_basis) but not what they are
+// counted towards, and the meters need both. Mirrored here rather than added
+// to the API so the meters work against the deployed server as it is, which
+// the revamp preview talks to until the revamp ships (decided 2026-10-11).
+
+/** calculations.py TDEE_MIN_WEIGH_INS: weigh-ins inside the 28-day window. */
+export const TDEE_MIN_WEIGH_INS = 10
+/** calculations.py TDEE_MIN_SPAN_DAYS: days from the first of those weigh-ins
+ *  to the last, inclusive. */
+export const TDEE_MIN_SPAN_DAYS = 14
+/** calculations.py TDEE_MIN_LOGGED_DAYS: the floor on logged days. */
+export const TDEE_MIN_LOGGED_DAYS = 10
+/** calculations.py TDEE_MIN_LOGGED_FRACTION: and the share of the span. */
+export const TDEE_MIN_LOGGED_FRACTION = 0.7
+
+/** Python's round(): halves go to the even neighbour. Math.round sends them
+ *  up, which disagrees with the server at a span of 15 (10.5 -> 10, not 11). */
+function roundHalfEven(value: number): number {
+  const floor = Math.floor(value)
+  const rest = value - floor
+  if (rest > 0.5) return floor + 1
+  if (rest < 0.5) return floor
+  return floor % 2 === 0 ? floor : floor + 1
+}
+
+/** How many logged days a measurement needs: targets.py's required_days.
+ *  The span is taken as at least the minimum, since a shorter one has to grow
+ *  to it before logged days are counted at all. */
+export function tdeeLoggedDaysNeeded(spanDays: number): number {
+  return Math.max(
+    TDEE_MIN_LOGGED_DAYS,
+    roundHalfEven(TDEE_MIN_LOGGED_FRACTION * Math.max(spanDays, TDEE_MIN_SPAN_DAYS)),
+  )
 }

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import type { BodyTargets } from '../../types'
 import { shortDate } from '../../lib/dates'
@@ -64,9 +65,8 @@ export default function BodyTargetsCard({
     .join(', ')
 
   const measured = targets.tdee_source === 'measured'
-  const basis = targets.tdee_basis
 
-  const rows: { label: string; value: string; caption: string }[] = [
+  const rows: { label: string; value: string; caption: ReactNode }[] = [
     {
       label: 'BMI',
       value: targets.bmi === null ? '—' : targets.bmi.toFixed(1),
@@ -80,9 +80,18 @@ export default function BodyTargetsCard({
     {
       label: measured ? 'Daily burn (measured)' : 'Daily burn (estimated)',
       value: targets.tdee === null ? '—' : `${Math.round(targets.tdee)} kcal`,
-      caption: measured
-        ? `Measured from what you actually logged: ${basis?.logged_days} days of meals against ${basis?.weigh_ins} weigh-ins over ${basis?.span_days} days. The formula would have said ${Math.round(targets.tdee_estimated ?? 0)} kcal.`
-        : 'Resting burn × a fixed multiplier for your activity level. The multiplier is a convention, and the roughest step here.',
+      // The measurement, what it was built from and what it still needs live
+      // in Progress (0a); here it is one value and the way there.
+      caption: (
+        <>
+          {measured
+            ? 'Measured from your own weigh-ins and meals.'
+            : 'Resting burn × a multiplier for your activity level, until there is enough to measure it.'}{' '}
+          <Link to="/progress" className="font-semibold text-ink underline underline-offset-3">
+            See Daily burn in Progress
+          </Link>
+        </>
+      ),
     },
     {
       label: 'Calorie target',
@@ -133,12 +142,6 @@ export default function BodyTargetsCard({
       {stillNeeded && (
         <p className="mb-4 rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-300">
           Add {stillNeeded} to see the rest.
-        </p>
-      )}
-
-      {!measured && basis?.unavailable_reason && (
-        <p className="mb-4 rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-300">
-          {basis.unavailable_reason}
         </p>
       )}
 
