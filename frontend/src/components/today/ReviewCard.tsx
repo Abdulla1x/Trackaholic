@@ -11,10 +11,16 @@ import Block from '@/ui/block'
  *  as a card on review day"). One sentence from the review's own checks, and
  *  the way in. The week is the seven days before today, the same window the
  *  review page uses. If the review can't be read, the card still offers the
- *  way in rather than inventing a summary. */
+ *  way in rather than inventing a summary.
+ *
+ *  A week with nothing logged has nothing to review, so there is no card:
+ *  otherwise a new account's first Monday opens with "Your week is in. No
+ *  meals logged last week". Nothing is drawn until the review answers, so the
+ *  card never appears only to vanish. */
 export default function ReviewCard({ today }: { today: string }) {
   const end = addDays(today, -1)
-  const [review, setReview] = useState<WeeklyReview | null>(null)
+  // undefined while asking, null when the review could not be read.
+  const [review, setReview] = useState<WeeklyReview | null | undefined>(undefined)
 
   useEffect(() => {
     let live = true
@@ -26,6 +32,8 @@ export default function ReviewCard({ today }: { today: string }) {
       live = false
     }
   }, [end])
+
+  if (review === undefined || review?.logged_days === 0) return null
 
   return (
     <Block label="Weekly review" value={review ? `${shortDate(review.window_start)} to ${shortDate(review.window_end)}` : undefined}>
