@@ -300,13 +300,36 @@ KCAL_PER_G_PROTEIN = 4.0
 KCAL_PER_G_CARB = 4.0
 KCAL_PER_G_FAT = 9.0
 
-# CONVENTION. Protein scales with body weight, not with the calorie target --
-# that is the whole reason this app does not use a fixed percentage split. 1.8
-# g/kg sits inside the range usually recommended for someone in a deficit
-# trying to keep muscle; 1.6-2.2 would all be defensible. Fat then takes a
-# quarter of calories (20-35% is the usual band) and carbohydrate is whatever
-# is left, because carbohydrate is the macro with no established minimum.
+# SOURCE. Protein scales with body weight, not with the calorie target -- that
+# is the whole reason this app does not use a fixed percentage split. How much
+# per kg depends on the goal and on "What matters most?" (settings.
+# protein_focus), as (target, low, high):
+#   * keeping muscle while losing: 2.2 (1.8-2.6). Helms, Aragon & Fitschen
+#     2014 and the ISSN position stand (Jäger et al. 2017): 2.3-3.1 g per kg
+#     of LEAN mass for trained people in a deficit, which is 1.8-2.6 per kg
+#     of body weight at 15-25% body fat;
+#   * building muscle, at maintenance or above: 1.9 (1.6-2.2). Iraki et al.
+#     2019: "1.6-2.2 g/kg/day"; Morton et al. 2018 found no further gain in
+#     lean mass past 1.62;
+#   * just the scale: 1.4 (1.2-1.6). Leidy et al. 2015 (AJCN): 1.2-1.6 g/kg a
+#     day improves appetite and weight management;
+#   * not answered: 1.8 (1.6-2.2), the value every account had before the
+#     question; inside the ISSN's 1.4-2.0 for exercisers and Iraki's range.
+# Fat then takes a quarter of calories (IOM AMDR 20-35%) and carbohydrate is
+# whatever is left, because carbohydrate is the macro with no established
+# minimum.
 PROTEIN_G_PER_KG = 1.8
+PROTEIN_UNANSWERED = (PROTEIN_G_PER_KG, 1.6, 2.2)
+PROTEIN_MUSCLE_LOSING = (2.2, 1.8, 2.6)
+PROTEIN_MUSCLE = (1.9, 1.6, 2.2)
+PROTEIN_SCALE = (1.4, 1.2, 1.6)
+# SOURCE. Weijs 2024 (Curr Opin Clin Nutr Metab Care 28(1)): during weight
+# loss, "at least 1.2 g/kg body weight per day with a maximum weight of BMI
+# 30". Fat mass needs no protein, so above BMI 30 protein -- and the fat
+# minimum below -- is worked out from the weight at BMI 30 for the height.
+# Lean, heavy lifters rarely pass BMI 30 by muscle alone; anyone with a coach's
+# numbers types their own.
+PROTEIN_REFERENCE_MAX_BMI = 30.0
 FAT_FRACTION_OF_CALORIES = 0.25
 # SOURCE. Iraki, Fitschen, Espinar & Helms 2019 (Sports 7:154): fat at "0.5-1.5
 # g/kg/day". The quarter of calories above stays the rule, but never below the
@@ -581,6 +604,23 @@ def max_daily_deficit(weight_kg: float) -> float:
     never more than 1 kg. Calorie banking holds a single day to this too."""
     kg = min(MAX_LOSS_FRACTION_OF_WEIGHT * weight_kg, MAX_LOSS_KG_PER_WEEK)
     return kg * KCAL_PER_KG / 7
+
+
+def protein_g_per_kg(
+    focus: str | None, applied_rate_kg_per_week: float
+) -> tuple[float, float, float]:
+    """(target, low, high) grams per kg for the answer and the planned pace."""
+    if focus == "muscle":
+        return PROTEIN_MUSCLE_LOSING if applied_rate_kg_per_week < 0 else PROTEIN_MUSCLE
+    if focus == "scale":
+        return PROTEIN_SCALE
+    return PROTEIN_UNANSWERED
+
+
+def protein_reference_weight(weight_kg: float, height_cm: float) -> float:
+    """The weight protein and the fat minimum are worked out from: body weight,
+    or the weight at BMI 30 for this height if that is lower (Weijs 2024)."""
+    return min(weight_kg, PROTEIN_REFERENCE_MAX_BMI * (height_cm / 100) ** 2)
 
 
 def _floor_applies_to(sex: str | None, weight_kg: float) -> str:
