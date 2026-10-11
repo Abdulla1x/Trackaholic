@@ -265,17 +265,27 @@ MIFFLIN_HEIGHT_COEFFICIENT = 6.25
 MIFFLIN_AGE_COEFFICIENT = 5.0
 MIFFLIN_SEX_OFFSET = {"male": 5.0, "female": -161.0}
 
-# CONVENTION. The activity multipliers handed down with the Harris-Benedict
-# equation. They are round numbers someone chose decades ago, they differ
-# between sources, and a real person's true multiplier sits somewhere in a wide
-# band around them. They are here because a day-one estimate needs *something*,
-# not because they are accurate.
+# SOURCE. Physical activity levels (PAL = total burn / basal burn) measured with
+# doubly labelled water: FAO/WHO/UNU, Human energy requirements (2001
+# consultation, published 2004), Table 5.3 -- "sedentary or light activity"
+# 1.40-1.69 (their example: male office workers), "active or moderately
+# active" 1.70-1.99, "vigorous" 2.00-2.40. The five levels sit inside those
+# bands: the two lightest at the bottom and middle of the first, the next two
+# at the bottom and middle of the second, the most active at the start of the
+# third.
+#
+# Until 2026-10 these were the Harris-Benedict-era round numbers (1.2, 1.375,
+# 1.55, 1.725, 1.9). Measured data puts an office worker at 1.40 or more, so
+# 1.2 set desk workers' day-one targets too low -- the risky direction, since
+# an underestimated burn plans a bigger cut than the pace asked for. They are
+# still estimates for one person; the measured burn replaces them once there
+# is data (targets._measure_tdee).
 ACTIVITY_MULTIPLIERS = {
-    "sedentary": 1.2,      # desk job, little or no deliberate exercise
-    "light": 1.375,        # light exercise 1-3 days a week
-    "moderate": 1.55,      # moderate exercise 3-5 days a week
-    "active": 1.725,       # hard exercise 6-7 days a week
-    "very_active": 1.9,    # physical job, or training twice a day
+    "sedentary": 1.40,     # mostly sitting: desk or home, no workouts
+    "light": 1.55,         # 1-2 workouts a week, or on your feet part of the day
+    "moderate": 1.70,      # 3-5 workouts a week, or on your feet most of the day
+    "active": 1.85,        # 6-7 workouts a week, or a physical job
+    "very_active": 2.00,   # training twice a day, or a physical job plus workouts
 }
 
 # APPROXIMATION. The energy in a kilogram of body mass, used to turn a desired

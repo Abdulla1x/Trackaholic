@@ -109,7 +109,7 @@ def test_targets_are_computed_once_the_profile_is_complete(client):
     body = client.get("/api/settings/targets").json()
     assert body["missing"] == []
     # 10(80) + 6.25(180) - 5(36) + 5 = 1750 for a user born 1990-05-04, then
-    # x1.55 for "moderate" = 2712.5, then -550/day for -0.5 kg/week.
+    # x1.70 for "moderate" = 2975, then -550/day for -0.5 kg/week.
     assert body["bmr"] > 1700
     assert body["tdee"] > body["bmr"]
     assert body["target_calories"] < body["tdee"]
