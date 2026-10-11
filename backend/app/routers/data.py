@@ -176,6 +176,9 @@ def export_all(user: User = Depends(get_current_user), db: Session = Depends(get
             # Whether a target was ever chosen, or the shipped 2000 is still
             # standing in. Never null.
             "target_set": setting.target_set,
+            # A fifth meaning for null in this block: not answered, which
+            # keeps the protein every account had before the question existed.
+            "protein_focus": setting.protein_focus,
         },
         "meals": [
             # `date` is when it was eaten, `created_at` when it was logged,

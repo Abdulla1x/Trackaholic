@@ -894,6 +894,10 @@ class Settings(BaseModel):
     # read cannot undo the save that set it. Defaulted for the reason
     # weight_unit is.
     target_set: bool = False
+    # "What matters most to you?" for protein: keeping or building muscle, or
+    # just the scale; None means not answered. Patched, so a stale bundle
+    # can't clear it and sending null clears it on purpose.
+    protein_focus: Literal["muscle", "scale"] | None = None
 
     @field_validator("birth_date")
     @classmethod

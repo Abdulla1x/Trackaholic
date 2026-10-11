@@ -149,6 +149,7 @@ UNSET_OPTIONALS = {
     "weigh_in_reminder_time": None, "weigh_in_reminder_days": 1,
     "show_meal_times": True,
     "target_set": False,
+    "protein_focus": None,
 }
 
 
@@ -188,6 +189,7 @@ def test_body_profile_round_trips(client):
         # The default goals are unchanged and targets_auto is off, so nothing
         # here chooses a target.
         "target_set": False,
+        "protein_focus": "muscle",
     }
     assert client.put("/api/settings", json=profile).json() == profile
     assert client.get("/api/settings").json() == profile
@@ -549,3 +551,21 @@ def test_meal_times_are_shown_until_switched_off(client):
     stale = {key: value for key, value in saved.items() if key != "show_meal_times"}
     assert client.put("/api/settings", json=stale).json()["show_meal_times"] is False
     assert client.get("/api/data/export/all").json()["settings"]["show_meal_times"] is False
+
+
+def test_protein_focus_is_kept_by_a_stale_save_and_cleared_on_purpose(client):
+    settings = client.get("/api/settings").json()
+    assert settings["protein_focus"] is None
+
+    saved = client.put("/api/settings", json={**settings, "protein_focus": "scale"}).json()
+    assert saved["protein_focus"] == "scale"
+
+    stale = {key: value for key, value in saved.items() if key != "protein_focus"}
+    assert client.put("/api/settings", json=stale).json()["protein_focus"] == "scale"
+    assert client.get("/api/data/export/all").json()["settings"]["protein_focus"] == "scale"
+
+    cleared = client.put("/api/settings", json={**saved, "protein_focus": None}).json()
+    assert cleared["protein_focus"] is None
+    assert client.put(
+        "/api/settings", json={**saved, "protein_focus": "bulk"}
+    ).status_code == 422

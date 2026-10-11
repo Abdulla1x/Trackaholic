@@ -111,6 +111,10 @@ export interface Settings {
    *  response without it is an account from before first use existed, which
    *  counts as set. */
   target_set?: boolean
+  /** "What matters most to you?" from setup: it moves only the protein
+   *  target. null = not answered (1.8 g/kg, as before). Optional for the
+   *  same reason as target_set. */
+  protein_focus?: 'muscle' | 'scale' | null
 }
 
 /** One logged drink. */
