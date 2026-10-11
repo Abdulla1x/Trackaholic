@@ -50,7 +50,8 @@ import {
 import { useSettings } from '../settings/SettingsContext'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import { useSkeletonFloor } from '../hooks/useSkeletonFloor'
-import type { AnalyticsSummary, Settings, WeightTrend } from '../types'
+import type { AnalyticsSummary, BodyTargets, Settings, WeightTrend } from '../types'
+import DailyBurnBlock from '../components/progress/DailyBurnBlock'
 import Block from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import Gauge from '@/ui/gauge'
@@ -126,11 +127,23 @@ export default function Progress() {
   }, [foodKey])
   useEffect(loadFood, [loadFood])
 
+  // What the profile and the logs work out to, for Daily burn. Not tied to
+  // the range: measured burn has its own fixed four-week window.
+  const [burn, setBurn] = useState<BodyTargets | null | undefined>(undefined)
+  const loadBurn = useCallback(() => {
+    setBurn(undefined)
+    api.getBodyTargets().then(setBurn, () => setBurn(null))
+  }, [])
+  useEffect(loadBurn, [loadBurn])
+
   const error =
-    trend === null || foodFailed ? "Couldn't load all of Progress. Check your connection, then try again." : null
+    trend === null || foodFailed || burn === null
+      ? "Couldn't load all of Progress. Check your connection, then try again."
+      : null
   useLiveMessage(error)
 
-  const firstLoad = !floorPassed || !settings || trend === undefined || (food === null && !foodFailed)
+  const firstLoad =
+    !floorPassed || !settings || trend === undefined || burn === undefined || (food === null && !foodFailed)
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] desk:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] desk:gap-x-10">
@@ -147,29 +160,46 @@ export default function Progress() {
       </div>
 
       {firstLoad ? (
-        <div role="status" aria-busy="true" className="grid grid-cols-[minmax(0,1fr)]">
+        <div role="status" aria-busy="true" className={COLUMNS}>
           <span className="sr-only">Loading Progress</span>
-          <SkeletonBlock />
-          <SkeletonBlock />
+          <div className="grid content-start grid-cols-[minmax(0,1fr)]">
+            <SkeletonBlock />
+            <SkeletonBlock />
+          </div>
+          <div className="grid content-start grid-cols-[minmax(0,1fr)]">
+            <SkeletonBlock short />
+          </div>
         </div>
       ) : (
-        <div className="grid content-start grid-cols-[minmax(0,1fr)]">
-          <WeightBlock trend={trend} range={range} today={today} settings={settings} onRetry={loadTrend} />
-          <NutritionBlock
-            food={food?.data ?? null}
-            stale={food !== null && food.key !== foodKey}
-            failed={foodFailed}
-            range={range}
-            start={span.start}
-            end={span.end}
-            settings={settings}
-            onRetry={loadFood}
-          />
+        <div className={COLUMNS}>
+          <div className="grid content-start grid-cols-[minmax(0,1fr)]">
+            <WeightBlock trend={trend} range={range} today={today} settings={settings} onRetry={loadTrend} />
+            <NutritionBlock
+              food={food?.data ?? null}
+              stale={food !== null && food.key !== foodKey}
+              failed={foodFailed}
+              range={range}
+              start={span.start}
+              end={span.end}
+              settings={settings}
+              onRetry={loadFood}
+            />
+          </div>
+          {/* The right-hand column from 900px, below Nutrition on a phone: the
+              numbers that keep their own windows rather than the range's. */}
+          <div className="grid content-start grid-cols-[minmax(0,1fr)]">
+            <DailyBurnBlock targets={burn ?? null} onRetry={loadBurn} />
+          </div>
         </div>
       )}
     </div>
   )
 }
+
+/** Weight and Nutrition on the left, the rest on the right from 900px (0a);
+ *  one column, in that order, on a phone. */
+const COLUMNS =
+  'grid grid-cols-[minmax(0,1fr)] desk:col-span-2 desk:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] desk:gap-x-10'
 
 /** One choice for the whole page (UA-5): five chips sharing the width, so
  *  they never wrap to a second row (UA-19), even at 320px. */
@@ -190,12 +220,12 @@ function RangeControl({ value, onChange }: { value: RangeKey; onChange: (key: Ra
   )
 }
 
-function SkeletonBlock() {
+function SkeletonBlock({ short = false }: { short?: boolean }) {
   return (
     <div className="grid gap-2.5 border-b border-rule py-3.5">
       <Skeleton className="h-3 w-1/4" />
       <Skeleton className="h-9 w-3/5" />
-      <Skeleton className="h-[200px]" />
+      <Skeleton className={short ? 'h-[72px]' : 'h-[200px]'} />
     </div>
   )
 }
