@@ -288,6 +288,8 @@ async function seed(token) {
       // and so the only one that puts the whole readout in the screenshot.
       goal_weight_kg: 78,
       targets_auto: true, steps_goal: 9000,
+      // A new account shows only the weigh-in until it chooses more.
+      trackers: ['water', 'steps', 'supplements'],
     }),
   })
 

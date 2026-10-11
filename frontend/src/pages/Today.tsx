@@ -6,11 +6,13 @@ import DateBar from '../components/today/DateBar'
 import MealList from '../components/today/MealList'
 import ReviewCard from '../components/today/ReviewCard'
 import WeighInCard from '../components/today/WeighInCard'
+import TrackersSheet from '../components/today/TrackersSheet'
 import StepsCard from '../components/StepsCard'
 import SupplementsCard from '../components/SupplementsCard'
 import WaterCard from '../components/WaterCard'
 import { localIsoDate } from '../lib/dates'
 import { isReviewDay } from '../lib/review'
+import { canChooseTrackers, CHANGE_TRACKERS, shownTrackers } from '../lib/trackers'
 import { countedMeals, dayTotals, planCaption, shownMeals, targetIsSet, viewedDay } from '../lib/today'
 import { useSettings } from '../settings/SettingsContext'
 import { useLogPanel } from '../components/log/useLogPanel'
@@ -20,6 +22,7 @@ import { useHeldDelete } from '../hooks/useHeldDelete'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import { useToast } from '../ui/toast'
 import { DURATION } from '../lib/motion'
+import { Button } from '@/ui/button'
 
 /** Waits for the Log panel to leave, then scrolls to the top of the page.
  *  Instant under reduced motion. Resolves once there, or after a second in
@@ -195,6 +198,10 @@ export default function Today() {
   // takes the right response to arrive.
   const dayPlan = planDay?.date === viewedDate ? planDay : null
   const goals = dayPlan ?? settings
+  // Supplements is passed as "has something to tick" because its card checks
+  // that itself before the choice existed; see shownTrackers.
+  const trackers = settings ? shownTrackers(settings, true) : []
+  const [choosing, setChoosing] = useState(false)
 
 
   return (
@@ -264,13 +271,25 @@ export default function Today() {
         {/* First: the one tracker every account has, and the one with a
             reminder. */}
         <WeighInCard day={viewedDate} today={realToday} />
-        <WaterCard date={viewedDate} />
-        <StepsCard date={viewedDate} />
-        {/* Renders nothing until there is a supplement to tick, so the grid is
-            two cards long for an account that has not set any up. The entry
-            point is Settings; a permanent empty card would spend prime space
-            explaining a feature once. */}
-        <SupplementsCard date={viewedDate} />
+        {/* The rest are the ones the account chose (lib/trackers.ts). Not
+            drawn until settings arrive, so a new account never sees cards
+            flash up and vanish. */}
+        {trackers.includes('water') && <WaterCard date={viewedDate} />}
+        {trackers.includes('steps') && <StepsCard date={viewedDate} />}
+        {/* Chosen, it shows how to set it up while it is empty. From before
+            the choice, it renders nothing until there is something to tick,
+            as it always did. */}
+        {trackers.includes('supplements') && (
+          <SupplementsCard date={viewedDate} chosen={settings?.trackers != null} />
+        )}
+        {settings && canChooseTrackers(settings) && (
+          <>
+            <Button variant="ghost" className="mt-3.5 w-full" onClick={() => setChoosing(true)}>
+              {CHANGE_TRACKERS}
+            </Button>
+            <TrackersSheet open={choosing} onOpenChange={setChoosing} />
+          </>
+        )}
       </div>
     </div>
   )

@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { localIsoDate } from '../lib/dates'
 import type { SupplementDay, SupplementSlot } from '../types'
 import DailyTrackerCard from './DailyTrackerCard'
 import Tracker from './today/Tracker'
 import { SupplementsIcon, DoneIcon } from '@/ui/icons'
+import { Button } from '@/ui/button'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 interface Props {
   /** The day being viewed on the dashboard, not necessarily today. */
   date: string
+  /** Whether the account chose this tracker. A chosen tracker with nothing
+   *  set up yet shows how to set it up; before the choice existed, an empty
+   *  card was simply not shown. */
+  chosen?: boolean
 }
 
 /** How often the clock is re-read while the card is on screen.
@@ -32,7 +38,7 @@ function clockTime(now: Date): string {
   ).padStart(2, '0')}`
 }
 
-export default function SupplementsCard({ date }: Props) {
+export default function SupplementsCard({ date, chosen = false }: Props) {
   const [day, setDay] = useState<SupplementDay | null>(null)
   const [error, setError] = useState<string | null>(null)
   useLiveMessage(error)
@@ -121,11 +127,22 @@ export default function SupplementsCard({ date }: Props) {
     )
   }
 
-  // Nothing scheduled and nothing ticked: no card at all. The entry point is
-  // Settings, and a permanent "add some supplements" card would spend prime
-  // dashboard space explaining a feature once — the same argument that keeps
-  // the Saved meals panel hidden until a template exists. Distinct from the
-  // error branch above, which is why that one comes first.
+  // Nothing scheduled and nothing ticked. Chosen on purpose, the card says
+  // how to set it up: someone who just picked Supplements should not find it
+  // missing. Not chosen (an account from before the choice), no card at all,
+  // as before: a permanent "add some supplements" card would spend prime
+  // space explaining a feature once. Distinct from the error branch above,
+  // which is why that one comes first.
+  if (day && day.slots.length === 0 && chosen) {
+    return (
+      <Tracker icon={<SupplementsIcon size={22} />} title="Supplements" value={<span className="text-small text-ink-2">Nothing to tick yet</span>}>
+        <p className="text-small text-ink-2">Add what you take and when, and it shows up here to tick off.</p>
+        <Button asChild variant="secondary" className="justify-self-start">
+          <Link to="/settings/trackers">Set up supplements</Link>
+        </Button>
+      </Tracker>
+    )
+  }
   if (!day || day.slots.length === 0) return null
 
   const nowHm = clockTime(now)
