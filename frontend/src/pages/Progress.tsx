@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useReducedMotion } from 'motion/react'
 import {
@@ -307,12 +307,11 @@ function WeightBlock({
           {trend.weekly_rate_kg === null ? '—' : formatRate(trend.weekly_rate_kg, unit)}
         </Stat>
         <Stat
-          label="Goal"
-          unit={
-            goal.goal_weight_kg === null
-              ? undefined
-              : `${label}${goal.status === 'on_course' && goal.reach_date ? ` · ${shortDate(goal.reach_date)}` : ''}`
-          }
+          // The projected date in the label, where it never wraps the figure:
+          // in the unit it pushed "kg" onto a second line once the date was in
+          // another year and so carried one.
+          label={goal.status === 'on_course' && goal.reach_date ? `Goal · ${shortDate(goal.reach_date)}` : 'Goal'}
+          unit={goal.goal_weight_kg === null ? undefined : label}
         >
           {goal.goal_weight_kg === null ? '—' : formatWeight(goal.goal_weight_kg, unit)}
         </Stat>
@@ -375,13 +374,6 @@ function WeightBlock({
                   strokeWidth={2}
                   strokeDasharray={planDash}
                   ifOverflow="extendDomain"
-                  label={{
-                    value: `Goal ${formatWeight(goal.goal_weight_kg, unit)} ${label}`,
-                    position: 'insideBottomRight',
-                    fill: chartPlan,
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
                 />
               )}
               {/* Context in ink 2, the subject in ink (DESIGN.md). */}
@@ -413,8 +405,26 @@ function WeightBlock({
           </ResponsiveContainer>
         </figure>
       )}
+      {shown.length > 0 && goalShown !== null && (
+        <PlanKey>
+          Goal {goalShown.toFixed(1)} {label}
+        </PlanKey>
+      )}
       <AllWeighIns />
     </Block>
+  )
+}
+
+/** The dashed line's key, under a chart rather than written inside it, where
+ *  the label sat on top of the bars or the weigh-ins whenever they reached it
+ *  (DESIGN.md: Charts). Decorative to a screen reader: the figure caption
+ *  already says what the dashed line is. */
+function PlanKey({ children }: { children: ReactNode }) {
+  return (
+    <p aria-hidden="true" className="flex items-center gap-2 text-small text-ink-2">
+      <span className="w-5 border-t-2 border-dashed border-plan" />
+      {children}
+    </p>
   )
 }
 
@@ -553,11 +563,15 @@ function NutritionBlock({
                 strokeWidth={2}
                 strokeDasharray={planDash}
                 ifOverflow="extendDomain"
-                label={{ value: 'Target', position: 'insideTopRight', fill: chartPlan, fontSize: 12, fontWeight: 700 }}
               />
             </BarChart>
           </ResponsiveContainer>
         </figure>
+      )}
+      {food.logged_days > 0 && (
+        <PlanKey>
+          Target {n(target)} {series.unit}
+        </PlanKey>
       )}
       <p className="text-small text-ink-2">Today is left out until it’s over.</p>
       <RowLink

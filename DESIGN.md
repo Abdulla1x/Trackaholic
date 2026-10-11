@@ -234,7 +234,7 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - **The moment:** the first visit after a lock opens plays the Unlock motion and its line from Voice. Once per device; a device that first sees it already unlocked never plays it.
 
 ### Charts
-- **Marks:** data is ink (the trend line, a day's bar); context is ink 2 (the raw weigh-ins under the trend, axis text); grid lines are rule, horizontal only. Targets and goals are the plan colour, dashed 6/4, labelled ("Goal 85.0 kg", "Target") — the Plan Rule on a chart.
+- **Marks:** data is ink (the trend line, a day's bar); context is ink 2 (the raw weigh-ins under the trend, axis text); grid lines are rule, horizontal only. Targets and goals are the plan colour, dashed 6/4 — the Plan Rule on a chart — with a key under the chart (a short dashed line, "Target 2,400 kcal"), never a label inside it, where it lands on the data.
 - **Colours by token:** charts take the palette's colours by reference, so they follow the palette and the light or dark mode like everything else.
 - **Reading values:** tap (or hover) a point for a small panel on the ground colour with a rule border. No legend: the block's label and the series switch say what is drawn.
 - **Axes:** dates as "Sep 28"; a weight axis steps in even whole numbers and always includes the goal.
