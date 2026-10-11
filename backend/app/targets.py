@@ -122,6 +122,13 @@ class TargetsResult:
     # signal that something is wrong with the logs.
     tdee_estimated: float | None = None
     tdee_basis: TdeeBasis | None = None
+    # The pace limits as data (calculations.target_calories), mirrored on
+    # schemas.BodyTargets for the reason tdee_source gives.
+    applied_rate_kg_per_week: float | None = None
+    max_loss_kg_per_week: float | None = None
+    max_gain_kg_per_week: float | None = None
+    floor_kcal: float | None = None
+    loss_refused: bool = False
 
     @property
     def available(self) -> bool:
@@ -343,7 +350,13 @@ def compute_targets(
     tdee = measured if measured is not None else estimated
     tdee_source = "measured" if measured is not None else "estimated"
 
-    target = target_calories(tdee, setting.goal_rate_kg_per_week, setting.sex)
+    target = target_calories(
+        tdee,
+        setting.goal_rate_kg_per_week,
+        setting.sex,
+        weight_kg=weight_kg,
+        height_cm=setting.height_cm,
+    )
     macros = macro_targets(target.calories, weight_kg)
 
     # Both clamps can fire at once and both are the user's business: one says
@@ -369,6 +382,11 @@ def compute_targets(
         tdee_source=tdee_source,
         tdee_estimated=estimated,
         tdee_basis=basis,
+        applied_rate_kg_per_week=target.applied_rate,
+        max_loss_kg_per_week=target.max_loss_kg_per_week,
+        max_gain_kg_per_week=target.max_gain_kg_per_week,
+        floor_kcal=target.floor_kcal,
+        loss_refused=target.loss_refused,
     )
 
 

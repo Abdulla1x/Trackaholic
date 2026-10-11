@@ -236,9 +236,9 @@ def create_plan(
     today = date_type.today()
     setting = _get_or_create(db, user.id)
     goals = _base_goals(setting)
-    # For the proportional floor. None when the body profile is incomplete, and
-    # `banking.check_floor` says so rather than skipping the check.
-    tdee = compute_targets(db, setting, today=today).tdee
+    # For the pace limit on a single day. None when the body profile is
+    # incomplete, and `banking.check_floor` says so rather than skipping it.
+    targets = compute_targets(db, setting, today=today)
 
     entries, surplus = _entries_for(db, setting, body, today)
 
@@ -254,7 +254,8 @@ def create_plan(
         today=today,
         goals=goals,
         sex=setting.sex,
-        tdee=tdee,
+        tdee=targets.tdee,
+        weight_kg=targets.weight_kg,
         surplus_kcal=surplus,
     )
     if check.refusals:
