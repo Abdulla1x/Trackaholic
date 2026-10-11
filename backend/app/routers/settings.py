@@ -58,6 +58,9 @@ def _settings_out(row: Setting) -> Settings:
         None if row.water_quick_adds_json is None
         else json.loads(row.water_quick_adds_json)
     )
+    data["trackers"] = (
+        None if row.trackers_json is None else json.loads(row.trackers_json)
+    )
     return Settings.model_validate(data)
 
 
@@ -204,6 +207,12 @@ def update_settings(
     # Out of the loop because the name and the type both change on the way in.
     # Sending null clears it back to the shipped defaults, which is why this is
     # keyed on model_fields_set rather than on the value being non-None.
+    # The same conversion as water_quick_adds below. null is accepted and
+    # means "not chosen yet" again, which nothing sends on purpose.
+    if "trackers" in settings.model_fields_set:
+        row.trackers_json = (
+            None if settings.trackers is None else json.dumps(settings.trackers)
+        )
     if "water_quick_adds" in settings.model_fields_set:
         row.water_quick_adds_json = (
             None if settings.water_quick_adds is None
