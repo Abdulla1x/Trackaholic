@@ -11,7 +11,8 @@ import {
   YAxis,
 } from 'recharts'
 import { api } from '../api/client'
-import { addDays, daysBetween, localIsoDate, parseIsoDate } from '../lib/dates'
+import { localIsoDate } from '../lib/dates'
+import { NO_PROJECTION, pointsFrom, projectionCaption, TREND_FETCH_DAYS, weightRangeStart } from '../lib/weight'
 import { displayToKg, formatRate, formatWeight, unitLabel } from '../lib/units'
 import { useSettings } from '../settings/SettingsContext'
 import {
@@ -29,11 +30,9 @@ import {
   TREND_COLOR,
 } from '../lib/chartTheme'
 import type {
-  GoalProjection,
   Settings,
   WeightEntry,
   WeightTrend,
-  WeightTrendPoint,
 } from '../types'
 import Card from '../components/ui/Card'
 import TextInput from '../components/ui/TextInput'
@@ -42,26 +41,13 @@ import Button from '../components/ui/Button'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import ShowAllToggle from '../components/ShowAllToggle'
 
-// How much history is FETCHED -- the endpoint's own maximum, and deliberately
-// not the range the chart happens to be showing.
-//
-// ⚠️ `days` on GET /api/weights/trend decides what the numbers are computed
-// from, not just what is drawn: the EWMA seeds at the first entry in the window
-// and the rate needs seven points inside 28 days. Wiring the picker below to it
-// would move the trend weight, the weekly rate and the projected date every
-// time someone zoomed the chart, and a short enough range would blank the last
-// two outright. So the fetch is fixed and the picker slices what came back.
-// Choosing which points to draw is a display decision; recomputing a number
-// client-side is not, and this stays on the right side of that line.
-const TREND_FETCH_DAYS = 1825
-
 // What the picker offers. `days: null` is everything fetched -- five years,
 // which is "all" for any real account and is what the endpoint will serve.
 //
 // The short ranges are for reading the last week or two of dots, NOT for
 // getting a shorter-term rate out of the readout below: the trend weight and
 // the weekly change are current-state numbers over their own fixed windows and
-// do not move with this control. See the note on TREND_FETCH_DAYS.
+// do not move with this control. See the note on TREND_FETCH_DAYS (lib/weight.ts).
 const RANGE_OPTIONS = [
   { days: 7, label: '7 days', heading: 'Last 7 days' },
   { days: 14, label: '14 days', heading: 'Last 14 days' },
@@ -78,44 +64,6 @@ const DEFAULT_RANGE_DAYS: number | null = 90
 // than ShowAllToggle's COLLAPSED_ROWS of five -- see the note there on why the
 // two library lists must agree with each other and this one need not.
 const HISTORY_ROWS = 10
-
-/** The points inside the picked range, or all of them. Display only. */
-function pointsInRange(
-  points: WeightTrendPoint[],
-  days: number | null,
-): WeightTrendPoint[] {
-  if (days === null) return points
-  const cutoff = addDays(localIsoDate(), -(days - 1))
-  return points.filter((point) => point.date >= cutoff)
-}
-
-// What the page uses when the response has no `projection` at all.
-//
-// Not defensive programming for its own sake, and not a type the API can
-// return: the frontend ships from Vercel and the API from Render,
-// independently, so for a minute after any release this page runs against a
-// backend that predates the field. Reading through `trend.projection`
-// unguarded in that gap throws and replaces the whole Weight page with the
-// error boundary. AILatencyCard in Admin.tsx carries the same `??` for the
-// same reason, and its comment records that the bug was caught exactly that
-// way rather than reasoned about.
-const NO_PROJECTION: GoalProjection = {
-  status: 'no_goal',
-  goal_weight_kg: null,
-  remaining_kg: null,
-  weeks: null,
-  reach_date: null,
-  from_date: null,
-}
-
-/** A date far enough ahead that the year matters. Every other date in this app
- *  drops it; a projection is the one that can land in another year. */
-const longDate = (iso: string) =>
-  parseIsoDate(iso).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
 
 
 export default function Weight() {
@@ -203,7 +151,7 @@ export default function Weight() {
     RANGE_OPTIONS.find((option) => option.days === rangeDays) ??
     RANGE_OPTIONS.find((option) => option.days === DEFAULT_RANGE_DAYS) ??
     RANGE_OPTIONS[0]
-  const visiblePoints = pointsInRange(trend?.points ?? [], rangeDays)
+  const visiblePoints = pointsFrom(trend?.points ?? [], weightRangeStart(rangeDays, localIsoDate()))
   const chartData = visiblePoints.map((point) => ({
     date: point.date,
     weight: Number(formatWeight(point.weight_kg, unit)),
@@ -577,50 +525,3 @@ function TrendReadout({
   )
 }
 
-/** The projection, as a sentence. Assembled here rather than server-side
- *  because it has to name a weight in the reader's own unit and a date in
- *  their own locale, and the server knows neither.
- *
- *  Every branch is driven by `status`, never by which fields are null: the
- *  server decides what it is willing to claim, and this only says it. */
-function projectionCaption(trend: WeightTrend, unit: Settings['weight_unit']): string {
-  const goal = trend.projection ?? NO_PROJECTION
-  const rate = trend.weekly_rate_kg
-  const label = unitLabel(unit)
-  // Signed towards the goal, so the sign is the direction and the magnitude is
-  // the gap. A rate conversion works on a difference for the same reason it
-  // works on a weight -- both scales are linear through zero.
-  const gap =
-    goal.remaining_kg === null
-      ? ''
-      : `${formatWeight(Math.abs(goal.remaining_kg), unit)} ${label} ` +
-        `${goal.remaining_kg < 0 ? 'to lose' : 'to gain'}`
-
-  switch (goal.status) {
-    case 'no_goal':
-      return "Set a goal weight in Settings and we'll work out when you would reach it."
-    case 'reached':
-      return goal.from_date === null
-        ? 'You are there.'
-        : `You were there at your weigh-in on ${longDate(goal.from_date)}.`
-    case 'no_rate':
-      return 'Needs at least 7 weigh-ins in the last 28 days before a date can be worked out.'
-    case 'stale':
-      return goal.from_date === null
-        ? 'No recent weigh-ins to project from.'
-        : `Your last weigh-in was ${daysBetween(goal.from_date, localIsoDate())} days ago, so there is no current rate to project from.`
-    case 'holding':
-      return `${gap}, but your weight is holding steady — no date to give.`
-    case 'moving_away':
-      return `${gap}, and the trend is currently going the other way.`
-    case 'too_far':
-      return `${gap}. At your current rate that is more than two years out, so we will not name a date.`
-    case 'on_course':
-      // Both are always set alongside this status. Guarded anyway because the
-      // alternative to a fallback here is longDate('') throwing, which takes
-      // the page down rather than degrading the sentence.
-      return goal.reach_date === null || rate === null
-        ? `${gap}.`
-        : `${gap}. At your measured ${formatRate(rate, unit)} ${label}/week, around ${longDate(goal.reach_date)}.`
-  }
-}

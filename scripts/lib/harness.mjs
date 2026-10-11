@@ -155,6 +155,10 @@ export const PRIVATE_ROUTES = [
   `/day/${isoDaysAgo(0)}`,
   '/?meal',
   '/log',
+  // Progress (2026-10-11): on its default range, and on All, the range that
+  // draws the most bars and the only one whose start comes from the data.
+  '/progress',
+  '/progress?range=all',
   '/weight',
   '/analytics',
   '/review',
@@ -454,6 +458,10 @@ export async function visitRoutes(context, routes, onRoute) {
     // content; networkidle then covers the data each page fetches for itself.
     await page.waitForSelector('h1, h2', { timeout: 15_000 })
     await page.waitForLoadState('networkidle')
+    // A data screen holds its skeleton for at least 650 ms (DESIGN.md), which
+    // can outlast networkidle: without this, Progress was audited as its
+    // placeholder and the charts were never seen.
+    await page.waitForSelector('[aria-busy="true"]', { state: 'detached', timeout: 5_000 }).catch(() => undefined)
     const expanders = [EXPAND_ON[route] ?? []].flat()
     for (const expander of expanders) {
       const selector = typeof expander === 'string' ? expander : expander.fill

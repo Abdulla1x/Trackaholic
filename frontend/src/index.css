@@ -138,6 +138,19 @@
   --animate-strike: strike 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-drain: drain 10s linear both;
   --animate-fold: fold 280ms cubic-bezier(0.4, 0, 1, 1) both;
+
+  /* Skeletons (DESIGN.md): a slow band of the ground colour passing over a
+   * track-coloured block while a data screen first loads. */
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes strike {
@@ -227,6 +240,8 @@
      * the only sign of how long Undo lasts, and the window still applies. */
     --animate-strike: none;
     --animate-fold: none;
+    /* Loops stop: the block is simply there. */
+    --animate-shimmer: none;
   }
 }
 

@@ -5,7 +5,7 @@ import { SECTION_HOME, sectionFor } from '../src/components/shell/sections.ts'
 
 test('each tab owns its pages', () => {
   assert.equal(sectionFor('/'), 'today')
-  for (const path of ['/analytics', '/weight', '/review']) assert.equal(sectionFor(path), 'progress', path)
+  for (const path of ['/progress', '/analytics', '/weight', '/review']) assert.equal(sectionFor(path), 'progress', path)
   assert.equal(sectionFor('/log'), 'log')
   for (const path of ['/settings', '/settings/goals', '/settings/account', '/whats-new']) {
     assert.equal(sectionFor(path), 'you', path)
@@ -13,7 +13,7 @@ test('each tab owns its pages', () => {
 })
 
 test('pages outside the four tabs light none of them', () => {
-  for (const path of ['/admin', '/nope', '/settingsx', '/weights', '/logbook']) {
+  for (const path of ['/admin', '/nope', '/settingsx', '/weights', '/logbook', '/progressx']) {
     assert.equal(sectionFor(path), null, path)
   }
 })

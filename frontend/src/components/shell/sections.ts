@@ -2,21 +2,23 @@
  *  today's routes belongs to each.
  *
  *  Until the redesigned screens exist (phase 2), the tabs lead to the pages
- *  the app already has: Progress opens Analytics, and Weight and the weekly
- *  review count as Progress, reached by a sub-nav at the top of all three.
+ *  the app already has. Progress opens the new Progress screen; the old
+ *  Analytics, Weight and weekly review pages still count as Progress, reached
+ *  by a sub-nav at the top of all four, until phase 2c retires them.
  *  When phase 2 merges them into one Progress screen, this map shrinks; it is
  *  the one place that knows. */
 export type Section = 'today' | 'progress' | 'log' | 'you'
 
 export const SECTION_HOME: Record<Section, string> = {
   today: '/',
-  progress: '/analytics',
+  progress: '/progress',
   log: '/log',
   you: '/settings',
 }
 
 /** The pages under Progress, in sub-nav order. */
 export const PROGRESS_PAGES = [
+  { to: '/progress', label: 'Overview' },
   { to: '/analytics', label: 'Nutrition' },
   { to: '/weight', label: 'Weight' },
   { to: '/review', label: 'Weekly review' },
