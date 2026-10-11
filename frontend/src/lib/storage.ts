@@ -25,3 +25,19 @@ export function writeLocal(key: string, value: string) {
     /* The preference just won't stick. */
   }
 }
+
+export function removeLocal(key: string) {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    /* Nothing was stored, or nothing can be. */
+  }
+}
+
+/** A key for one account on this device. localStorage is shared by every
+ *  account signed in on a phone, so anything about the account rather than
+ *  the device carries its id: a second account must not inherit the first
+ *  one's saved-meal order, setup answers or first-use moments. */
+export function accountKey(name: string, userId: number): string {
+  return `${name}:${userId}`
+}
