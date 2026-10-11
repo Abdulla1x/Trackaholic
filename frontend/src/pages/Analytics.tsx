@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CartesianGrid,
@@ -22,7 +22,7 @@ import {
 } from '../lib/chartTheme'
 import { localIsoDate } from '../lib/dates'
 import { useSettings } from '../settings/SettingsContext'
-import type { AnalyticsSummary, ImportResult } from '../types'
+import type { AnalyticsSummary } from '../types'
 import Card from '../components/ui/Card'
 import TextInput from '../components/ui/TextInput'
 import { useLiveMessage } from '../hooks/useLiveMessage'
@@ -77,26 +77,6 @@ export default function Analytics() {
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   useLiveMessage(loadError)
-  const [importResult, setImportResult] = useState<ImportResult | null>(null)
-  const [importError, setImportError] = useState('')
-  useLiveMessage(importError)
-  const [importing, setImporting] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const [exportError, setExportError] = useState('')
-  useLiveMessage(exportError)
-  const fileInput = useRef<HTMLInputElement>(null)
-
-  async function handleExport() {
-    setExportError('')
-    setExporting(true)
-    try {
-      await api.downloadExport()
-    } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'Export failed')
-    } finally {
-      setExporting(false)
-    }
-  }
 
   useEffect(() => {
     // The stale flag stops an out-of-order response for a previous range from
@@ -131,20 +111,6 @@ export default function Analytics() {
       (chart.key === 'fat' && settings?.track_fat && hasData('fat')),
   )
 
-  const importFile = async (file: File) => {
-    setImporting(true)
-    setImportError('')
-    setImportResult(null)
-    try {
-      setImportResult(await api.importCsv(file))
-      setSummary(await api.getAnalytics(start, end))
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : 'Import failed')
-    } finally {
-      setImporting(false)
-      if (fileInput.current) fileInput.current.value = ''
-    }
-  }
 
 
   return (
@@ -303,56 +269,6 @@ export default function Analytics() {
       </Card>
 
       <CalibrationSection />
-
-      <Card as="section">
-        <h2 className="mb-3 font-semibold">Backup & restore</h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:border-emerald-500 hover:text-emerald-300 disabled:opacity-60"
-          >
-            {exporting ? (
-              'Exporting…'
-            ) : (
-              <>
-                <span aria-hidden="true">⬇️</span> Export all meals (CSV)
-              </>
-            )}
-          </button>
-          <button
-            onClick={() => fileInput.current?.click()}
-            disabled={importing}
-            className="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:border-emerald-500 hover:text-emerald-300 disabled:opacity-60"
-          >
-            {importing ? (
-              'Importing…'
-            ) : (
-              <>
-                <span aria-hidden="true">⬆️</span> Import meals (CSV)
-              </>
-            )}
-          </button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])}
-          />
-        </div>
-        {importResult && (
-          <p className="mt-3 text-sm text-emerald-400">
-            Imported {importResult.inserted} meals — skipped {importResult.skipped_duplicates}{' '}
-            duplicates, {importResult.skipped_invalid} invalid rows.
-          </p>
-        )}
-        {importError && <p className="mt-3 text-sm text-rose-400">{importError}</p>}
-        {exportError && <p className="mt-3 text-sm text-rose-400">{exportError}</p>}
-        <p className="mt-2 text-xs text-ink-faint">
-          CSV columns: date, name, calories, protein (carbs and fat optional).
-        </p>
-      </Card>
     </div>
   )
 }
