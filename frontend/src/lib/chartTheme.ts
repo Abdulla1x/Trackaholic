@@ -145,3 +145,47 @@ export const adminHues = {
   signups: SIGNUP_COLOR,
   meals: MEALS_COLOR,
 } as const
+
+// ---------------------------------------------------------------------------
+// The new look's charts (Progress, DESIGN.md: Colors and the Plan Rule).
+//
+// These are the palette tokens by reference, not hex copies, which is the
+// opposite of the arrangement described at the top of this file. The new
+// tokens change with the palette and the light/dark mode, so a frozen copy
+// would draw every palette's charts in one palette's colours. Recharts passes
+// these through as SVG presentation attributes and inline styles, and var()
+// resolves in both in every browser the app supports. Admin keeps the hexes
+// above: it is not part of the revamp, and its three series need hues.
+//
+// Data is ink; the goal or target is the plan colour, dashed, so it reads as
+// a target before colour is even considered.
+
+/** The subject: the trend line, a day's bar. */
+export const chartInk = 'var(--ink)'
+/** Context: the raw weigh-ins under the trend, axis text. */
+export const chartInk2 = 'var(--ink-2)'
+/** Hairlines: the grid. */
+export const chartRule = 'var(--rule)'
+/** Targets and goals only (the Plan Rule). */
+export const chartPlan = 'var(--plan)'
+/** The page's own ground, used to ring an active dot so it reads as raised. */
+export const chartGround = 'var(--ground)'
+
+/** The dash every target line uses. */
+export const planDash = '6 4'
+
+/** Axis labels, in the body face at the small size. */
+export const chartTick = { fill: chartInk2, fontSize: 12 }
+
+/** The tap-to-read panel: the page's ground with a rule border, like a field. */
+export const chartTooltip = {
+  background: chartGround,
+  border: `1.5px solid ${chartRule}`,
+  borderRadius: 5,
+  color: 'var(--ink)',
+  fontSize: 13,
+}
+export const chartTooltipLabel = { color: chartInk2, marginBottom: 2 }
+
+/** Room for four-digit y labels at the left, nothing wasted elsewhere. */
+export const progressMargin = { top: 8, right: 4, bottom: 0, left: -8 }
