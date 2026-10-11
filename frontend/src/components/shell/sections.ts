@@ -30,6 +30,7 @@ export function screenDepth(pathname: string): number {
   if (/^\/day\/[^/]+\/meal\/[^/]+$/.test(pathname)) return 2
   if (/^\/day\/[^/]+$/.test(pathname)) return 1
   if (pathname === '/setup') return 1
+  if (pathname === '/how-it-works/target') return 2
   if (pathname === '/how-it-works') return 1
   if (pathname.startsWith('/progress/')) return 1
   return 0

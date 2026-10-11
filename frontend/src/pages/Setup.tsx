@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import ScreenBar from '../components/shell/ScreenBar'
@@ -855,6 +855,13 @@ function TargetSummary({
           plans {paceText(applied, a.unit)}.
         </span>
       )}
+      <Link
+        to="/how-it-works/target"
+        state={{ from: '/setup?q=target', preview, unit: a.unit }}
+        className="justify-self-start text-small font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+      >
+        How is this worked out?
+      </Link>
       {raised && (
         <span className="text-small">
           Raised to {Math.round(floor).toLocaleString()} kcal, the lowest target it sets for you; your estimated burn of{' '}

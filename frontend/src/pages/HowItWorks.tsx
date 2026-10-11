@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import ScreenBar from '../components/shell/ScreenBar'
 import { CHANGE_TRACKERS } from '../lib/trackers'
 import Block from '@/ui/block'
@@ -15,6 +16,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function List({ children }: { children: ReactNode }) {
   return <ul className="grid list-disc gap-1.5 pl-5 text-ink-2 marker:text-ink-2">{children}</ul>
 }
+
+const LINK = 'font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'
 
 /** How Trackaholic works: an optional page instead of a tour (decided
  *  2026-10-11). Linked from Getting started, the "what's next" moment, You,
@@ -63,6 +66,11 @@ export default function HowItWorks() {
         <p>
           Your target comes from your answers in setup and follows your weight as it changes. Change it, or type your
           own, in You → Goals.
+        </p>
+        <p>
+          <Link to="/how-it-works/target" className={LINK}>
+            How your target is worked out
+          </Link>
         </p>
       </Section>
 
