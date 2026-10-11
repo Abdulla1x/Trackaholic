@@ -7,6 +7,7 @@ import MealList from '../components/today/MealList'
 import ReviewCard from '../components/today/ReviewCard'
 import WeighInCard from '../components/today/WeighInCard'
 import GettingStarted from '../components/today/GettingStarted'
+import TargetMovedNote from '../components/today/TargetMovedNote'
 import TrackersSheet from '../components/today/TrackersSheet'
 import StepsCard from '../components/StepsCard'
 import SupplementsCard from '../components/SupplementsCard'
@@ -14,6 +15,7 @@ import WaterCard from '../components/WaterCard'
 import { localIsoDate } from '../lib/dates'
 import { gettingStartedView, readMemory, type GettingStartedMemory } from '../lib/firstUse'
 import { isReviewDay } from '../lib/review'
+import { readSeen, seenTarget, targetMove, type SeenTarget, type TargetMove } from '../lib/targetMoves'
 import { accountKey, readLocal, writeLocal } from '../lib/storage'
 import { useAuth } from '../auth/AuthContext'
 import { canChooseTrackers, CHANGE_TRACKERS, shownTrackers } from '../lib/trackers'
@@ -258,6 +260,47 @@ export default function Today() {
     />
   )
 
+  // "Your target moved" (lib/targetMoves.ts): for automatic targets only,
+  // compared with what this device last showed, per account. The daily drift
+  // of a weigh-in is stored silently; a named change waits for "Got it".
+  // The same answer says whether the target is waiting for a weigh-in.
+  const [move, setMove] = useState<TargetMove | null>(null)
+  const [pendingSeen, setPendingSeen] = useState<SeenTarget | null>(null)
+  const [waitingForWeighIn, setWaitingForWeighIn] = useState(false)
+  const seenKey = accountKey('trackaholic_target_seen', userId)
+  const followsWeight = settings !== null && settings.targets_auto && targetIsSet(settings)
+  const shownGoal = settings?.calorie_goal ?? 0
+  useEffect(() => {
+    if (!followsWeight) return
+    let live = true
+    api
+      .getBodyTargets()
+      .then((targets) => {
+        if (!live) return
+        setWaitingForWeighIn(targets.missing.includes('weight'))
+        if (targets.target_calories === null) return
+        const now = seenTarget(targets, shownGoal)
+        const named = targetMove(readSeen(readLocal(seenKey)), now, targets)
+        if (named) {
+          setMove(named)
+          setPendingSeen(now)
+        } else writeLocal(seenKey, JSON.stringify(now))
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [followsWeight, shownGoal, seenKey])
+  const movedNote = move && isToday && (
+    <TargetMovedNote
+      move={move}
+      onDismiss={() => {
+        if (pendingSeen) writeLocal(seenKey, JSON.stringify(pendingSeen))
+        setMove(null)
+      }}
+    />
+  )
+
   // The First target moment: arriving from setup, the band counts up and its
   // gauge draws in. Once per account on this device, and the arrival is
   // cleared from history so a reload or Back does not replay it.
@@ -303,6 +346,7 @@ export default function Today() {
             trackFat={settings.track_fat}
           />
         )}
+        {movedNote}
         {hasTarget && gettingStarted}
       </div>
 
@@ -352,7 +396,7 @@ export default function Today() {
         {isToday && isReviewDay(realToday) && settings && targetIsSet(settings) && <ReviewCard today={realToday} />}
         {/* First: the one tracker every account has, and the one with a
             reminder. */}
-        <WeighInCard day={viewedDate} today={realToday} />
+        <WeighInCard day={viewedDate} today={realToday} waitingForTarget={followsWeight && waitingForWeighIn} />
         {/* The rest are the ones the account chose (lib/trackers.ts). Not
             drawn until settings arrive, so a new account never sees cards
             flash up and vanish. */}
