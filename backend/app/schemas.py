@@ -980,6 +980,9 @@ class BodyTargets(BaseModel):
     max_gain_kg_per_week: float | None = None
     floor_kcal: float | None = None
     loss_refused: bool = False
+    # The weight trend has reached the goal weight, so the plan maintains;
+    # clamped_reason says so. Mirrored on targets.TargetsResult.
+    goal_reached: bool = False
     # Protein's per-kg rate for the goal and "What matters most?", the range
     # around the target, and the weight it is worked out from (body weight, or
     # the weight at BMI 30 for the height if lower). Mirrored on

@@ -396,7 +396,7 @@ def test_full_export_only_contains_own_supplements(client, client_b):
 
 def test_settings_are_independent(client, client_b):
     client.put("/api/settings", json={
-        "calorie_goal": 1800, "protein_goal": 160, "carbs_goal": 180,
+        "calorie_goal": 1800, "protein_goal": 160, "carbs_goal": 150,
         "fat_goal": 60, "track_carbs": True, "track_fat": True,
     })
     b_settings = client_b.get("/api/settings").json()

@@ -320,7 +320,7 @@ def test_a_settings_save_rewrites_the_goals_without_erasing_the_plan(client):
 
     saved = client.put(
         "/api/settings",
-        json={"calorie_goal": 1800, "protein_goal": 150, "carbs_goal": 200,
+        json={"calorie_goal": 1800, "protein_goal": 150, "carbs_goal": 160,
               "fat_goal": 60, "track_carbs": True, "track_fat": True},
     )
     assert saved.status_code == 200

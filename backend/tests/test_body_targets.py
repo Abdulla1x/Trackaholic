@@ -217,7 +217,11 @@ def test_turning_auto_off_leaves_the_computed_goals_editable(client):
 
     saved = set_profile(client, targets_auto=False, calorie_goal=computed)
     assert saved["targets_auto"] is False
-    saved = set_profile(client, targets_auto=False, calorie_goal=1234)
+    # Macros that fit inside the typed calories, which a typed target must.
+    saved = set_profile(
+        client, targets_auto=False, calorie_goal=1234,
+        protein_goal=100, carbs_goal=100, fat_goal=30,
+    )
     assert saved["calorie_goal"] == 1234
 
 
@@ -407,8 +411,12 @@ def test_saving_the_untouched_defaults_does_not_set_a_target(client):
     assert saved.json()["target_set"] is False
 
 
+# 2400 rather than 2200 below: BASE_SETTINGS tracks carbs and fat, and the
+# signup default macros need 2,230 kcal, so a typed target has to clear that.
+
+
 def test_changing_a_goal_sets_the_target(client):
-    saved = client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2200})
+    saved = client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2400})
     assert saved.json()["target_set"] is True
 
 
@@ -420,14 +428,14 @@ def test_a_typed_target_equal_to_the_defaults_can_still_be_chosen(client):
 
 
 def test_the_target_flag_never_turns_off(client):
-    client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2200})
+    client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2400})
     # A form that read the flag before the save above sends back false.
     stale = client.put(
-        "/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2200, "target_set": False}
+        "/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2400, "target_set": False}
     )
     assert stale.json()["target_set"] is True
     # And a bundle that predates the field sends nothing at all.
-    older = client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2200})
+    older = client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2400})
     assert older.json()["target_set"] is True
 
 
@@ -444,7 +452,7 @@ def test_auto_targets_set_the_target_only_once_they_can_be_worked_out(client):
 
 
 def test_the_target_flag_is_in_the_export(client):
-    client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2200})
+    client.put("/api/settings", json={**BASE_SETTINGS, "calorie_goal": 2400})
     exported = client.get("/api/data/export/all").json()["settings"]
     assert exported["target_set"] is True
 
@@ -483,3 +491,79 @@ def test_above_bmi_30_protein_uses_the_weight_at_bmi_30(client):
     body = targets(client)
     assert body["protein_reference_kg"] == 97.2
     assert body["protein_g"] == 136  # 1.4 x 97.2, not 1.4 x 140 = 196
+
+
+# --- targets follow weigh-in changes and the goal ------------------------------
+
+
+def test_deleting_a_weigh_in_recomputes_the_target_without_it(client):
+    """A mistyped weigh-in deleted must not leave a target built on it."""
+    weigh_in(client, 80.0, days_ago=1)
+    set_profile(client, targets_auto=True)
+    before = settings(client)["calorie_goal"]
+
+    typo = weigh_in(client, 180.0)  # 180 instead of 80
+    assert settings(client)["calorie_goal"] != before
+
+    assert client.delete(f"/api/weights/{typo['id']}").status_code == 204
+    assert settings(client)["calorie_goal"] == before
+
+
+def test_at_the_goal_weight_the_plan_maintains_and_says_so(client):
+    weigh_in(client, 80.0)
+    set_profile(client, targets_auto=True, goal_weight_kg=80.0)  # losing 0.5
+
+    body = targets(client)
+    assert body["goal_reached"] is True
+    assert body["applied_rate_kg_per_week"] == 0
+    assert body["target_calories"] == round(body["tdee"])
+    assert "reached your goal weight of 80 kg" in body["clamped_reason"]
+
+
+def test_short_of_the_goal_the_plan_keeps_heading_for_it(client):
+    weigh_in(client, 80.0)
+    set_profile(client, targets_auto=True, goal_weight_kg=75.0)
+
+    body = targets(client)
+    assert body["goal_reached"] is False
+    assert body["applied_rate_kg_per_week"] == -0.5
+
+
+def test_a_gaining_plan_maintains_once_the_goal_is_reached(client):
+    weigh_in(client, 80.0)
+    set_profile(
+        client, targets_auto=True, goal_weight_kg=79.95, goal_rate_kg_per_week=0.25
+    )
+    assert targets(client)["goal_reached"] is True
+
+
+def test_typed_macros_must_fit_inside_the_typed_calories(client):
+    # Protein is always tracked: 400 g is 1,600 kcal, past a 1,500 target.
+    refused = client.put("/api/settings", json={
+        **BASE_SETTINGS, "track_carbs": False, "track_fat": False,
+        "calorie_goal": 1500, "protein_goal": 400,
+    })
+    assert refused.status_code == 422
+    assert "Protein alone needs 1,600 kcal" in refused.json()["detail"]
+
+    # Tracked carbs and fat count too: 600 + 1,600 + 630 = 2,830 kcal.
+    refused = client.put("/api/settings", json={
+        **BASE_SETTINGS, "calorie_goal": 2000, "carbs_goal": 400,
+    })
+    assert refused.status_code == 422
+    assert "Protein, carbs and fat need 2,830 kcal" in refused.json()["detail"]
+
+    # Untracked macros are never shown, so they are not counted.
+    assert client.put("/api/settings", json={
+        **BASE_SETTINGS, "track_carbs": False, "track_fat": False,
+        "calorie_goal": 1800, "carbs_goal": 400,
+    }).status_code == 200
+
+
+def test_automatic_targets_are_not_held_to_the_typed_rule(client):
+    # The formula writes its own consistent macros; whatever the form sends
+    # back alongside targets_auto is ignored, so it is not refused either.
+    weigh_in(client, 80.0)
+    assert client.put("/api/settings", json={
+        **BASE_SETTINGS, **FULL_PROFILE, "targets_auto": True, "calorie_goal": 900,
+    }).status_code == 200
