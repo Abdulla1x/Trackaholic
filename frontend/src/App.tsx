@@ -115,6 +115,8 @@ const router = createBrowserRouter(
           <Route path="/progress" lazy={page(() => import('./pages/Progress'))} />
           <Route path="/progress/weigh-ins" lazy={page(() => import('./pages/WeighIns'))} />
           <Route path="/progress/days" lazy={page(() => import('./pages/DailyTotals'))} />
+          <Route path="/progress/review" lazy={page(() => import('./pages/WeeklyReview'))} />
+          <Route path="/progress/accuracy" lazy={page(() => import('./pages/AiAccuracy'))} />
           <Route path="/weight" lazy={page(() => import('./pages/Weight'))} />
           <Route path="/analytics" lazy={page(() => import('./pages/Analytics'))} />
           {/* In the tab bar, unlike /whats-new below. It was kept out at first on

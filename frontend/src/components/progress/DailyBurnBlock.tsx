@@ -5,11 +5,16 @@ import {
   tdeeLoggedDaysNeeded,
 } from '../../lib/limits'
 import type { BodyTargets } from '../../types'
+import { useLiveMessage } from '../../hooks/useLiveMessage'
+import { useUnlockMoment } from '../../hooks/useUnlockMoment'
 import Block from '@/ui/block'
 import Explainer from '@/ui/explainer'
 import Gauge from '@/ui/gauge'
 
 const n = (value: number) => Math.round(value).toLocaleString()
+
+/** DESIGN.md Voice: "Daily burn unlocks". */
+const UNLOCKED_LINE = 'Enough data. Here’s what you actually burn, measured, not guessed.'
 
 /** Daily burn in Progress (0a: moved here from Settings). Measured from the
  *  user's own logs once there is enough of them: what they ate, against how
@@ -19,6 +24,9 @@ const n = (value: number) => Math.round(value).toLocaleString()
  *
  *  `null` targets means the request failed. */
 export default function DailyBurnBlock({ targets, onRetry }: { targets: BodyTargets | null; onRetry: () => void }) {
+  const unlocking = useUnlockMoment('measured_burn', targets ? targets.tdee_source === 'measured' : undefined)
+  useLiveMessage(unlocking ? UNLOCKED_LINE : null)
+
   if (!targets) {
     return (
       <Block label="Daily burn">
@@ -36,7 +44,8 @@ export default function DailyBurnBlock({ targets, onRetry }: { targets: BodyTarg
 
   if (targets.tdee_source === 'measured' && targets.tdee !== null && basis) {
     return (
-      <Block label="Daily burn" value="Measured">
+      <Block label="Daily burn" value="Measured" className={unlocking ? 'animate-unlock' : undefined}>
+        {unlocking && <p className="font-semibold">{UNLOCKED_LINE}</p>}
         <p className="flex flex-wrap items-baseline gap-x-2">
           <span className="text-field-number text-[40px] tabular-nums">{n(targets.tdee)}</span>
           <span className="text-small text-ink-2">kcal a day, from your weigh-ins and logging</span>

@@ -161,6 +161,8 @@ export const PRIVATE_ROUTES = [
   '/progress?range=all',
   '/progress/weigh-ins',
   '/progress/days',
+  '/progress/review',
+  '/progress/accuracy',
   '/weight',
   '/analytics',
   '/review',
@@ -407,6 +409,9 @@ export const EXPAND_ON = {
   // A weigh-in opened for editing, then its delete confirm: the whole of a
   // row's open state, which is where its controls are.
   '/progress/weigh-ins': ['main li button[aria-expanded="false"]', 'button:has-text("Delete this weigh-in")'],
+  // Their "How is this worked out?" text is only in the DOM once opened.
+  '/progress/review': ['main button:has-text("How is this worked out?")'],
+  '/progress/accuracy': ['main button:has-text("How is this worked out?")'],
   // Today's two shortcut cards (Saved meals, Recently logged) used to need a
   // click each here. They moved into the Log panel on 2026-10-10, where both
   // lists are open on the start screen. Since the P40 fixes each shows three
