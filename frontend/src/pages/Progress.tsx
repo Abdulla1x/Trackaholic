@@ -46,6 +46,7 @@ import type { AnalyticsSummary, Settings, WeightTrend } from '../types'
 import Block from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import Gauge from '@/ui/gauge'
+import { RowLink } from '@/ui/row'
 import Skeleton from '@/ui/skeleton'
 import { Stat, StatGrid } from '@/ui/stat'
 
@@ -240,6 +241,7 @@ function WeightBlock({
         <p className="text-small text-ink-2">
           Seven weigh-ins and the trend line appears. Weigh in from Today; a weigh-in made today counts.
         </p>
+        {trend.point_count > 0 && <AllWeighIns />}
       </Block>
     )
   }
@@ -366,8 +368,13 @@ function WeightBlock({
           </ResponsiveContainer>
         </figure>
       )}
+      <AllWeighIns />
     </Block>
   )
+}
+
+function AllWeighIns() {
+  return <RowLink to="/progress/weigh-ins" label="All weigh-ins" detail="Change or delete any day" className="border-t border-rule" />
 }
 
 /** The weight axis: a little room around the weigh-ins and the goal, cut into

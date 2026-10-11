@@ -159,6 +159,7 @@ export const PRIVATE_ROUTES = [
   // draws the most bars and the only one whose start comes from the data.
   '/progress',
   '/progress?range=all',
+  '/progress/weigh-ins',
   '/weight',
   '/analytics',
   '/review',
@@ -402,6 +403,9 @@ export async function seed(token) {
 // state has hidden a section here, and it was found the same way as the other
 // five: by noticing after the fact that a change had produced no diff.
 export const EXPAND_ON = {
+  // A weigh-in opened for editing, then its delete confirm: the whole of a
+  // row's open state, which is where its controls are.
+  '/progress/weigh-ins': ['main li button[aria-expanded="false"]', 'button:has-text("Delete this weigh-in")'],
   // Today's two shortcut cards (Saved meals, Recently logged) used to need a
   // click each here. They moved into the Log panel on 2026-10-10, where both
   // lists are open on the start screen. Since the P40 fixes each shows three
