@@ -14,6 +14,10 @@ export const RANGES = [
 export type Range = (typeof RANGES)[number]
 export type RangeKey = Range['key']
 
+/** Where this device last left the range: a per-device convenience, so the
+ *  page reopens where it was. The address still wins (a link, back, reload). */
+export const REMEMBERED_RANGE_KEY = 'trackaholic_progress_range'
+
 /** Where the page opens when nothing says otherwise (decided 2026-10-10). */
 export const DEFAULT_RANGE: RangeKey = '30'
 
