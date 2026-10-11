@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { useOnTargetMoment } from '../../hooks/useOnTargetMoment'
 import { calorieBalance, litSegments, type DayTotals } from '../../lib/today'
 import Gauge from '@/ui/gauge'
 import { NextIcon } from '@/ui/icons'
@@ -64,6 +65,10 @@ export default function CaloriesBand({
   const { amount, over: past, onTarget } = calorieBalance(eaten.calories, targets.calorie_goal)
   // Over in words only beyond the band: 8 kcal over is on target.
   const over = past && !onTarget
+  const lit = litSegments(eaten.calories, targets.calorie_goal, 20)
+  // Reaching it today is marked, once: the sweep runs, the target tick lifts,
+  // and the words roll up. Nothing plays for going over (the Never Punish Rule).
+  const moment = useOnTargetMoment(day, onTarget, lit)
   const macro = (value: number, goal: number) => (
     <Gauge
       segments={10}
@@ -95,7 +100,14 @@ export default function CaloriesBand({
       {onTarget ? (
         // The display style at about two thirds of the number's size: nine
         // characters at 92px would not fit a phone.
-        <p className="pb-1 text-display-number text-[58px] leading-[0.9] desk:text-[84px]">On target</p>
+        <p
+          className={`pb-1 text-display-number text-[58px] leading-[0.9] desk:text-[84px] ${
+            moment != null ? 'animate-words-in [animation-delay:var(--words)] motion-reduce:[animation-delay:0ms]' : ''
+          }`}
+          style={moment != null ? ({ '--words': `${moment}ms` } as CSSProperties) : undefined}
+        >
+          On target
+        </p>
       ) : (
         <p className="flex items-end gap-3">
           <span className="text-display-number desk:text-[132px]">
@@ -110,8 +122,9 @@ export default function CaloriesBand({
       )}
       <Gauge
         segments={20}
-        lit={litSegments(eaten.calories, targets.calorie_goal, 20)}
+        lit={lit}
         target
+        lift={moment}
         tone="band"
         className="h-3.5"
       />

@@ -42,7 +42,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 
 ### 📊 Today
 - **Calories first.** The top of the page is one big number, the calories left (or over) against the day's target, with a 20-segment gauge closed by a target tick, and Eaten and Protein in fixed fields beneath. Carbs and fat join them only if you track them, and are never mentioned otherwise. Changed digits roll into place and new segments light one by one, so a save shows what it moved; under reduced motion the numbers simply change
-- **Close enough says so**: within 2% of the target, either side, the headline reads "On target" instead of "8 kcal over" or "5 kcal left", and Eaten shows the exact figure against the target. The weekly review counts a week the same way
+- **Close enough says so**: within 2% of the target, either side, the headline reads "On target" instead of "8 kcal over" or "5 kcal left", and Eaten shows the exact figure against the target. The meal that gets you there today is marked once: the target tick lifts and the words roll into place. The weekly review counts a week the same way
 - **Going over is drawn calmly**: past that, the label says "Kcal over", the gauge is simply full, and one line offers to spread it. Nothing turns red
 - **One date control**: back a day, the day's name, forward a day; tap the name for the phone's calendar. The day is in the address, so it survives a reload, and the Today tab always leads back to today
 - **The day in detail**, one tap on the calories: eaten, target, left or over, and each macro against its goal, plus the way into calorie planning

@@ -327,6 +327,7 @@ Motion says what changed. Nothing moves for decoration. Animations are built wit
 - **Delete:** the struck-through line draws its strike (350ms); the Undo bar drains linearly over 10 seconds; the line then folds closed (280ms).
 - **Unlock:** a locked Progress section is replaced by its content (350ms), and its trend line draws itself (1.1s).
 - **Charts:** a range change redraws the trend line (700ms) and grows the bars from the baseline.
+- **On target:** when a meal logged today brings the day within 2% of its target, the gauge sweeps as usual, the target tick lifts once in the action colour (620ms), and "On target" rolls up into place (420ms) as the sweep ends. Once a day per device; never on first sight of a day, a past day, or leaving the band. Chosen ("Settle") over a ripple along the gauge, from a prototype.
 - **Weekly review:** the checks appear one by one (80ms apart).
 - **Once-a-day rewards:** ticking the last supplement pops the checkboxes in turn; reaching the water goal ripples the meter. Each shows once per day.
 - **Server waking:** six segments light in sequence where a spinner would be.
