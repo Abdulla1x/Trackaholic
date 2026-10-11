@@ -163,9 +163,6 @@ export const PRIVATE_ROUTES = [
   '/progress/days',
   '/progress/review',
   '/progress/accuracy',
-  '/weight',
-  '/analytics',
-  '/review',
   '/settings',
   '/settings/goals',
   '/settings/body',
@@ -437,10 +434,6 @@ export const EXPAND_ON = {
     // it. ⚠ It matches the CATALOGUE, so a SEED_FOODS below 4 opens no panel.
     { fill: 'input[placeholder="Type a food name…"]', text: 'egg' },
   ],
-  // The weigh-in history caps at HISTORY_ROWS and hides the rest behind the
-  // same toggle the library lists use. Matched on the plural noun, not the full
-  // label, which carries a count that moves with SEED_DAYS.
-  '/weight': ['button:has-text("weigh-ins")'],
   // Both lists render their first COLLAPSED_ROWS entries and hide the rest, and
   // "+ Add a food" opens a form that is otherwise never in the DOM -- the same
   // form this route exists to make findable. Matched on the plural nouns rather

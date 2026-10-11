@@ -117,16 +117,12 @@ const router = createBrowserRouter(
           <Route path="/progress/days" lazy={page(() => import('./pages/DailyTotals'))} />
           <Route path="/progress/review" lazy={page(() => import('./pages/WeeklyReview'))} />
           <Route path="/progress/accuracy" lazy={page(() => import('./pages/AiAccuracy'))} />
-          <Route path="/weight" lazy={page(() => import('./pages/Weight'))} />
-          <Route path="/analytics" lazy={page(() => import('./pages/Analytics'))} />
-          {/* In the tab bar, unlike /whats-new below. It was kept out at first on
-              an ESTIMATE -- that a sixth cell would leave less room than the
-              word "Dashboard" needs -- and the estimate was wrong. Measured:
-              six cells are 60px at 360px and "Dashboard" renders at exactly
-              60px, so it fits, and the labels shrink to 10px below 360px where
-              they would not. The dashboard's seven-day card still links here
-              too, because it covers exactly this window. */}
-          <Route path="/review" lazy={page(() => import('./pages/Review'))} />
+          {/* The three pages Progress replaced. Their addresses still lead
+              somewhere: bookmarks, the home-screen shortcut a phone may hold,
+              and links in old release notes. */}
+          <Route path="/analytics" element={<Navigate replace to="/progress" />} />
+          <Route path="/weight" element={<Navigate replace to="/progress/weigh-ins" />} />
+          <Route path="/review" element={<Navigate replace to="/progress/review" />} />
           {/* Settings is a shell around five panels rather than one page. The
               shell owns the draft and the Save bar; each panel is a real
               address, so the dashboard's deep link into the calorie planner
