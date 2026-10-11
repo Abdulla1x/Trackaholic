@@ -889,6 +889,11 @@ class Settings(BaseModel):
     # Today's meal rows show the time each meal was logged. Defaulted, for the
     # reason weight_unit is: a stale bundle PUTs without it.
     show_meal_times: bool = True
+    # Whether a target has ever been chosen (models.py). Server-owned: a PUT
+    # can turn it on but never off, so a form that sends back the false it
+    # read cannot undo the save that set it. Defaulted for the reason
+    # weight_unit is.
+    target_set: bool = False
 
     @field_validator("birth_date")
     @classmethod

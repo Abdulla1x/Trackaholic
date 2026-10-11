@@ -278,9 +278,11 @@ def intake_check(
 
     mean = sum(day.calories for day in days) / len(days)
     if daily_target <= 0:
-        # Unreachable through the API -- schemas.Settings requires a positive
-        # goal -- but a target of zero would make the tolerance band zero wide
-        # and every week read as a miss, so it refuses rather than divides.
+        # An account that never chose a target (settings.target_set) is passed
+        # in as zero: its stored 2,000 kcal is a signup default, and judging a
+        # week against it would be the review's first invented number. Zero
+        # would also make the tolerance band zero wide, so it refuses rather
+        # than divides.
         return ReviewCheck(
             key="intake",
             status=UNKNOWN,
@@ -339,6 +341,19 @@ def protein_check(days: Sequence[DayIntake], goal: float) -> ReviewCheck:
         )
 
     mean = sum(day.protein for day in days) / len(days)
+    if goal <= 0:
+        # No target chosen yet (settings.target_set): every day would "reach"
+        # a zero goal, so say there is nothing to compare against instead.
+        return ReviewCheck(
+            key="protein",
+            status=UNKNOWN,
+            value=round(mean, 1),
+            target=None,
+            unit="g",
+            sample_days=len(days),
+            detail="",
+            unavailable_reason="You have no protein target set to compare against.",
+        )
     hits = sum(1 for day in days if day.protein >= goal)
     detail = (
         f"You averaged {round(mean)} g of protein against a {round(goal)} g goal, "

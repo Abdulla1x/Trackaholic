@@ -136,7 +136,7 @@ def test_daily_summary_average_is_unchanged_by_widening_an_empty_range(client):
 # here.
 #
 # "Unset" means omittable from a PUT, not necessarily null in the response.
-# targets_auto, weigh_in_reminder_days and show_meal_times are NOT NULL columns, so their
+# targets_auto, weigh_in_reminder_days, show_meal_times and target_set are NOT NULL columns, so their
 # entries here are the shipped defaults rather than None -- which is exactly
 # what a whole-payload assertion should be pinning.
 UNSET_OPTIONALS = {
@@ -148,6 +148,7 @@ UNSET_OPTIONALS = {
     "steps_goal": None,
     "weigh_in_reminder_time": None, "weigh_in_reminder_days": 1,
     "show_meal_times": True,
+    "target_set": False,
 }
 
 
@@ -164,8 +165,11 @@ def test_settings_defaults_and_update(client):
         "fat_goal": 80, "track_carbs": True, "track_fat": False,
         "weight_unit": "lb", **UNSET_OPTIONALS,
     }
-    assert client.put("/api/settings", json=updated).json() == updated
-    assert client.get("/api/settings").json() == updated
+    # Changing a goal is choosing a target, so the server marks it set even
+    # though the body sent back the false it read.
+    saved = {**updated, "target_set": True}
+    assert client.put("/api/settings", json=updated).json() == saved
+    assert client.get("/api/settings").json() == saved
 
 
 def test_body_profile_round_trips(client):
@@ -181,6 +185,9 @@ def test_body_profile_round_trips(client):
         "steps_goal": None,
         "weigh_in_reminder_time": None, "weigh_in_reminder_days": 1,
         "show_meal_times": True,
+        # The default goals are unchanged and targets_auto is off, so nothing
+        # here chooses a target.
+        "target_set": False,
     }
     assert client.put("/api/settings", json=profile).json() == profile
     assert client.get("/api/settings").json() == profile

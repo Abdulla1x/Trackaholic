@@ -377,6 +377,10 @@ export async function seed(token) {
       // readout in front of these scripts.
       goal_weight_kg: 85,
       targets_auto: false, steps_goal: 10000,
+      // The goals above ARE the signup defaults, so without this the account
+      // reads as never having chosen a target and every walk would audit
+      // first use instead of the screens it means to.
+      target_set: true,
     }),
   })
 }

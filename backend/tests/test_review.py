@@ -584,7 +584,9 @@ def test_a_calorie_plan_written_for_a_day_still_moves_that_days_target(client):
     that restriction, though, which is the case this pins: a plan written for
     today is read back by a review whose window includes today.
     """
-    put_settings(client, calorie_goal=2000)
+    # A chosen 2,000, said explicitly: re-saving the signup default alone is
+    # not a choice (settings.target_set), and an unchosen target is never judged.
+    put_settings(client, calorie_goal=2000, target_set=True)
     for offset in (0, -1, -2):
         log_meal(client, offset, calories=2000)
 
@@ -753,3 +755,31 @@ def test_a_safety_cap_is_introduced_rather_than_appended_bare():
     assert reason in detail, "the explanation still passes through verbatim"
     assert "Capped for safety: " + reason in detail
     assert not detail.endswith("days. " + reason), "must not follow the burn bare"
+
+
+def test_protein_refuses_rather_than_counting_every_day_against_a_zero_goal():
+    """No target chosen yet: a zero goal would be "reached" on every day."""
+    check = protein_check(days(6), 0.0)
+
+    assert check.status == UNKNOWN
+    assert check.target is None
+    assert check.unavailable_reason == "You have no protein target set to compare against."
+
+
+def test_a_week_is_not_judged_against_a_target_nobody_chose(client):
+    """A new account's 2,000 kcal is a signup default, not a target.
+
+    The meals are real, so the averages still show; what the review must not
+    do is call the week on or off target against a number nobody chose.
+    """
+    for offset in range(-3, 0):
+        log_meal(client, offset, calories=2600)
+
+    payload = fetch(client)
+    assert check_of(payload, "intake")["status"] == UNKNOWN
+    assert check_of(payload, "protein")["status"] == UNKNOWN
+
+    # Choosing one, here by typing it, is all it takes.
+    settings = client.get("/api/settings").json()
+    client.put("/api/settings", json={**settings, "calorie_goal": 2400})
+    assert check_of(fetch(client), "intake")["status"] != UNKNOWN

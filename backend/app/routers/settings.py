@@ -123,6 +123,14 @@ def update_settings(
     schema requires them, and they are what the server last stored.
     """
     row = _get_or_create(db, user.id)
+    goals = ("calorie_goal", "protein_goal", "carbs_goal", "fat_goal")
+    # A changed goal is a chosen target. Compared before the assignment below,
+    # because every PUT sends all four whether or not they moved.
+    if any(getattr(row, name) != getattr(settings, name) for name in goals):
+        row.target_set = True
+    # On only, never off: see schemas.Settings.target_set.
+    if "target_set" in settings.model_fields_set and settings.target_set:
+        row.target_set = True
     row.calorie_goal = settings.calorie_goal
     row.protein_goal = settings.protein_goal
     row.carbs_goal = settings.carbs_goal
