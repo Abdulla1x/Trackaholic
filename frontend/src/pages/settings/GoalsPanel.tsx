@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import BodyTargetsCard from '../../components/settings/BodyTargetsCard'
 import CaloriePlanSection from '../../components/settings/CaloriePlanSection'
 import { targetIsSet } from '../../lib/today'
@@ -7,6 +7,7 @@ import Card from '../../components/ui/Card'
 import TextInput from '../../components/ui/TextInput'
 import OptionChip from '../../components/ui/OptionChip'
 import Field from '../../components/ui/Field'
+import { Button } from '@/ui/button'
 
 interface GoalField {
   key: 'calorie_goal' | 'protein_goal' | 'carbs_goal' | 'fat_goal'
@@ -50,6 +51,21 @@ export default function GoalsPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Until a target is chosen, the goal fields below hold the signup
+          placeholders; this says so and points at setup. Typing goals here
+          and saving sets a target too. */}
+      {!targetIsSet(settings) && (
+        <Card as="section">
+          <h2 className="mb-1 font-semibold">Daily target</h2>
+          <p className="mb-4 text-sm text-ink-muted">
+            Not set yet. Answer a few questions and it works one out, or type your own numbers.
+          </p>
+          <Button asChild>
+            <Link to="/setup">Set your target</Link>
+          </Button>
+        </Card>
+      )}
+
       <Card as="section">
         <h2 className="mb-3 font-semibold">Tracked macros</h2>
         <p className="mb-4 text-sm text-slate-400">

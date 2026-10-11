@@ -160,6 +160,20 @@
   /* A locked Progress section replaced by its content (DESIGN.md: Unlock,
    * 350ms); its trend line then draws itself over 1.1s, in the chart. */
   --animate-unlock: unlock 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  /* Server waking (DESIGN.md): six segments light in turn where a spinner
+   * would be; each segment's delay is set where it is drawn. */
+  --animate-wake-segment: wake-segment 1.2s ease-in-out infinite;
+}
+
+@keyframes wake-segment {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  30% {
+    opacity: 1;
+  }
 }
 
 @keyframes unlock {
@@ -297,6 +311,7 @@
     --animate-fold: none;
     /* Loops stop: the block is simply there. */
     --animate-shimmer: none;
+    --animate-wake-segment: none;
     --animate-rise: route-in 120ms linear backwards;
     --animate-unlock: route-in 120ms linear both;
   }
