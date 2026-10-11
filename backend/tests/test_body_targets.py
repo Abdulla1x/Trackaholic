@@ -453,3 +453,33 @@ def test_a_weigh_in_before_the_profile_also_sets_the_target(client):
     weigh_in(client, 80.0)
     assert settings(client)["target_set"] is False
     assert set_profile(client, targets_auto=True)["target_set"] is True
+
+
+
+# --- protein by goal (migration 0021) ----------------------------------------
+
+
+def test_protein_follows_what_matters_most_and_shows_its_range(client):
+    weigh_in(client, 80.0)
+    set_profile(client, targets_auto=True)  # losing 0.5 kg a week
+
+    unanswered = targets(client)
+    assert unanswered["protein_g"] == 144  # 1.8 g/kg, as before
+    assert (unanswered["protein_low_g"], unanswered["protein_high_g"]) == (128, 176)
+
+    set_profile(client, targets_auto=True, protein_focus="muscle")
+    muscle = targets(client)
+    assert muscle["protein_g"] == 176  # 2.2 g/kg while losing
+    assert settings(client)["protein_goal"] == 176
+
+    set_profile(client, targets_auto=True, protein_focus="scale")
+    assert targets(client)["protein_g"] == 112  # 1.4 g/kg
+
+
+def test_above_bmi_30_protein_uses_the_weight_at_bmi_30(client):
+    weigh_in(client, 140.0)
+    set_profile(client, targets_auto=True, protein_focus="scale")  # 180 cm
+
+    body = targets(client)
+    assert body["protein_reference_kg"] == 97.2
+    assert body["protein_g"] == 136  # 1.4 x 97.2, not 1.4 x 140 = 196

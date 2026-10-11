@@ -597,12 +597,21 @@ class Setting(Base):
     target_set: Mapped[bool] = mapped_column(
         default=False, server_default=sa_false()
     )
+    # What matters most for protein, from first-use setup: 'muscle' (keeping or
+    # building it) or 'scale' (just the number). NULL means not answered, which
+    # keeps 1.8 g/kg, the protein every account had before this existed. It
+    # moves only the protein target (calculations.protein_g_per_kg), and it is
+    # stored because automatic targets are recomputed on every weigh-in.
+    protein_focus: Mapped[str | None] = mapped_column(String(6), default=None)
 
     __table_args__ = (
         CheckConstraint(
             "weight_unit IN ('kg', 'lb')", name="ck_settings_weight_unit"
         ),
         CheckConstraint("sex IN ('male', 'female')", name="ck_settings_sex"),
+        CheckConstraint(
+            "protein_focus IN ('muscle', 'scale')", name="ck_settings_protein_focus"
+        ),
         CheckConstraint(
             "activity_level IN "
             "('sedentary', 'light', 'moderate', 'active', 'very_active')",

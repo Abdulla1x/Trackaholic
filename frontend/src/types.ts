@@ -111,6 +111,10 @@ export interface Settings {
    *  response without it is an account from before first use existed, which
    *  counts as set. */
   target_set?: boolean
+  /** "What matters most to you?" from setup: it moves only the protein
+   *  target. null = not answered (1.8 g/kg, as before). Optional for the
+   *  same reason as target_set. */
+  protein_focus?: 'muscle' | 'scale' | null
 }
 
 /** One logged drink. */
@@ -255,6 +259,22 @@ export interface BodyTargets {
   /** The formula's answer, kept even when measurement won, so both can show. */
   tdee_estimated: number | null
   tdee_basis: TdeeBasis | null
+  /** The pace limits as data, so a screen can explain a target in its own
+   *  words: the pace planned (signed kg a week), the fastest loss and gain
+   *  this person can be planned, the lowest target set for them, and whether
+   *  a loss was refused below a healthy BMI. Optional: the live API predates
+   *  them. */
+  applied_rate_kg_per_week?: number | null
+  max_loss_kg_per_week?: number | null
+  max_gain_kg_per_week?: number | null
+  floor_kcal?: number | null
+  loss_refused?: boolean
+  /** Protein's g/kg for the goal, the range around the target, and the weight
+   *  it is worked out from (capped at BMI 30). */
+  protein_g_per_kg?: number | null
+  protein_low_g?: number | null
+  protein_high_g?: number | null
+  protein_reference_kg?: number | null
 }
 
 export interface WeightEntry {

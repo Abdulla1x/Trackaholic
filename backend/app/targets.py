@@ -36,6 +36,8 @@ from .calculations import (
     estimated_tdee,
     macro_targets,
     measured_tdee,
+    protein_g_per_kg,
+    protein_reference_weight,
     target_calories,
     weekly_rate,
     weight_trend,
@@ -129,6 +131,12 @@ class TargetsResult:
     max_gain_kg_per_week: float | None = None
     floor_kcal: float | None = None
     loss_refused: bool = False
+    # Protein: grams per kg for the goal and "What matters most?", the range
+    # around it, and the weight it is worked out from (capped at BMI 30).
+    protein_g_per_kg: float | None = None
+    protein_low_g: float | None = None
+    protein_high_g: float | None = None
+    protein_reference_kg: float | None = None
 
     @property
     def available(self) -> bool:
@@ -357,7 +365,11 @@ def compute_targets(
         weight_kg=weight_kg,
         height_cm=setting.height_cm,
     )
-    macros = macro_targets(target.calories, weight_kg)
+    reference_kg = protein_reference_weight(weight_kg, setting.height_cm)
+    per_kg, per_kg_low, per_kg_high = protein_g_per_kg(
+        setting.protein_focus, target.applied_rate
+    )
+    macros = macro_targets(target.calories, reference_kg, protein_g_per_kg=per_kg)
 
     # Both clamps can fire at once and both are the user's business: one says
     # the burn was implausible, the other that the requested rate was. Joined
@@ -387,6 +399,10 @@ def compute_targets(
         max_gain_kg_per_week=target.max_gain_kg_per_week,
         floor_kcal=target.floor_kcal,
         loss_refused=target.loss_refused,
+        protein_g_per_kg=per_kg,
+        protein_low_g=float(round(per_kg_low * reference_kg)),
+        protein_high_g=float(round(per_kg_high * reference_kg)),
+        protein_reference_kg=round(reference_kg, 1),
     )
 
 

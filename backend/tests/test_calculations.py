@@ -28,6 +28,8 @@ from app.calculations import (
     scale_macros,
     steps_burn,
     water_goal,
+    protein_g_per_kg,
+    protein_reference_weight,
     target_calories,
     total_macros,
     weekly_rate,
@@ -364,6 +366,31 @@ def test_macro_targets_scale_protein_with_body_weight_not_calories():
     cutting = macro_targets(1600, 80)
     maintaining = macro_targets(2400, 80)
     assert cutting["protein"] == maintaining["protein"]
+
+
+@pytest.mark.parametrize(
+    ("focus", "rate", "expected"),
+    [
+        ("muscle", -0.5, (2.2, 1.8, 2.6)),  # Helms 2014 / ISSN 2017, in a deficit
+        ("muscle", 0.0, (1.9, 1.6, 2.2)),   # Iraki 2019
+        ("muscle", 0.3, (1.9, 1.6, 2.2)),
+        ("scale", -0.5, (1.4, 1.2, 1.6)),   # Leidy 2015
+        ("scale", 0.3, (1.4, 1.2, 1.6)),
+        (None, -0.5, (1.8, 1.6, 2.2)),      # unanswered: today's value
+    ],
+)
+def test_protein_per_kilo_follows_the_goal_and_what_matters_most(focus, rate, expected):
+    assert protein_g_per_kg(focus, rate) == expected
+
+
+def test_protein_is_worked_out_from_weight_capped_at_bmi_30():
+    """Weijs 2024: a maximum weight of BMI 30. 30 x 1.8^2 = 97.2 kg."""
+    assert protein_reference_weight(200, 180) == pytest.approx(97.2)
+    # At or under BMI 30 it is simply the body weight.
+    assert protein_reference_weight(80, 180) == 80
+    # The 200 kg test case: 136 g just for the scale, 214 g keeping muscle.
+    assert round(1.4 * protein_reference_weight(200, 180)) == 136
+    assert round(2.2 * protein_reference_weight(200, 180)) == 214
 
 
 def test_fat_never_drops_below_half_a_gram_per_kilo():

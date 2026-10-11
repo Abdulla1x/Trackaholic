@@ -34,6 +34,7 @@ _PATCHED_FIELDS = (
     "weigh_in_reminder_time",
     "weigh_in_reminder_days",
     "show_meal_times",
+    "protein_focus",
 )
 
 
