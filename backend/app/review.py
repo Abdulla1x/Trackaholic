@@ -71,14 +71,16 @@ REVIEW_WINDOW_DAYS = 7
 LOGGING_DENSE_DAYS = 5
 
 # POLICY. How far a weekly average may sit from the target and still read as
-# "on track", as a fraction of the target.
+# "on track", as a fraction of the target, either side.
 #
-# Five per cent of a 2000 kcal target is 100 kcal a day, which is smaller than
-# the error in estimating a single restaurant meal -- so a band narrower than
-# this would flag ordinary measurement noise as a miss, every week, and train
-# the reader to ignore the check. It is a presentation threshold and nothing
-# else: no target moves because of it.
-INTAKE_TOLERANCE_FRACTION = 0.05
+# Two per cent of a 2000 kcal target is 40 kcal a day. It is the same band
+# Today's calories headline uses to say "on target" (ON_TARGET_FRACTION in
+# frontend/src/lib/today.ts, which mirrors this value), so a week the review
+# calls on track is made of days the app already called on target. Decided
+# 2026-10-11, down from 5%: at 100 kcal a day, a steady surplus that moves the
+# scale over a few weeks still read as on track. It is a presentation
+# threshold and nothing else: no target moves because of it.
+INTAKE_TOLERANCE_FRACTION = 0.02
 
 # POLICY. What share of logged days have to reach the protein goal before
 # protein reads as "on track". Two thirds is a judgement about consistency
