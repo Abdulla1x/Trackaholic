@@ -27,6 +27,24 @@ function Field({ label, children, meter }: { label: string; children: ReactNode;
   )
 }
 
+const BAND =
+  'relative -mx-4 grid grid-cols-[minmax(0,1fr)] gap-2.5 border-b border-band-rule bg-band px-4 pt-3.5 text-band-ink desk:mx-0 desk:px-7 desk:pt-5'
+
+/** The whole band opens the day in detail: this link's hit area is stretched
+ *  over it (after:inset-0), so the band is one big target with one short,
+ *  honest name, rather than a link whose name would be every number on it. */
+function DayLink({ day }: { day: string }) {
+  return (
+    <Link
+      to={`/day/${day}`}
+      className="flex items-center gap-0.5 text-field-label text-band-ink-2 after:absolute after:inset-0 after:content-[''] hover:text-band-ink focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-action"
+    >
+      Day in detail
+      <NextIcon size={14} aria-hidden="true" />
+    </Link>
+  )
+}
+
 function Unit({ children }: { children: ReactNode }) {
   return <small className="ml-1 text-[14px] font-semibold text-band-ink-2 [font-stretch:100%]">{children}</small>
 }
@@ -46,23 +64,36 @@ function Unit({ children }: { children: ReactNode }) {
  *
  *  Going over is drawn calmly: the label changes to "Kcal over", the gauge is
  *  simply full, and one plain line offers a way to spread it. No red, no
- *  motion (the No Red Rule, the Never Punish Rule). */
+ *  motion (the No Red Rule, the Never Punish Rule).
+ *
+ *  Before the account has chosen a target (`targetSet` false) it shows what
+ *  was eaten and nothing to measure it against: no gauge, no "left", and
+ *  "Not set yet" where the target would be. Every account starts with a
+ *  2,000 kcal placeholder, and a gauge drawn against it would be an invented
+ *  number (chosen from the first-use prototype, 2026-10-11). */
 export default function CaloriesBand({
   day,
+  isToday,
   eaten,
   targets,
+  targetSet,
   caption,
   trackCarbs,
   trackFat,
 }: {
   day: string
+  isToday: boolean
   eaten: DayTotals
   targets: BandTargets
+  targetSet: boolean
   caption?: string
   trackCarbs: boolean
   trackFat: boolean
 }) {
-  const { amount, over: past, onTarget } = calorieBalance(eaten.calories, targets.calorie_goal)
+  const balance = calorieBalance(eaten.calories, targets.calorie_goal)
+  const { amount, over: past } = balance
+  // No target, nothing to be on: the moment below must never play for one.
+  const onTarget = targetSet && balance.onTarget
   // Over in words only beyond the band: 8 kcal over is on target.
   const over = past && !onTarget
   const lit = litSegments(eaten.calories, targets.calorie_goal, 20)
@@ -78,24 +109,57 @@ export default function CaloriesBand({
     />
   )
 
+  if (!targetSet) {
+    return (
+      <section aria-label="Calories" className={BAND}>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-field-label text-band-ink-2">{isToday ? 'Eaten today' : 'Eaten'}</h2>
+          <DayLink day={day} />
+        </div>
+        <p className="flex items-end gap-3 pb-1">
+          <span className="text-display-number desk:text-[132px]">
+            <RollingNumber value={eaten.calories} />
+          </span>
+          <span className="pb-1.5 text-small text-band-ink-2">
+            kcal
+            <br />
+            no target yet
+          </span>
+        </p>
+        <div className="grid grid-cols-2 border-t border-band-rule">
+          <Field label="Protein">
+            <RollingNumber value={eaten.protein} />
+            <Unit>g</Unit>
+          </Field>
+          <Field label="Target">
+            <span className="text-[16px] font-semibold [font-stretch:100%]">Not set yet</span>
+          </Field>
+        </div>
+        {(trackCarbs || trackFat) && (
+          <div className="-mt-2.5 grid grid-cols-2 border-t border-band-rule">
+            {trackCarbs && (
+              <Field label="Carbs">
+                <RollingNumber value={eaten.carbs} />
+                <Unit>g</Unit>
+              </Field>
+            )}
+            {trackFat && (
+              <Field label="Fat">
+                <RollingNumber value={eaten.fat} />
+                <Unit>g</Unit>
+              </Field>
+            )}
+          </div>
+        )}
+      </section>
+    )
+  }
+
   return (
-    <section
-      aria-label="Calories"
-      className="relative -mx-4 grid grid-cols-[minmax(0,1fr)] gap-2.5 border-b border-band-rule bg-band px-4 pt-3.5 text-band-ink desk:mx-0 desk:px-7 desk:pt-5"
-    >
+    <section aria-label="Calories" className={BAND}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-field-label text-band-ink-2">{onTarget ? 'Calories' : over ? 'Kcal over' : 'Kcal left'}</h2>
-        {/* The whole band opens the day in detail: this link's hit area is
-            stretched over it (after:inset-0), so the band is one big target
-            with one short, honest name, rather than a link whose name would
-            be every number on it. */}
-        <Link
-          to={`/day/${day}`}
-          className="flex items-center gap-0.5 text-field-label text-band-ink-2 after:absolute after:inset-0 after:content-[''] hover:text-band-ink focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-action"
-        >
-          Day in detail
-          <NextIcon size={14} aria-hidden="true" />
-        </Link>
+        <DayLink day={day} />
       </div>
       {onTarget ? (
         // The display style at about two thirds of the number's size: nine

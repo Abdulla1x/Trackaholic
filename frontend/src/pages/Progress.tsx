@@ -25,6 +25,7 @@ import {
   type RangeKey,
 } from '../lib/progress'
 import { readLocal, writeLocal } from '../lib/storage'
+import { targetIsSet } from '../lib/today'
 import { formatRate, formatWeight, unitLabel } from '../lib/units'
 import {
   NO_PROJECTION,
@@ -491,7 +492,9 @@ function NutritionBlock({
     return { date, value: day ? (day[series.key] ?? null) : null }
   })
   const counted = food.average_days[series.key]
-  const target = settings[series.goal]
+  // No line until a target is chosen: the signup placeholder drawn across the
+  // bars would read as a target the person set.
+  const target = targetIsSet(settings) ? settings[series.goal] : null
 
   return (
     <Block
@@ -519,8 +522,8 @@ function NutritionBlock({
       ) : (
         <figure className="m-0">
           <figcaption className="sr-only">
-            Daily {series.label.toLowerCase()} from {shortDate(first)} to {shortDate(end)}, as bars, with your target
-            of {n(target)} {series.unit} as a dashed line.
+            Daily {series.label.toLowerCase()} from {shortDate(first)} to {shortDate(end)}, as bars
+            {target === null ? '.' : `, with your target of ${n(target)} ${series.unit} as a dashed line.`}
           </figcaption>
           <ResponsiveContainer key={`${range.key}-${series.key}`} width="100%" height={200}>
             <BarChart data={data} margin={progressMargin} barCategoryGap="20%">
@@ -557,18 +560,20 @@ function NutritionBlock({
                 animationDuration={400}
                 animationEasing="ease-out"
               />
-              <ReferenceLine
-                y={target}
-                stroke={chartPlan}
-                strokeWidth={2}
-                strokeDasharray={planDash}
-                ifOverflow="extendDomain"
-              />
+              {target !== null && (
+                <ReferenceLine
+                  y={target}
+                  stroke={chartPlan}
+                  strokeWidth={2}
+                  strokeDasharray={planDash}
+                  ifOverflow="extendDomain"
+                />
+              )}
             </BarChart>
           </ResponsiveContainer>
         </figure>
       )}
-      {food.logged_days > 0 && (
+      {food.logged_days > 0 && target !== null && (
         <PlanKey>
           Target {n(target)} {series.unit}
         </PlanKey>

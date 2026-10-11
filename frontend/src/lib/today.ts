@@ -1,8 +1,20 @@
-import type { Meal, PlanDay } from '../types.ts'
+import type { Meal, PlanDay, Settings } from '../types.ts'
 import { localIsoDate, parseIsoDate } from './dates.ts'
 
 /** The arithmetic behind Today, kept apart from the page so it can be tested
  *  without a browser. Nothing in here draws anything. */
+
+/** Whether the account has a target it chose, rather than the 2,000 kcal every
+ *  account is given at signup. Until it has one, no screen shows a target:
+ *  a gauge, a "left" or a target line drawn against a number nobody picked is
+ *  an invented number, and DESIGN.md forbids those.
+ *
+ *  `target_set` missing means the response came from an API older than first
+ *  use (the live one, until the revamp ships). Those accounts count as set,
+ *  so nothing changes for them. */
+export function targetIsSet(settings: Pick<Settings, 'target_set'>): boolean {
+  return settings.target_set !== false
+}
 
 export interface DayTotals {
   calories: number

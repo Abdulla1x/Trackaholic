@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router-dom'
 import BodyTargetsCard from '../../components/settings/BodyTargetsCard'
 import CaloriePlanSection from '../../components/settings/CaloriePlanSection'
+import { targetIsSet } from '../../lib/today'
 import { useSettingsPanel } from './panelContext'
 import Card from '../../components/ui/Card'
 import TextInput from '../../components/ui/TextInput'
@@ -156,7 +157,11 @@ export default function GoalsPanel() {
 
       <BodyTargetsCard reloadKey={targetsKey} unit={settings.weight_unit} />
 
-      <CaloriePlanSection onRejected={onRejected} initialDate={planDate} initialKind={planKind} />
+      {/* Plans move a target between days, so there is nothing to plan until
+          one is chosen. */}
+      {targetIsSet(settings) && (
+        <CaloriePlanSection onRejected={onRejected} initialDate={planDate} initialKind={planKind} />
+      )}
     </div>
   )
 }

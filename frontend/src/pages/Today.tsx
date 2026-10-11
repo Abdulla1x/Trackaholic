@@ -11,7 +11,7 @@ import SupplementsCard from '../components/SupplementsCard'
 import WaterCard from '../components/WaterCard'
 import { localIsoDate } from '../lib/dates'
 import { isReviewDay } from '../lib/review'
-import { countedMeals, dayTotals, planCaption, shownMeals, viewedDay } from '../lib/today'
+import { countedMeals, dayTotals, planCaption, shownMeals, targetIsSet, viewedDay } from '../lib/today'
 import { useSettings } from '../settings/SettingsContext'
 import { useLogPanel } from '../components/log/useLogPanel'
 import { onMealsChanged } from '../lib/mealEvents'
@@ -206,8 +206,10 @@ export default function Today() {
         ) : (
           <CaloriesBand
             day={viewedDate}
+            isToday={isToday}
             eaten={consumed}
             targets={goals}
+            targetSet={targetIsSet(settings)}
             caption={planCaption(dayPlan, planFailed)}
             trackCarbs={settings.track_carbs}
             trackFat={settings.track_fat}
@@ -255,8 +257,10 @@ export default function Today() {
           of this screen showing a different day from the rest. */}
       <div className="grid content-start grid-cols-[minmax(0,1fr)]">
         {/* Above the trackers on review day only (Mondays, decided 2026-10-10),
-            and only while looking at today. */}
-        {isToday && isReviewDay(realToday) && <ReviewCard today={realToday} />}
+            and only while looking at today. Not before a target is chosen:
+            a review of a week against a target nobody picked has nothing
+            honest to say. */}
+        {isToday && isReviewDay(realToday) && settings && targetIsSet(settings) && <ReviewCard today={realToday} />}
         {/* First: the one tracker every account has, and the one with a
             reminder. */}
         <WeighInCard day={viewedDate} today={realToday} />
