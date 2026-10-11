@@ -258,6 +258,28 @@ export default function Today() {
     />
   )
 
+  // The First target moment: arriving from setup, the band counts up and its
+  // gauge draws in. Once per account on this device, and the arrival is
+  // cleared from history so a reload or Back does not replay it.
+  const [countUp, setCountUp] = useState(false)
+  const arrivedWithTarget = (location.state as { firstTarget?: boolean } | null)?.firstTarget === true
+  useEffect(() => {
+    if (!arrivedWithTarget) return
+    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: null })
+    // Setup reached some other way (You -> Goals) still leaves the meal step.
+    setMemory((now) => {
+      const next = { ...now, open: true }
+      writeLocal(memoryKey, JSON.stringify(next))
+      return next
+    })
+    const playedKey = accountKey('trackaholic_first_target', userId)
+    if (readLocal(playedKey)) return
+    writeLocal(playedKey, '1')
+    setCountUp(true)
+    const end = window.setTimeout(() => setCountUp(false), 1000)
+    return () => window.clearTimeout(end)
+  }, [arrivedWithTarget, navigate, location.pathname, location.search, userId, memoryKey])
+
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-y-2 desk:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] desk:gap-x-10 desk:gap-y-4">
@@ -275,6 +297,7 @@ export default function Today() {
             eaten={consumed}
             targets={goals}
             targetSet={targetIsSet(settings)}
+            firstTarget={countUp}
             caption={planCaption(dayPlan, planFailed)}
             trackCarbs={settings.track_carbs}
             trackFat={settings.track_fat}
