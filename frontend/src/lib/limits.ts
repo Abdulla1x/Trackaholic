@@ -387,3 +387,8 @@ export function tdeeLoggedDaysNeeded(spanDays: number): number {
     roundHalfEven(TDEE_MIN_LOGGED_FRACTION * Math.max(spanDays, TDEE_MIN_SPAN_DAYS)),
   )
 }
+
+/** calibration.py CALIBRATION_MIN_SAMPLES: corrected estimates before the AI
+ *  accuracy screen gives a rate, per macro. Below it the server refuses and
+ *  sends the counts, and Progress shows how close it is. */
+export const CALIBRATION_MIN_CORRECTIONS = 10
