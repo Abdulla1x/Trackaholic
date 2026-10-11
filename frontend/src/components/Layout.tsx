@@ -6,6 +6,7 @@ import { useSettings } from '../settings/SettingsContext'
 import AnnouncementsModal from './AnnouncementsModal'
 import NewTrackaholicPrompt from './today/NewTrackaholicPrompt'
 import { announcementsWaiting } from '../lib/dismissals'
+import { targetIsSet } from '../lib/today'
 import StatusBanner from './StatusBanner'
 import WakingNotice from './WakingNotice'
 import { RailNav, TabBar } from './shell/AppNav'
@@ -51,7 +52,7 @@ export default function Layout() {
   const [notesShown, setNotesShown] = useState(false)
   // The shared settings fetch doubles as the cold-start probe: it is the first
   // authenticated request of the session, so if it is slow, everything is.
-  const { loading: settingsLoading } = useSettings()
+  const { loading: settingsLoading, settings } = useSettings()
   const [coldStart, setColdStart] = useState(false)
   // When the wait actually began, which is not when the notice appears. The
   // notice is held back COLD_START_NOTICE_AFTER_MS, so a progress bar started
@@ -135,7 +136,13 @@ export default function Layout() {
       <TabBar active={section} />
       {/* Over every page, opened by the Log button through the address. */}
       <LogPanelSlot />
-      <AnnouncementsModal items={announcements?.items ?? []} onShownChange={setNotesShown} />
+      {/* Held until the account has a target, and until settings say whether
+          it has one: release notes are not for someone getting started. */}
+      <AnnouncementsModal
+        items={announcements?.items ?? []}
+        hold={!settings || !targetIsSet(settings)}
+        onShownChange={setNotesShown}
+      />
       {/* Asked on Today only, and only once the release notes (if any) are
           out of the way: two popups at once is one too many. Waits for the
           notes to load, so it can never open a frame before they do. */}
