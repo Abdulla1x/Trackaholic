@@ -11,6 +11,7 @@ import {
   mealTimeLabel,
   planCaption,
   shownMeals,
+  targetIsSet,
   viewedDay,
 } from '../src/lib/today.ts'
 import type { Meal, PlanDay } from '../src/types.ts'
@@ -151,4 +152,11 @@ test('a deleted meal stops counting when it is held and stays out once it is sen
   assert.deepEqual(ids(countedMeals(day, undefined, new Set([2]))), [1, 3])
   // Nothing deleted: everything counts.
   assert.deepEqual(ids(countedMeals(day, undefined, new Set())), [1, 2, 3])
+})
+
+test('a target counts as set unless the server says it never was', () => {
+  assert.equal(targetIsSet({ target_set: true }), true)
+  assert.equal(targetIsSet({ target_set: false }), false)
+  // An API from before first use sends no field: nothing changes for it.
+  assert.equal(targetIsSet({}), true)
 })

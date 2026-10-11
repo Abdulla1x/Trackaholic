@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import ScreenBar from '../components/shell/ScreenBar'
 import { addDays, localIsoDate } from '../lib/dates'
-import { calorieBalance, dayHeading, dayTotals, planCaption, viewedDay } from '../lib/today'
+import { calorieBalance, dayHeading, dayTotals, planCaption, targetIsSet, viewedDay } from '../lib/today'
 import { useSettings } from '../settings/SettingsContext'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import type { Meal, PlanDay } from '../types'
@@ -59,6 +59,9 @@ export default function Day() {
   const balance = goals ? calorieBalance(eaten.calories, goals.calorie_goal) : null
   const caption = planCaption(plan?.date === day ? plan : null, planFailed)
   const plansLink = (kind: 'planned' | 'compensating') => `/settings/goals?plan=${day}&kind=${kind}`
+  // Before a target is chosen the day is what was eaten, with nothing to
+  // measure it against, and calorie plans have no target to move around.
+  const hasTarget = settings ? targetIsSet(settings) : true
 
   return (
     <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
@@ -88,46 +91,53 @@ export default function Day() {
               <Stat label="Eaten" unit="kcal">
                 {n(eaten.calories)}
               </Stat>
-              <Stat label="Target" unit="kcal">
-                {n(goals.calorie_goal)}
-              </Stat>
-              <Stat label={balance.over ? 'Over' : 'Left'} unit="kcal">
-                {n(balance.amount)}
-              </Stat>
-              <Stat label="Protein" unit={`/ ${n(goals.protein_goal)} g`}>
+              {hasTarget && (
+                <>
+                  <Stat label="Target" unit="kcal">
+                    {n(goals.calorie_goal)}
+                  </Stat>
+                  <Stat label={balance.over ? 'Over' : 'Left'} unit="kcal">
+                    {n(balance.amount)}
+                  </Stat>
+                </>
+              )}
+              <Stat label="Protein" unit={hasTarget ? `/ ${n(goals.protein_goal)} g` : 'g'}>
                 {n(eaten.protein)}
               </Stat>
               {settings.track_carbs && (
-                <Stat label="Carbs" unit={`/ ${n(goals.carbs_goal)} g`}>
+                <Stat label="Carbs" unit={hasTarget ? `/ ${n(goals.carbs_goal)} g` : 'g'}>
                   {n(eaten.carbs)}
                 </Stat>
               )}
               {settings.track_fat && (
-                <Stat label="Fat" unit={`/ ${n(goals.fat_goal)} g`}>
+                <Stat label="Fat" unit={hasTarget ? `/ ${n(goals.fat_goal)} g` : 'g'}>
                   {n(eaten.fat)}
                 </Stat>
               )}
             </StatGrid>
-            {caption && <p className="text-small text-ink-2">{caption}</p>}
+            {!hasTarget && <p className="text-small text-ink-2">No target yet. Once you set one, this day is measured against it.</p>}
+            {hasTarget && caption && <p className="text-small text-ink-2">{caption}</p>}
             {/* The stat above stays exact ("Over 8"); the reassurance is for a
                 day past the on-target band, as on Today's band. */}
-            {balance.over && !balance.onTarget && (
+            {hasTarget && balance.over && !balance.onTarget && (
               <p className="text-small text-ink-2">Over is fine. The week evens out, or make it up below.</p>
             )}
           </>
         )}
       </Block>
 
-      <Block label="Calorie plans">
-        <p className="text-small text-ink-2">
-          Move calories between days: a bigger day paid for by the days around it, or a day that ran over spread
-          across the next few.
-        </p>
-        <div className="divide-y divide-rule">
-          <RowLink to={plansLink('planned')} label="Plan a bigger day" detail="Fund a dinner out from the days around it" />
-          <RowLink to={plansLink('compensating')} label="Make up a day" detail="Move what ran over onto the next few days" />
-        </div>
-      </Block>
+      {hasTarget && (
+        <Block label="Calorie plans">
+          <p className="text-small text-ink-2">
+            Move calories between days: a bigger day paid for by the days around it, or a day that ran over spread
+            across the next few.
+          </p>
+          <div className="divide-y divide-rule">
+            <RowLink to={plansLink('planned')} label="Plan a bigger day" detail="Fund a dinner out from the days around it" />
+            <RowLink to={plansLink('compensating')} label="Make up a day" detail="Move what ran over onto the next few days" />
+          </div>
+        </Block>
+      )}
     </div>
   )
 }

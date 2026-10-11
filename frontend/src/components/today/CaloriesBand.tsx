@@ -64,23 +64,36 @@ function Unit({ children }: { children: ReactNode }) {
  *
  *  Going over is drawn calmly: the label changes to "Kcal over", the gauge is
  *  simply full, and one plain line offers a way to spread it. No red, no
- *  motion (the No Red Rule, the Never Punish Rule). */
+ *  motion (the No Red Rule, the Never Punish Rule).
+ *
+ *  Before the account has chosen a target (`targetSet` false) it shows what
+ *  was eaten and nothing to measure it against: no gauge, no "left", and
+ *  "Not set yet" where the target would be. Every account starts with a
+ *  2,000 kcal placeholder, and a gauge drawn against it would be an invented
+ *  number (chosen from the first-use prototype, 2026-10-11). */
 export default function CaloriesBand({
   day,
+  isToday,
   eaten,
   targets,
+  targetSet,
   caption,
   trackCarbs,
   trackFat,
 }: {
   day: string
+  isToday: boolean
   eaten: DayTotals
   targets: BandTargets
+  targetSet: boolean
   caption?: string
   trackCarbs: boolean
   trackFat: boolean
 }) {
-  const { amount, over: past, onTarget } = calorieBalance(eaten.calories, targets.calorie_goal)
+  const balance = calorieBalance(eaten.calories, targets.calorie_goal)
+  const { amount, over: past } = balance
+  // No target, nothing to be on: the moment below must never play for one.
+  const onTarget = targetSet && balance.onTarget
   // Over in words only beyond the band: 8 kcal over is on target.
   const over = past && !onTarget
   const lit = litSegments(eaten.calories, targets.calorie_goal, 20)
@@ -95,6 +108,52 @@ export default function CaloriesBand({
       className="mt-1 h-1.5 max-w-[180px]"
     />
   )
+
+  if (!targetSet) {
+    return (
+      <section aria-label="Calories" className={BAND}>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-field-label text-band-ink-2">{isToday ? 'Eaten today' : 'Eaten'}</h2>
+          <DayLink day={day} />
+        </div>
+        <p className="flex items-end gap-3 pb-1">
+          <span className="text-display-number desk:text-[132px]">
+            <RollingNumber value={eaten.calories} />
+          </span>
+          <span className="pb-1.5 text-small text-band-ink-2">
+            kcal
+            <br />
+            no target yet
+          </span>
+        </p>
+        <div className="grid grid-cols-2 border-t border-band-rule">
+          <Field label="Protein">
+            <RollingNumber value={eaten.protein} />
+            <Unit>g</Unit>
+          </Field>
+          <Field label="Target">
+            <span className="text-[16px] font-semibold [font-stretch:100%]">Not set yet</span>
+          </Field>
+        </div>
+        {(trackCarbs || trackFat) && (
+          <div className="-mt-2.5 grid grid-cols-2 border-t border-band-rule">
+            {trackCarbs && (
+              <Field label="Carbs">
+                <RollingNumber value={eaten.carbs} />
+                <Unit>g</Unit>
+              </Field>
+            )}
+            {trackFat && (
+              <Field label="Fat">
+                <RollingNumber value={eaten.fat} />
+                <Unit>g</Unit>
+              </Field>
+            )}
+          </div>
+        )}
+      </section>
+    )
+  }
 
   return (
     <section aria-label="Calories" className={BAND}>
