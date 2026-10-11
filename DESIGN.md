@@ -224,6 +224,22 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - **Over target:** past the band, the gauge is full, the label reads "KCAL OVER", and one plain line reads "Over is fine. The week evens out." with a link to spread it.
 - **Tap:** opens the day in detail, with calorie plans.
 - **Carbs and fat:** when switched on, they are added as fields under protein. When off, nothing mentions them.
+- **Before a target is set:** the label reads "EATEN TODAY", the display number is what was eaten with "kcal / no target yet" beside it, and the fields are Protein (no goal) and Target, reading "Not set yet". No gauge, no "left", no Spread it. Chosen from the first-use prototype over a quiet "No target yet" line.
+- **When a named event moves an automatic target** (the burn becomes measured, the goal weight is reached, a limit starts or stops deciding it), one plain block under the band says so with the old and new numbers, until "Got it". The daily drift of a weigh-in is never mentioned.
+
+### Getting started
+- **What:** a block on Today for a new account: two numbered steps (set your daily target · Start; log your first meal · Log), "n of 2", and "New to tracking? How Trackaholic works · Not now". The current step shows its one-line detail and the primary button; a done step shows a filled square with a check.
+- **Where:** above the calories band until a target is set, then under it.
+- **Not now:** shrinks it to one row (Getting started · 0 of 2 · Show).
+- **What's next:** once both steps are done, "That's the basics." and one sentence about what Progress unlocks, with See Progress, How Trackaholic works and Done. Done removes it for good. Remembered per account on the device.
+
+### Setup
+- **A pushed screen** (/setup) in the Settings-type single column: the method choice first ("Work it out for me" / "I have my own numbers", with "Only you see these answers"), then one question per screen with an "n of 7" segmented bar, Back beside Next, and Next waiting for a valid answer. Each problem is a plain line under its question (the ink rule on the left, never red). Activity is a list of rows with a radio mark, a name and a description.
+- **The target screen:** one bordered block with the target in the number face, the protein range, the pace and the burn, and any limit named with the numbers. While the server wakes: "Working it out…" with the six-segment waking loader.
+
+### Sheets and the one-time popup
+- **Sheet:** the Log panel's look and motion sized to its content: a bottom sheet up to 92% on phones, a 480px panel from the right on desktop. "Add or remove trackers" uses it: the weigh-in first, marked On, then each tracker with Add (secondary) or Remove (ghost), saved as pressed.
+- **The new Trackaholic:** the same sheet as a 440px centred dialog on desktop, asked once of an account from before trackers were chosen, with its current cards ticked and Save / Keep as is. It waits until release notes are closed.
 
 ### Gauges and meters
 - **Style:** square segments, filled in ink, unfilled in track. The calories gauge has 20 segments plus the target tick; protein and water have 10.
@@ -321,7 +337,8 @@ Motion says what changed. Nothing moves for decoration. Animations are built wit
 **The catalogue:**
 - **Rolling numbers:** when a value changes, only the digits that changed roll into place (0.45em, 320ms, staggered 40ms from the right). They roll up when the value rises and down when it falls.
 - **Gauge fill:** when a gauge first appears, its segments fade in one after another (220ms each, 35ms apart). When it grows afterwards (a meal logged, water added), each new segment lights in the action colour and settles to ink (760ms each, 45ms apart): a bright edge runs along the gauge and leaves the new total behind. It plays the same past the target. Never red.
-- **First target:** after setup, the calories number counts up from zero (900ms) and the gauge draws in.
+- **First target:** after setup, the calories number counts up from zero (900ms, the default ease) while the gauge draws in from the left (a clip, 900ms). Once per account on a device; not on reload. Under reduced motion the number is simply there and the gauge fades in.
+- **Setup questions:** each question slides in like a pushed screen (28px, 260ms), from the right going forward and from the left going back.
 - **AI result:** rows arrive one by one (300ms, 90ms apart, rising 10px). The "Your food" tag snaps in with a small overshoot (scale 0.5 → 1.12 → 1).
 - **Save a meal:** the panel drops away, the new meal row opens into the list (360ms) with a brief action-tinted highlight, the gauge fills and the numbers roll.
 - **Delete:** the struck-through line draws its strike (350ms); the Undo bar drains linearly over 10 seconds; the line then folds closed (280ms).
@@ -406,6 +423,13 @@ Wry, in small doses. Humour lives in quiet, good moments. Errors, going over a t
 | Weekly review, nothing to fix | Nothing to fix this week. Carry on. |
 | Server waking up | Waking the server. It's on a free plan and naps a lot. About a minute; you can keep going. |
 | Target set | Your target: 2,100 kcal and 150 g protein. A guide, not a rule. |
+| Before a target is set | no target yet · Target: Not set yet |
+| Getting started, both steps done | That's the basics. Progress fills in as you log. |
+| Why setup asks (plain) | Only you see these answers. They're used to work out your target, nothing else. |
+| A limit changed the pace (plain) | You asked to lose 1.5 kg a week; 1% of your body weight a week is the most it plans, so it plans 0.8 kg. |
+| Pregnancy (plain) | Pregnant or breastfeeding? These targets aren't built for that. Your midwife or doctor can set one; you can still log meals. |
+| The target moved (plain) | Your burn is now measured from your weigh-ins and meals: 2,690 kcal a day, not the 2,975 the formula estimated. Your target moved from 2,425 to 2,140 kcal. |
+| An estimate failed (plain) | You can still log it. Search a food to get its numbers, or type the calories and protein yourself. |
 | Within 2% of the calorie target | On target |
 | Over the calorie target (plain) | Over is fine. The week evens out. Spread it across the next few days if you like. |
 | A save fails (plain) | That didn't save. Check your connection, then try again. |
