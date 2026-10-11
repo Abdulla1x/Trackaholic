@@ -36,6 +36,16 @@ export function hasEverSeenAnnouncements(): boolean {
   return readLocal(SEEN_KEY) !== null
 }
 
+/** Whether the release-notes popup has something to show on this device:
+ *  the first-run view, or any note not yet seen. Read synchronously, so a
+ *  popup that must not open on top of the notes can wait for them first. */
+export function announcementsWaiting(items: readonly { id: string }[]): boolean {
+  if (items.length === 0) return false
+  if (!hasEverSeenAnnouncements()) return true
+  const seen = seenAnnouncementIds()
+  return items.some((item) => !seen.includes(item.id))
+}
+
 export function markAnnouncementsSeen(ids: string[]) {
   const merged = new Set([...seenAnnouncementIds(), ...ids])
   writeLocal(SEEN_KEY, JSON.stringify([...merged]))
