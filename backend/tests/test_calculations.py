@@ -223,10 +223,33 @@ def test_activity_multiplier_raises_rather_than_defaulting_to_sedentary():
 
 
 def test_estimated_tdee_is_bmr_times_the_multiplier():
-    # 1755 * 1.55 (moderate) = 2720.25
+    # 1755 * 1.70 (moderate) = 2983.5
     assert estimated_tdee(80, 180, 35, "male", "moderate") == pytest.approx(
-        2720.25, abs=0.1
+        2983.5, abs=0.1
     )
+
+
+@pytest.mark.parametrize(
+    ("level", "low", "high"),
+    [
+        # FAO/WHO/UNU 2001, Table 5.3: measured physical activity levels.
+        ("sedentary", 1.40, 1.69),
+        ("light", 1.40, 1.69),
+        ("moderate", 1.70, 1.99),
+        ("active", 1.70, 1.99),
+        ("very_active", 2.00, 2.40),
+    ],
+)
+def test_each_activity_level_sits_inside_its_measured_band(level, low, high):
+    """The multipliers are sourced, not tuned: moving one out of its band
+    means the comment above ACTIVITY_MULTIPLIERS is no longer true."""
+    assert low <= activity_multiplier(level) <= high
+
+
+def test_the_activity_levels_rise_in_order():
+    levels = ["sedentary", "light", "moderate", "active", "very_active"]
+    values = [activity_multiplier(level) for level in levels]
+    assert values == sorted(values) and len(set(values)) == len(values)
 
 
 def test_target_calories_applies_the_requested_rate_when_it_is_reasonable():
