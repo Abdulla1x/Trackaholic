@@ -19,6 +19,8 @@
  *  copied meal, a pasted code. Plus `logDepth`, how many history entries the
  *  panel has pushed, so closing it can step back over all of them at once and
  *  a save does not leave Back reopening the form. */
+import { viewedDay } from '../../lib/today.ts'
+
 export type LogScreen = 'start' | 'hand'
 
 const PARAM = 'log'
@@ -32,6 +34,23 @@ export function logScreen(search: string): LogScreen | null {
 
 export function logDate(search: string): string | null {
   return new URLSearchParams(search).get(DATE)
+}
+
+/** The day the page underneath is showing, for opening the panel on it:
+ *  Today's `?day=`, or the date in `/day/:date` (the day in detail and its
+ *  meal screens). Every other page shows today. Read through `viewedDay`, so
+ *  a typo or a future date falls back to today exactly as the page itself
+ *  does, and the panel never opens on a day the page isn't showing. */
+export function dayOnShow(pathname: string, search: string, today: string): string {
+  if (pathname === '/') return viewedDay(new URLSearchParams(search).get('day'), today)
+  const match = /^\/day\/([^/]+)(\/|$)/.exec(pathname)
+  return match?.[1] ? viewedDay(match[1], today) : today
+}
+
+/** A day as the panel's `date` parameter: null for today, because an absent
+ *  date already means today. */
+export function dateParam(day: string, today: string): string | null {
+  return day === today ? null : day
 }
 
 /** The search string with the panel open on `screen`. Other parameters the

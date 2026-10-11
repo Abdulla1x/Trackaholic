@@ -73,11 +73,9 @@ export default function Today() {
       },
       { replace: true },
     )
-  // The Log panel opens over this page. A meal logged from here is for the day
-  // being viewed, so a tap while looking at yesterday lands on yesterday; today
-  // is the panel's default and is left out of the address.
+  // The Log panel opens over this page, on the day being viewed (useLogPanel
+  // reads `?day=`), so a tap while looking at yesterday lands on yesterday.
   const { open: openLog } = useLogPanel()
-  const forDay = isToday ? null : viewedDate
 
   // Past midnight, "today" moves on. A page showing today (no `?day=`) follows
   // it when the tab regains focus; a day picked on purpose is in the address
@@ -225,7 +223,7 @@ export default function Today() {
         showTimes={settings?.show_meal_times ?? true}
         trackCarbs={settings?.track_carbs ?? false}
         trackFat={settings?.track_fat ?? false}
-        onLog={() => openLog('start', { date: forDay })}
+        onLog={() => openLog()}
         held={
           held && {
             ...held,
