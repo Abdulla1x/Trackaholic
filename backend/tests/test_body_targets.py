@@ -483,3 +483,19 @@ def test_above_bmi_30_protein_uses_the_weight_at_bmi_30(client):
     body = targets(client)
     assert body["protein_reference_kg"] == 97.2
     assert body["protein_g"] == 136  # 1.4 x 97.2, not 1.4 x 140 = 196
+
+
+# --- targets follow weigh-in changes and the goal ------------------------------
+
+
+def test_deleting_a_weigh_in_recomputes_the_target_without_it(client):
+    """A mistyped weigh-in deleted must not leave a target built on it."""
+    weigh_in(client, 80.0, days_ago=1)
+    set_profile(client, targets_auto=True)
+    before = settings(client)["calorie_goal"]
+
+    typo = weigh_in(client, 180.0)  # 180 instead of 80
+    assert settings(client)["calorie_goal"] != before
+
+    assert client.delete(f"/api/weights/{typo['id']}").status_code == 204
+    assert settings(client)["calorie_goal"] == before

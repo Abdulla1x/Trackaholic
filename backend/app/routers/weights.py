@@ -175,4 +175,11 @@ def delete_weight(
     if row is None:
         raise HTTPException(status_code=404, detail="Weight entry not found")
     db.delete(row)
+    # The automatic target was built on this weight, so it is recomputed
+    # without it, in the same commit -- exactly as saving one recomputes.
+    # Before this, deleting a mistyped weigh-in left a target built on it.
+    setting = db.get(Setting, user.id)
+    if setting is not None:
+        db.flush()
+        apply_auto_targets(setting, db)
     db.commit()
