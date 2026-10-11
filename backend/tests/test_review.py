@@ -218,6 +218,17 @@ def test_the_intake_band_is_inclusive_at_both_edges(mean, expected):
     assert intake_check(days(6, calories=mean), 2000.0, False).status == expected
 
 
+@pytest.mark.parametrize(
+    "mean, expected",
+    [(2040, ON_TRACK), (1960, ON_TRACK), (2041, OFF_TRACK), (1959, OFF_TRACK)],
+)
+def test_the_intake_band_is_two_percent(mean, expected):
+    """Pinned in kcal, not through the constant: Today's headline mirrors this
+    band (frontend/src/lib/today.ts), so a change here has to be a deliberate
+    change there too, and this test is what makes it noticed."""
+    assert intake_check(days(6, calories=mean), 2000.0, False).status == expected
+
+
 def test_intake_names_a_calorie_plan_that_moved_the_target():
     """A target that moved for a reason the user chose has to say so.
 
