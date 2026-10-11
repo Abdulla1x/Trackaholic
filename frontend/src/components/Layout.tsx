@@ -4,6 +4,8 @@ import { useAuth } from '../auth/AuthContext'
 import { useAnnouncements } from '../hooks/useAnnouncements'
 import { useSettings } from '../settings/SettingsContext'
 import AnnouncementsModal from './AnnouncementsModal'
+import NewTrackaholicPrompt from './today/NewTrackaholicPrompt'
+import { announcementsWaiting } from '../lib/dismissals'
 import StatusBanner from './StatusBanner'
 import WakingNotice from './WakingNotice'
 import { RailNav, TabBar } from './shell/AppNav'
@@ -45,6 +47,8 @@ export default function Layout() {
   const wide = pathname === '/admin'
   // One fetch feeds both the banner and the modal.
   const announcements = useAnnouncements()
+  // Whether the release notes are on screen; see AnnouncementsModal.
+  const [notesShown, setNotesShown] = useState(false)
   // The shared settings fetch doubles as the cold-start probe: it is the first
   // authenticated request of the session, so if it is slow, everything is.
   const { loading: settingsLoading } = useSettings()
@@ -131,7 +135,15 @@ export default function Layout() {
       <TabBar active={section} />
       {/* Over every page, opened by the Log button through the address. */}
       <LogPanelSlot />
-      <AnnouncementsModal items={announcements?.items ?? []} />
+      <AnnouncementsModal items={announcements?.items ?? []} onShownChange={setNotesShown} />
+      {/* Asked on Today only, and only once the release notes (if any) are
+          out of the way: two popups at once is one too many. Waits for the
+          notes to load, so it can never open a frame before they do. */}
+      {pathname === '/' && (
+        <NewTrackaholicPrompt
+          ready={announcements !== null && !notesShown && !announcementsWaiting(announcements.items)}
+        />
+      )}
     </div>
   )
 }

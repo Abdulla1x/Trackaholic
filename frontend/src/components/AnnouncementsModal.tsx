@@ -30,7 +30,16 @@ type View =
  *
  * Dismissal is per-id rather than a single "last seen" marker so that adding an
  * older-dated note, or shipping two at once, can't silently skip one. */
-export default function AnnouncementsModal({ items }: { items: Announcement[] }) {
+export default function AnnouncementsModal({
+  items,
+  onShownChange,
+}: {
+  items: Announcement[]
+  /** Told when the notes open and close, so a popup waiting behind them
+   *  opens only after. The first-run view marks every note seen as it OPENS,
+   *  so the seen list alone cannot say whether the notes are on screen. */
+  onShownChange?: (shown: boolean) => void
+}) {
   const [view, setView] = useState<View>({ kind: 'hidden' })
 
   useEffect(() => {
@@ -44,6 +53,7 @@ export default function AnnouncementsModal({ items }: { items: Announcement[] })
     if (!hasEverSeenAnnouncements()) {
       markAnnouncementsSeen(items.map((item) => item.id))
       setView({ kind: 'welcome', total: items.length })
+      onShownChange?.(true)
       return
     }
 
@@ -53,13 +63,14 @@ export default function AnnouncementsModal({ items }: { items: Announcement[] })
       setView({ kind: 'hidden' })
       return
     }
+    onShownChange?.(true)
     setView({
       kind: 'notes',
       shown: unseen.slice(0, MAX_MODAL_NOTES),
       pending: unseen.map((item) => item.id),
       remaining: Math.max(0, unseen.length - MAX_MODAL_NOTES),
     })
-  }, [items])
+  }, [items, onShownChange])
 
   if (view.kind === 'hidden') return null
 
@@ -69,6 +80,7 @@ export default function AnnouncementsModal({ items }: { items: Announcement[] })
     // Nothing is lost by marking the rest: /whats-new keeps the full list.
     if (view.kind === 'notes') markAnnouncementsSeen(view.pending)
     setView({ kind: 'hidden' })
+    onShownChange?.(false)
   }
 
   return (

@@ -381,6 +381,10 @@ export async function seed(token) {
       // reads as never having chosen a target and every walk would audit
       // first use instead of the screens it means to.
       target_set: true,
+      // A new account shows only the weigh-in until it chooses more, so the
+      // seed chooses all three, or Water, Steps and Supplements would drop
+      // out of every comparison.
+      trackers: ['water', 'steps', 'supplements'],
     }),
   })
 }
