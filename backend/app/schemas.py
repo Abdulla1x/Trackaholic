@@ -2,7 +2,14 @@ from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from .banking import MAX_DAY_DELTA_KCAL, MAX_PLAN_DAYS
 from .calculations import ProjectionStatus
@@ -915,6 +922,50 @@ class Settings(BaseModel):
         if value < today.replace(year=today.year - MAX_AGE_YEARS):
             raise ValueError(f"birth date implies an age over {MAX_AGE_YEARS}")
         return value
+
+
+# POLICY. Setup's typo catchers, stricter than the bounds a stored weight or
+# height carries: a first-use form is where a misplaced decimal or the wrong
+# unit happens, and the preview is the moment to say so. Not a judgement about
+# anyone's body -- every real adult value passes.
+MIN_SETUP_WEIGHT_KG = 25
+MIN_SETUP_HEIGHT_CM = 100
+SETUP_BMI_RANGE = (12, 100)
+
+
+class TargetPreviewRequest(BaseModel):
+    """Setup's answers, before anything is saved (POST /settings/targets/preview).
+
+    Every field is required: the preview is the formula on these answers and
+    nothing else, so there is nothing to default.
+    """
+
+    weight_kg: float = Field(ge=MIN_SETUP_WEIGHT_KG, le=MAX_WEIGHT_KG)
+    height_cm: float = Field(ge=MIN_SETUP_HEIGHT_CM, le=MAX_HEIGHT_CM)
+    birth_date: date_type
+    sex: Literal["male", "female"]
+    activity_level: ACTIVITY_LEVELS
+    goal_rate_kg_per_week: float = Field(
+        ge=-MAX_INPUT_GOAL_RATE_KG_PER_WEEK, le=MAX_INPUT_GOAL_RATE_KG_PER_WEEK
+    )
+    protein_focus: Literal["muscle", "scale"] | None = None
+
+    _plausible_birth_date = field_validator("birth_date")(
+        Settings.plausible_birth_date.__func__
+    )
+
+    @model_validator(mode="after")
+    def weight_and_height_fit_together(self) -> "TargetPreviewRequest":
+        """A BMI outside 12-100 is nearly always a units mix-up (kg typed as
+        lb, cm as inches), so it is refused with that suggestion."""
+        body_mass_index = self.weight_kg / (self.height_cm / 100) ** 2
+        low, high = SETUP_BMI_RANGE
+        if not low <= body_mass_index <= high:
+            raise ValueError(
+                f"that weight and height make a BMI of {round(body_mass_index)}, "
+                f"which can't be right; check the units"
+            )
+        return self
 
 
 class TdeeBasis(BaseModel):

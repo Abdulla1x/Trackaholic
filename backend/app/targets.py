@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from .calculations import (
     GOAL_REACHED_TOLERANCE_KG,
+    TargetCalories,
     RATE_WINDOW_DAYS,
     TDEE_MIN_LOGGED_DAYS,
     TDEE_MIN_LOGGED_FRACTION,
@@ -304,6 +305,57 @@ def _measure_tdee(
     )
 
 
+@dataclass(frozen=True)
+class _Plan:
+    """A burn turned into a target: the calories within the pace limits, the
+    macros, and protein's rate, range and reference weight.
+
+    One path for both the stored targets (compute_targets) and setup's
+    preview (preview_targets), so a preview can never promise a number the
+    save doesn't give.
+    """
+
+    target: TargetCalories
+    macros: dict[str, float]
+    per_kg: tuple[float, float, float]
+    reference_kg: float
+
+    def fields(self) -> dict[str, object]:
+        per_kg, low, high = self.per_kg
+        return {
+            "target_calories": self.target.calories,
+            "protein_g": self.macros["protein"],
+            "carbs_g": self.macros["carbs"],
+            "fat_g": self.macros["fat"],
+            "applied_rate_kg_per_week": self.target.applied_rate,
+            "max_loss_kg_per_week": self.target.max_loss_kg_per_week,
+            "max_gain_kg_per_week": self.target.max_gain_kg_per_week,
+            "floor_kcal": self.target.floor_kcal,
+            "loss_refused": self.target.loss_refused,
+            "protein_g_per_kg": per_kg,
+            "protein_low_g": float(round(low * self.reference_kg)),
+            "protein_high_g": float(round(high * self.reference_kg)),
+            "protein_reference_kg": round(self.reference_kg, 1),
+        }
+
+
+def _plan_from_burn(
+    tdee: float,
+    weight_kg: float,
+    height_cm: float,
+    sex: str,
+    rate_kg_per_week: float,
+    protein_focus: str | None,
+) -> _Plan:
+    target = target_calories(
+        tdee, rate_kg_per_week, sex, weight_kg=weight_kg, height_cm=height_cm
+    )
+    reference_kg = protein_reference_weight(weight_kg, height_cm)
+    per_kg = protein_g_per_kg(protein_focus, target.applied_rate)
+    macros = macro_targets(target.calories, reference_kg, protein_g_per_kg=per_kg[0])
+    return _Plan(target=target, macros=macros, per_kg=per_kg, reference_kg=reference_kg)
+
+
 def compute_targets(
     db: Session, setting: Setting, today: date_type | None = None
 ) -> TargetsResult:
@@ -375,18 +427,10 @@ def compute_targets(
     if goal_reached:
         rate = 0.0
 
-    target = target_calories(
-        tdee,
-        rate,
-        setting.sex,
-        weight_kg=weight_kg,
-        height_cm=setting.height_cm,
+    plan = _plan_from_burn(
+        tdee, weight_kg, setting.height_cm, setting.sex, rate, setting.protein_focus
     )
-    reference_kg = protein_reference_weight(weight_kg, setting.height_cm)
-    per_kg, per_kg_low, per_kg_high = protein_g_per_kg(
-        setting.protein_focus, target.applied_rate
-    )
-    macros = macro_targets(target.calories, reference_kg, protein_g_per_kg=per_kg)
+    target = plan.target
 
     # Both clamps can fire at once and both are the user's business: one says
     # the burn was implausible, the other that the requested rate was. Joined
@@ -408,26 +452,50 @@ def compute_targets(
         # the chain, and showing both makes its size obvious.
         bmr=bmr,
         tdee=tdee,
-        target_calories=target.calories,
-        protein_g=macros["protein"],
-        carbs_g=macros["carbs"],
-        fat_g=macros["fat"],
         weight_kg=weight_kg,
         weight_date=weight_date,
         clamped_reason=" ".join(clamp_reasons) if clamp_reasons else None,
         tdee_source=tdee_source,
         tdee_estimated=estimated,
         tdee_basis=basis,
-        applied_rate_kg_per_week=target.applied_rate,
-        max_loss_kg_per_week=target.max_loss_kg_per_week,
-        max_gain_kg_per_week=target.max_gain_kg_per_week,
-        floor_kcal=target.floor_kcal,
-        loss_refused=target.loss_refused,
         goal_reached=goal_reached,
-        protein_g_per_kg=per_kg,
-        protein_low_g=float(round(per_kg_low * reference_kg)),
-        protein_high_g=float(round(per_kg_high * reference_kg)),
-        protein_reference_kg=round(reference_kg, 1),
+        **plan.fields(),
+    )
+
+
+def preview_targets(
+    weight_kg: float,
+    height_cm: float,
+    birth_date: date_type,
+    sex: str,
+    activity_level: str,
+    goal_rate_kg_per_week: float,
+    protein_focus: str | None,
+    today: date_type | None = None,
+) -> TargetsResult:
+    """What saving these setup answers would produce, without saving them.
+
+    The formula's estimate only: a new account has no history to measure a
+    burn from, and setup is where accounts are new. The target, macros and
+    limits come from the same `_plan_from_burn` the stored targets use, so the
+    number shown is the number saved.
+    """
+    age = age_years(birth_date, on=today)
+    bmr = bmr_mifflin_st_jeor(weight_kg, height_cm, age, sex)
+    tdee = estimated_tdee(weight_kg, height_cm, age, sex, activity_level)
+    plan = _plan_from_burn(
+        tdee, weight_kg, height_cm, sex, goal_rate_kg_per_week, protein_focus
+    )
+    return TargetsResult(
+        missing=[],
+        bmi=bmi(weight_kg, height_cm),
+        bmr=bmr,
+        tdee=tdee,
+        weight_kg=weight_kg,
+        clamped_reason=plan.target.clamped_reason,
+        tdee_source="estimated",
+        tdee_estimated=tdee,
+        **plan.fields(),
     )
 
 

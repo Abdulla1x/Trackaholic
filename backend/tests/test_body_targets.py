@@ -567,3 +567,73 @@ def test_automatic_targets_are_not_held_to_the_typed_rule(client):
     assert client.put("/api/settings", json={
         **BASE_SETTINGS, **FULL_PROFILE, "targets_auto": True, "calorie_goal": 900,
     }).status_code == 200
+
+
+# --- setup's live preview (POST /api/settings/targets/preview) ----------------
+
+PREVIEW = {
+    "weight_kg": 80.0, "height_cm": 180.0, "birth_date": "1990-05-04",
+    "sex": "male", "activity_level": "moderate", "goal_rate_kg_per_week": -0.5,
+    "protein_focus": "muscle",
+}
+
+
+def preview(client, **overrides):
+    return client.post("/api/settings/targets/preview", json={**PREVIEW, **overrides})
+
+
+def test_the_preview_is_exactly_what_saving_the_answers_stores(client):
+    """The number setup shows is the number saved: one code path for both."""
+    shown = preview(client).json()
+
+    weigh_in(client, PREVIEW["weight_kg"])
+    set_profile(client, targets_auto=True, protein_focus="muscle")
+    stored = settings(client)
+
+    assert stored["calorie_goal"] == shown["target_calories"]
+    assert stored["protein_goal"] == shown["protein_g"]
+    assert stored["carbs_goal"] == shown["carbs_g"]
+    assert stored["fat_goal"] == shown["fat_g"]
+
+
+def test_the_preview_writes_nothing(client):
+    before = settings(client)
+    assert preview(client).status_code == 200
+    assert settings(client) == before
+    assert client.get("/api/weights").json() == []
+
+
+def test_the_preview_carries_the_limits_before_a_pace_is_picked(client):
+    body = preview(client, goal_rate_kg_per_week=-3).json()
+    assert body["max_loss_kg_per_week"] == 0.8
+    assert body["applied_rate_kg_per_week"] == -0.8
+    assert "1% of your body weight" in body["clamped_reason"]
+    assert (body["protein_low_g"], body["protein_high_g"]) == (144, 208)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "why"),
+    [
+        ({"weight_kg": 8}, "typo"),
+        ({"height_cm": 17.8}, "typo"),
+        ({"weight_kg": 180, "height_cm": 100}, "BMI of 180"),
+        ({"weight_kg": 30, "height_cm": 250}, "BMI of 5"),
+        ({"birth_date": "2999-01-01"}, "future"),
+        ({"sex": "other"}, "not a formula input"),
+        ({"goal_rate_kg_per_week": -75}, "a goal weight, not a rate"),
+        ({"protein_focus": "bulk"}, "not an answer"),
+    ],
+)
+def test_the_preview_refuses_what_setup_refuses(client, overrides, why):
+    assert preview(client, **overrides).status_code == 422, why
+
+
+def test_a_units_mix_up_says_to_check_the_units(client):
+    detail = str(preview(client, weight_kg=180, height_cm=100).json()["detail"])
+    assert "check the units" in detail
+
+
+def test_the_preview_needs_a_signed_in_user(anon_client):
+    assert anon_client.post(
+        "/api/settings/targets/preview", json=PREVIEW
+    ).status_code == 401
