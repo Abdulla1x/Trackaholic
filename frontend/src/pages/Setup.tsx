@@ -15,14 +15,20 @@ import {
   goalWeightRemark,
   heightProblem,
   lossRefused,
+  ownNumbersProblem,
+  ownNumbersRemark,
+  ownReady,
+  ownSettings,
   PACE_CHIPS,
   paceKg,
   paceProblem,
   paceText,
+  parseNumber,
   previewRequest,
   QUESTIONS,
   regionUnit,
   screenFrom,
+  splitRest,
   weightKg,
   weightProblem,
   type Answers,
@@ -276,6 +282,23 @@ export default function Setup() {
     }
   }
 
+  const useOwn = async () => {
+    if (!settings || !ownReady(a)) return
+    setSaving(true)
+    setSaveProblem(null)
+    try {
+      const saved = await updateSettings(ownSettings(settings, a))
+      writeLocal(draftKey(userId), '')
+      toast.show({
+        text: `Your target: ${Math.round(saved.calorie_goal).toLocaleString()} kcal and ${Math.round(saved.protein_goal)} g protein. A guide, not a rule.`,
+      })
+      navigate('/', { state: { firstTarget: true } })
+    } catch {
+      setSaving(false)
+      setSaveProblem("That didn't save. Check your connection, then try again.")
+    }
+  }
+
   if (!settings) return null
 
   const max = preview
@@ -308,8 +331,21 @@ export default function Setup() {
     )
     title = 'How do you want to set your target?'
   } else if (screen === 'own') {
-    body = <p className="text-small text-ink-2">Typing your own numbers comes next.</p>
     title = 'Your own numbers'
+    body = <OwnNumbers a={a} patch={patch} />
+    next = (
+      <>
+        <Problem text={saveProblem} />
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={back}>
+            Back
+          </Button>
+          <Button className="flex-1" disabled={!ownReady(a) || saving} onClick={useOwn}>
+            {saveProblem ? 'Try again' : saving ? 'Saving…' : 'Use these numbers'}
+          </Button>
+        </div>
+      </>
+    )
   } else if (screen === 'target') {
     title = 'Your target'
     body = <TargetSummary a={a} preview={preview} failed={previewFailed} waking={waking} onRetry={() => setRetry((n) => n + 1)} max={max} />
@@ -654,6 +690,52 @@ function ExtrasQuestion({ a, patch }: { a: Answers; patch: (next: Partial<Answer
           </Chip>
         </div>
       </div>
+      <TrackersPick a={a} patch={patch} />
+      <ReminderPick a={a} patch={patch} />
+    </>
+  )
+}
+
+/** "I have my own numbers": a coach's or another app's targets, kept as
+ *  typed with automatic targets off. They have to fit inside the calories
+ *  (4 kcal a gram for protein and carbs, 9 for fat), as the server checks. */
+function OwnNumbers({ a, patch }: { a: Answers; patch: (next: Partial<Answers>) => void }) {
+  const kcal = parseNumber(a.ownCalories)
+  const protein = parseNumber(a.ownProtein)
+  const trackCarbsAndFat = (on: boolean) => {
+    // A starting split that fits, when there is something to split.
+    if (on && a.ownCarbs === '' && a.ownFat === '' && kcal !== null && protein !== null && kcal > 0) {
+      const rest = splitRest(kcal, protein)
+      patch({ carbsAndFat: true, ownCarbs: String(rest.carbs), ownFat: String(rest.fat) })
+    } else patch({ carbsAndFat: on })
+  }
+  return (
+    <>
+      <div className="flex flex-wrap gap-3">
+        <NumberField id="setup-own-kcal" label="Daily calories" unit="kcal" value={a.ownCalories} onChange={(ownCalories) => patch({ ownCalories })} inputMode="numeric" />
+        <NumberField id="setup-own-protein" label="Daily protein" unit="g" value={a.ownProtein} onChange={(ownProtein) => patch({ ownProtein })} inputMode="numeric" />
+      </div>
+      <div className="grid gap-2">
+        <span className="text-small text-ink-2">Also track carbs and fat?</span>
+        <div role="group" aria-label="Carbs and fat" className="flex flex-wrap gap-1.5">
+          <Chip pressed={a.carbsAndFat} onClick={() => trackCarbsAndFat(true)}>
+            Yes
+          </Chip>
+          <Chip pressed={!a.carbsAndFat} onClick={() => trackCarbsAndFat(false)}>
+            Just calories and protein
+          </Chip>
+        </div>
+      </div>
+      {a.carbsAndFat && (
+        <div className="flex flex-wrap gap-3">
+          <NumberField id="setup-own-carbs" label="Daily carbs" unit="g" value={a.ownCarbs} onChange={(ownCarbs) => patch({ ownCarbs })} inputMode="numeric" />
+          <NumberField id="setup-own-fat" label="Daily fat" unit="g" value={a.ownFat} onChange={(ownFat) => patch({ ownFat })} inputMode="numeric" />
+        </div>
+      )}
+      <Problem text={ownNumbersProblem(a)} />
+      <Problem text={ownNumbersProblem(a) ? null : ownNumbersRemark(a)} warn />
+      <Hint>Typed targets stay as you set them. You can switch to working them out later in You → Goals.</Hint>
+      <Hint>Kidney disease, diabetes medication, a GLP-1 drug, or weight-loss surgery? Ask your doctor or dietitian for these numbers.</Hint>
       <TrackersPick a={a} patch={patch} />
       <ReminderPick a={a} patch={patch} />
     </>
