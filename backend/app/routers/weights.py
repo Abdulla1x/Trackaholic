@@ -63,7 +63,7 @@ def get_trend(
     to zoom a chart would move `latest_trend_kg`, `weekly_rate_kg` and the
     projected date with it, and a short enough window would blank the last two
     outright. The frontend therefore fetches once at the cap and slices for
-    display -- see TREND_FETCH_DAYS in pages/Weight.tsx.
+    display -- see TREND_FETCH_DAYS in frontend/src/lib/weight.ts.
     """
     cutoff = date_type.today() - timedelta(days=days - 1)
     rows = db.scalars(

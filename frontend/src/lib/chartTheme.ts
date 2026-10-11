@@ -53,10 +53,7 @@ export const raisedSurface = '#1e293b'
  *  surface it clears AA while staying a step dimmer than the legend, so the
  *  chrome keeps the hierarchy it was drawn with. Charts sit directly on
  *  surface, so the nested-card blending that constrains this token elsewhere
- *  does not apply here.
- *
- *  RAW_COLOR below is still #64748b deliberately: it colours dots, not text,
- *  and 3.75:1 clears the 3:1 that non-text contrast asks for. */
+ *  does not apply here. */
 export const axisTick = { fill: '#7c8aa3', fontSize: 11 }
 
 /** The tooltip panel. Inline CSS rather than SVG attributes, so this one is a
@@ -74,8 +71,7 @@ export const tooltipLabelStyle = { color: '#e2e8f0' }
 export const legendStyle = { fontSize: 12, color: '#94a3b8' }
 
 /** The default plot box. Negative `left` claws back the gutter recharts
- *  reserves for a y-axis label none of these charts has. Analytics overrides
- *  it: its y-values run to four digits and need the room. */
+ *  reserves for a y-axis label none of these charts has. */
 export const chartMargin = { top: 5, right: 5, bottom: 0, left: -20 }
 
 /** Rounded top corners only -- a bar sits on the axis, so its bottom corners
@@ -102,32 +98,6 @@ export const activeDot = (fill: string) => ({
   strokeWidth: 2,
 })
 
-/** Per-macro hues, mirroring --color-calories/protein/carbs/fat. Consumed both
- *  as recharts props and as plain `color` strings. */
-export const macroHues = {
-  calories: '#f59e0b',
-  protein: '#34d399',
-  carbs: '#38bdf8',
-  fat: '#fb7185',
-} as const
-
-// Emphasis form: the trend line is the subject, the raw weigh-ins are context.
-// One accent hue plus the de-emphasis gray — validated against this app's chart
-// surface (#0f172a) for lightness band, CVD separation and contrast.
-export const TREND_COLOR = '#3b82f6'
-export const RAW_COLOR = '#64748b'
-
-/** The goal-weight reference line on the Weight chart.
- *
- *  Amber against the blue trend for the reason adminHues gives below: blue and
- *  green is the worst possible pair under tritanopia, where blue and amber
- *  separate cleanly. It is drawn dashed as well as coloured, so the line reads
- *  as a target rather than as a third series even before colour is considered.
- *
- *  The same value as macroHues.calories, and kept as its own name: they never
- *  share a chart, and a retune of one has no reason to move the other. */
-export const GOAL_COLOR = '#f59e0b'
-
 // Validated against this app's chart surface (#0f172a) for lightness band,
 // chroma, CVD separation and contrast. Blue and amber rather than the more
 // obvious blue and green: blue/green is the worst possible pair under
@@ -136,10 +106,8 @@ const ACTIVE_COLOR = '#3b82f6'
 const SIGNUP_COLOR = '#d97706'
 const MEALS_COLOR = '#0d9488'
 
-/** Admin's three series. Namespaced rather than exported loose: ACTIVE_COLOR
- *  and TREND_COLOR are the same blue for unrelated reasons -- one is "accounts
- *  active today", the other "your weight trend" -- and a single shared name
- *  would make a later change to one silently move the other. */
+/** Admin's three series, namespaced so a name like ACTIVE_COLOR cannot be
+ *  borrowed by an unrelated chart and then moved with it. */
 export const adminHues = {
   active: ACTIVE_COLOR,
   signups: SIGNUP_COLOR,

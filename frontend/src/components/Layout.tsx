@@ -7,7 +7,6 @@ import AnnouncementsModal from './AnnouncementsModal'
 import StatusBanner from './StatusBanner'
 import WakingNotice from './WakingNotice'
 import { RailNav, TabBar } from './shell/AppNav'
-import ProgressSubnav from './shell/ProgressSubnav'
 import LogPanelSlot from './log/LogPanelSlot'
 import { sectionFor } from './shell/sections'
 import Wordmark from './shell/Wordmark'
@@ -101,7 +100,6 @@ export default function Layout() {
               className="mb-4 rounded-control bg-surface px-3 py-2 text-center text-xs text-ink-muted"
             />
           )}
-          {section === 'progress' && <ProgressSubnav pathname={pathname} />}
           {/* A 150ms fade when the page changes (DESIGN.md: tab changes are a
               crossfade). Keyed by the first path segment, NOT the whole path:
               moving between Settings tabs must keep the Settings shell, and

@@ -8,6 +8,7 @@ import Field from '../ui/Field'
 import Button from '../ui/Button'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
 import { Button as ShellButton } from '@/ui/button'
+import MealsCsv from './MealsCsv'
 
 export default function AccountSection() {
   const { user, logout, changePassword, deleteAccount } = useAuth()
@@ -163,6 +164,8 @@ export default function AccountSection() {
           </button>
           {exportError && <p className="mt-2 text-sm text-rose-400">{exportError}</p>}
         </div>
+
+        <MealsCsv />
       </Card>
 
       <Card as="section" tone="danger">
