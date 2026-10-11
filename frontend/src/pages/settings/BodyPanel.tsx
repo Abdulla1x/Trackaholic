@@ -1,6 +1,7 @@
 import GoalWeightField from '../../components/settings/GoalWeightField'
 import HeightField from '../../components/settings/HeightField'
 import WeighInReminderSection from '../../components/settings/WeighInReminderSection'
+import { ACTIVITY_HINT, ACTIVITY_OPTIONS, ACTIVITY_QUESTION, activityLine } from '../../lib/activity'
 import { num } from '../../lib/parse'
 import type { ActivityLevel, Sex } from '../../types'
 import { useSettingsPanel } from './panelContext'
@@ -12,14 +13,6 @@ import Field from '../../components/ui/Field'
 const sexOptions: { value: Sex; label: string }[] = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
-]
-
-const activityOptions: { value: ActivityLevel; label: string }[] = [
-  { value: 'sedentary', label: 'Sedentary — desk job, little exercise' },
-  { value: 'light', label: 'Light — exercise 1–3 days a week' },
-  { value: 'moderate', label: 'Moderate — exercise 3–5 days a week' },
-  { value: 'active', label: 'Active — hard exercise 6–7 days a week' },
-  { value: 'very_active', label: 'Very active — physical job, or twice a day' },
 ]
 
 /** Who the calculations are about.
@@ -57,7 +50,7 @@ export default function BodyPanel() {
             />
           </Field>
 
-          <Field className="sm:col-span-2" label="Activity level">
+          <Field className="sm:col-span-2" label={ACTIVITY_QUESTION} caption={ACTIVITY_HINT}>
             <TextInput as="select"
               value={settings.activity_level ?? ''}
               onChange={(event) =>
@@ -68,9 +61,9 @@ export default function BodyPanel() {
               className="w-full"
             >
               <option value="">Not set</option>
-              {activityOptions.map(({ value, label }) => (
-                <option key={value} value={value}>
-                  {label}
+              {ACTIVITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {activityLine(option)}
                 </option>
               ))}
             </TextInput>
