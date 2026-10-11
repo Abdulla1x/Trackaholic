@@ -308,6 +308,10 @@ KCAL_PER_G_FAT = 9.0
 # is left, because carbohydrate is the macro with no established minimum.
 PROTEIN_G_PER_KG = 1.8
 FAT_FRACTION_OF_CALORIES = 0.25
+# SOURCE. Iraki, Fitschen, Espinar & Helms 2019 (Sports 7:154): fat at "0.5-1.5
+# g/kg/day". The quarter of calories above stays the rule, but never below the
+# bottom of that range: at a 1,200 kcal floor a quarter is only 33 g.
+MIN_FAT_G_PER_KG = 0.5
 
 # SOURCE. How fast a plan may lose. Helms, Aragon & Fitschen 2014 (JISSN 11:20):
 # "approximately 0.5 to 1%/wk to maximize muscle retention"; CDC: "about 1 to 2
@@ -697,12 +701,17 @@ def macro_targets(
     would make protein *fall* as the calorie target falls, which is backwards
     during a cut, when protein matters most and calories least.
 
+    Fat never drops below MIN_FAT_G_PER_KG, so at a low target it can take
+    more than a quarter of calories; carbohydrate gives way first.
+
     Carbohydrate floors at zero. At a very low target, protein and fat alone
     can exceed the budget -- the split then no longer sums to `calories`, and
     the caller should treat that as the sign it is, not paper over it.
     """
     protein_g = protein_g_per_kg * weight_kg
-    fat_g = (fat_fraction * calories) / KCAL_PER_G_FAT
+    fat_g = max(
+        (fat_fraction * calories) / KCAL_PER_G_FAT, MIN_FAT_G_PER_KG * weight_kg
+    )
     remaining = calories - protein_g * KCAL_PER_G_PROTEIN - fat_g * KCAL_PER_G_FAT
     carbs_g = max(remaining / KCAL_PER_G_CARB, 0.0)
 

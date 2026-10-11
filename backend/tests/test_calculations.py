@@ -366,6 +366,13 @@ def test_macro_targets_scale_protein_with_body_weight_not_calories():
     assert cutting["protein"] == maintaining["protein"]
 
 
+def test_fat_never_drops_below_half_a_gram_per_kilo():
+    """Iraki 2019: 0.5-1.5 g/kg. A quarter of 1,200 kcal is only 33 g."""
+    assert macro_targets(1200, 80)["fat"] == 40
+    # Above the minimum, fat stays a quarter of calories.
+    assert macro_targets(2400, 80)["fat"] == round(2400 * 0.25 / 9)
+
+
 def test_macro_targets_floor_carbs_at_zero_rather_than_going_negative():
     # 200 kg of body weight against a 1200 kcal target: protein alone is 360 g
     # = 1440 kcal, already over budget before fat is counted.
