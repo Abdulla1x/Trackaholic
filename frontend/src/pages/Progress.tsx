@@ -50,6 +50,7 @@ import {
 import { useSettings } from '../settings/SettingsContext'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import { useSkeletonFloor } from '../hooks/useSkeletonFloor'
+import { useUnlockMoment } from '../hooks/useUnlockMoment'
 import type { AnalyticsSummary, BodyTargets, Settings, WeightTrend } from '../types'
 import DailyBurnBlock from '../components/progress/DailyBurnBlock'
 import LookingBackBlock from '../components/progress/LookingBackBlock'
@@ -260,6 +261,8 @@ function WeightBlock({
   const reduced = useReducedMotion()
   const unit = settings.weight_unit
   const label = unitLabel(unit)
+  const unlocking = useUnlockMoment('weight_trend', trend ? trend.point_count >= TREND_UNLOCK : undefined)
+  useLiveMessage(unlocking ? UNLOCKED_LINE : null)
 
   if (!trend) {
     return (
@@ -296,7 +299,9 @@ function WeightBlock({
     <Block
       label="Weight"
       value={trend.latest_trend_kg === null ? undefined : `${formatWeight(trend.latest_trend_kg, unit)} ${label} trend`}
+      className={unlocking ? 'animate-unlock' : undefined}
     >
+      {unlocking && <p className="font-semibold">{UNLOCKED_LINE}</p>}
       <StatGrid>
         <Stat label="This week" unit={trend.weekly_rate_kg === null ? undefined : label}>
           {trend.weekly_rate_kg === null ? '—' : formatRate(trend.weekly_rate_kg, unit)}
@@ -398,7 +403,10 @@ function WeightBlock({
                 dot={false}
                 activeDot={{ r: 5, fill: chartInk, stroke: chartGround, strokeWidth: 2 }}
                 isAnimationActive={!reduced}
-                animationDuration={700}
+                // A range change redraws it in 700ms; the visit it unlocks on,
+                // it draws itself more slowly, after the block has arrived.
+                animationDuration={unlocking ? 1100 : 700}
+                animationBegin={unlocking ? 300 : 0}
                 animationEasing="ease-out"
               />
             </ComposedChart>
@@ -413,6 +421,9 @@ function WeightBlock({
 function AllWeighIns() {
   return <RowLink to="/progress/weigh-ins" label="All weigh-ins" detail="Change or delete any day" className="border-t border-rule" />
 }
+
+/** DESIGN.md Voice: "Weight trend unlocks". */
+const UNLOCKED_LINE = 'Seven weigh-ins. You’ve earned a trend line.'
 
 /** The weight axis: a little room around the weigh-ins and the goal, cut into
  *  four even whole-number steps, so the labels read 80 · 82 · 84 · 86 rather
