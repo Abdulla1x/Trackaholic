@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { logDepth, logScreen, withLog, withoutLog, type LogScreen } from './logPanelUrl'
+import { localIsoDate } from '../../lib/dates'
+import { dateParam, dayOnShow, logDepth, logScreen, withLog, withoutLog, type LogScreen } from './logPanelUrl'
 
 /** What a screen can hand the by-hand form through router state. */
 export type LogState = {
@@ -23,11 +24,20 @@ export function useLogPanel() {
   const depth = logDepth(location.state)
 
   /** Open the panel over the current page, or move to another screen of it.
-   *  Always a new history entry, so Back undoes exactly this step. */
+   *  Always a new history entry, so Back undoes exactly this step.
+   *
+   *  Opened with no `date`, the panel is for the day the page is showing:
+   *  logging from yesterday on Today, or from a past day in detail, is for
+   *  that day. Inside the panel, no `date` keeps the one it has. */
   const open = useCallback(
     (target: LogScreen = 'start', options: { date?: string | null; state?: LogState } = {}) => {
+      let date = options.date
+      if (date === undefined && !screen) {
+        const today = localIsoDate()
+        date = dateParam(dayOnShow(location.pathname, location.search, today), today)
+      }
       navigate(
-        { pathname: location.pathname, search: withLog(location.search, target, options.date) },
+        { pathname: location.pathname, search: withLog(location.search, target, date) },
         {
           state: {
             ...options.state,
