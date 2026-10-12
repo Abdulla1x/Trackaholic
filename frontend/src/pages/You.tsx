@@ -5,13 +5,14 @@ import TrackersSheet from '../components/today/TrackersSheet'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import { activityName } from '../lib/activity'
 import { localIsoDate } from '../lib/dates'
+import { livePairs, readDismissed } from '../lib/foodDuplicates'
 import { DEFAULT_WATER_QUICK_ADDS } from '../lib/limits'
 import { targetIsSet } from '../lib/today'
 import { canChooseTrackers, CHANGE_TRACKERS, TRACKERS } from '../lib/trackers'
 import { formatHeight, formatWeight, unitLabel } from '../lib/units'
 import { useSettings } from '../settings/SettingsContext'
 import { useInstantSave } from '../settings/useInstantSave'
-import type { Settings, Supplement, WaterDay } from '../types'
+import type { Food, FoodDuplicatePair, MealTemplate, Settings, Supplement, WaterDay } from '../types'
 import Block from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import { RowButton, RowLink } from '@/ui/row'
@@ -69,6 +70,22 @@ function supplementsDetail(items: Supplement[] | null): string {
   return paused > 0 ? `${text} · ${paused} paused` : text
 }
 
+function libraryDetail(foods: Food[] | null, pairs: FoodDuplicatePair[]): string {
+  if (!foods) return 'Your foods, and where the numbers come from'
+  if (foods.length === 0) return 'No foods saved yet'
+  // The same pairs the library screen shows: dismissed ones on this device and
+  // pairs missing a row are left out.
+  const duplicates = livePairs(pairs, foods, readDismissed()).length
+  const text = `${foods.length} ${foods.length === 1 ? 'food' : 'foods'}`
+  return duplicates > 0 ? `${text} · ${duplicates} possible ${duplicates === 1 ? 'duplicate' : 'duplicates'}` : text
+}
+
+function savedMealsDetail(meals: MealTemplate[] | null): string {
+  if (!meals) return 'Meals you log again and again'
+  if (meals.length === 0) return 'None saved yet'
+  return `${meals.length} saved ${meals.length === 1 ? 'meal' : 'meals'}`
+}
+
 function trackersDetail(settings: Settings): string | undefined {
   if (!settings.trackers) return undefined
   const names = ['Weigh-in', ...TRACKERS.filter((tracker) => settings.trackers?.includes(tracker.key)).map((tracker) => tracker.name)]
@@ -88,12 +105,18 @@ export default function You() {
   const [choosingTrackers, setChoosingTrackers] = useState(false)
   const [waterDay, setWaterDay] = useState<WaterDay | null>(null)
   const [supplements, setSupplements] = useState<Supplement[] | null>(null)
-  // Two small reads so the rows can say what is set. Either failing leaves
-  // its row with the general wording, which is still true.
+  const [foods, setFoods] = useState<Food[] | null>(null)
+  const [pairs, setPairs] = useState<FoodDuplicatePair[]>([])
+  const [meals, setMeals] = useState<MealTemplate[] | null>(null)
+  // Small reads so the rows can say what is set. Any failing leaves its row
+  // with the general wording, which is still true.
   useEffect(() => {
     let cancelled = false
     api.getWaterDay(localIsoDate()).then((day) => !cancelled && setWaterDay(day), () => {})
     api.getSupplements().then((items) => !cancelled && setSupplements(items), () => {})
+    api.getFoods().then((items) => !cancelled && setFoods(items), () => {})
+    api.getFoodDuplicates().then((items) => !cancelled && setPairs(items), () => {})
+    api.getMealTemplates().then((items) => !cancelled && setMeals(items), () => {})
     return () => {
       cancelled = true
     }
@@ -158,8 +181,8 @@ export default function You() {
           </Group>
 
           <Group label="Food">
-            <RowLink to="/you/library" label="Food library" detail="Your foods, and where the numbers come from" />
-            <RowLink to="/you/saved-meals" label="Saved meals" detail="Meals you log again and again" />
+            <RowLink to="/you/library" label="Food library" detail={libraryDetail(foods, pairs)} />
+            <RowLink to="/you/saved-meals" label="Saved meals" detail={savedMealsDetail(meals)} />
           </Group>
 
           <Group label="Appearance">
