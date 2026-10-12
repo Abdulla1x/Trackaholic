@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import CaloriesBand from '../components/today/CaloriesBand'
 import DateBar from '../components/today/DateBar'
+import NutritionLabel from '../components/today/NutritionLabel'
 import MealList from '../components/today/MealList'
 import ReviewCard from '../components/today/ReviewCard'
 import WeighInCard from '../components/today/WeighInCard'
@@ -18,6 +19,7 @@ import { isReviewDay } from '../lib/review'
 import { readSeen, seenTarget, targetMove, type SeenTarget, type TargetMove } from '../lib/targetMoves'
 import { accountKey, readLocal, writeLocal } from '../lib/storage'
 import { useAuth } from '../auth/AuthContext'
+import { useAppearance } from '../appearance/AppearanceContext'
 import { canChooseTrackers, CHANGE_TRACKERS, shownTrackers } from '../lib/trackers'
 import { countedMeals, dayTotals, planCaption, shownMeals, targetIsSet, viewedDay } from '../lib/today'
 import { useSettings } from '../settings/SettingsContext'
@@ -56,6 +58,8 @@ function showTheTop(): Promise<void> {
 
 export default function Today() {
   const { settings } = useSettings()
+  const { appearance } = useAppearance()
+  const Calories = appearance.style === 'label' ? NutritionLabel : CaloriesBand
   // Null until the day's first answer: an empty list and "not loaded yet"
   // must not look alike, or every load opens on "Nothing logged yet".
   const [meals, setMeals] = useState<Meal[] | null>(null)
@@ -334,7 +338,9 @@ export default function Today() {
         {!settings || !goals || meals === null ? (
           <div aria-hidden="true" className="-mx-4 h-[226px] bg-track/40 motion-safe:animate-pulse desk:mx-0 desk:h-[274px]" />
         ) : (
-          <CaloriesBand
+          // The Label style draws the calories as a nutrition label instead of
+          // the band; both take the same day.
+          <Calories
             day={viewedDate}
             isToday={isToday}
             eaten={consumed}
