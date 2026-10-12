@@ -126,6 +126,14 @@ export default function You() {
             <RowLink to="/you/saved-meals" label="Saved meals" detail="Meals you log again and again" />
           </Group>
 
+          <Group label="Appearance">
+            <RowLink
+              to="/you/appearance"
+              label="Appearance"
+              detail={settings.show_meal_times ? 'Meal times shown on Today' : 'Meal times hidden on Today'}
+            />
+          </Group>
+
           <Group label="Account">
             <RowLink to="/you/account" label="Account and data" detail="Password, export, import, delete" />
           </Group>

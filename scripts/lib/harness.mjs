@@ -174,6 +174,7 @@ export const PRIVATE_ROUTES = [
   '/you/supplements',
   '/you/library',
   '/you/saved-meals',
+  '/you/appearance',
   '/you/account',
   '/you/contact',
   '/settings',
