@@ -43,6 +43,7 @@ import type { BodyTargets } from '../types'
 import { Button } from '@/ui/button'
 import { Chip } from '@/ui/chip'
 import { FIELD } from '@/ui/field'
+import { NumberField } from '@/ui/number-field'
 import { NextIcon } from '@/ui/icons'
 import { useToast } from '@/ui/toast'
 import { cn } from '@/lib/utils'
@@ -70,43 +71,6 @@ function readDraft(userId: number): Answers | null {
   } catch {
     return null
   }
-}
-
-/** A short field with its unit beside it, in the condensed number face. */
-function NumberField({
-  id,
-  label,
-  unit,
-  value,
-  onChange,
-  placeholder,
-  inputMode = 'decimal',
-}: {
-  id: string
-  label: string
-  unit: string
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  inputMode?: 'decimal' | 'numeric'
-}) {
-  return (
-    <label htmlFor={id} className="grid gap-1.5">
-      <span className="text-small text-ink-2">{label}</span>
-      <span className="flex items-center gap-2">
-        <input
-          id={id}
-          inputMode={inputMode}
-          autoComplete="off"
-          value={value}
-          placeholder={placeholder}
-          onChange={(event) => onChange(event.target.value)}
-          className={cn(FIELD, 'w-[120px] text-field-number')}
-        />
-        <span className="text-ink-2">{unit}</span>
-      </span>
-    </label>
-  )
 }
 
 function Problem({ text, warn = false }: { text: string | null; warn?: boolean }) {

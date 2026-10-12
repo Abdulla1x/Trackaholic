@@ -1,147 +1,193 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import BodyTargetsCard from '../../components/settings/BodyTargetsCard'
-import { targetIsSet } from '../../lib/today'
+import { api } from '../../api/client'
 import SettingsScreen from '../../components/you/SettingsScreen'
 import { useSettingsScreen } from '../../components/you/screenContext'
-import Card from '../../components/ui/Card'
-import TextInput from '../../components/ui/TextInput'
-import OptionChip from '../../components/ui/OptionChip'
-import Field from '../../components/ui/Field'
+import { targetIsSet } from '../../lib/today'
+import { useSettings } from '../../settings/SettingsContext'
+import { useInstantSave } from '../../settings/useInstantSave'
+import type { BodyTargets, Settings } from '../../types'
+import Block from '@/ui/block'
 import { Button } from '@/ui/button'
+import { Chip } from '@/ui/chip'
+import { ExpandIcon } from '@/ui/icons'
+import { SettingNumber } from '@/ui/number-field'
+import { Stat, StatGrid } from '@/ui/stat'
+import { SwitchRow } from '@/ui/switch'
 
-interface GoalField {
-  key: 'calorie_goal' | 'protein_goal' | 'carbs_goal' | 'fat_goal'
-  label: string
-  unit: string
-}
+type Goal = 'calorie_goal' | 'protein_goal' | 'carbs_goal' | 'fat_goal'
 
-const goalFields: GoalField[] = [
-  { key: 'calorie_goal', label: 'Daily calories', unit: 'kcal' },
-  { key: 'protein_goal', label: 'Daily protein', unit: 'g' },
-  { key: 'carbs_goal', label: 'Daily carbs', unit: 'g' },
-  { key: 'fat_goal', label: 'Daily fat', unit: 'g' },
+const GOALS: { key: Goal; label: string; unit: string }[] = [
+  { key: 'calorie_goal', label: 'Calories', unit: 'kcal' },
+  { key: 'protein_goal', label: 'Protein', unit: 'g' },
+  { key: 'carbs_goal', label: 'Carbs', unit: 'g' },
+  { key: 'fat_goal', label: 'Fat', unit: 'g' },
 ]
 
-/** Daily targets, pushed from You: what you are aiming at.
+// What the server's `missing` names, in words. Keyed on what the API returns,
+// so a field added there without a label here still shows *something*.
+const MISSING: Record<string, string> = {
+  weight: 'a weigh-in',
+  height_cm: 'your height',
+  birth_date: 'your date of birth',
+  sex: 'your sex',
+  activity_level: 'how active you are',
+  goal_rate_kg_per_week: 'how fast to go',
+}
+
+const shows = (settings: Settings, key: Goal) =>
+  key === 'carbs_goal' ? settings.track_carbs : key === 'fat_goal' ? settings.track_fat : true
+
+/** Daily targets, pushed from You (UA-11).
  *
- * Tracked macros sits here because it decides which of the goal fields below
- * it exist at all -- the two are one decision made in two steps. */
+ *  While the target is worked out for you, it shows the numbers as numbers,
+ *  not as greyed-out boxes that look editable and refuse the tap. "My own
+ *  numbers" turns them into fields. How the number is worked out is one tap
+ *  away, on the page that already explains it step by step, rather than
+ *  repeated here. */
 export default function TargetsScreen() {
   return (
     <SettingsScreen title="Daily targets">
-      <TargetsForm />
+      <Targets />
     </SettingsScreen>
   )
 }
 
-function TargetsForm() {
-  const { settings, update, guard, targetsKey } = useSettingsScreen()
+function Targets() {
+  const { settings: draft, update, guard, targetsKey } = useSettingsScreen()
+  const { settings: saved } = useSettings()
+  const saveNow = useInstantSave()
+  const [missing, setMissing] = useState<string[]>([])
 
-  const showGoal = (key: GoalField['key']) =>
-    key === 'carbs_goal' ? settings.track_carbs : key === 'fat_goal' ? settings.track_fat : true
+  // Only automatic targets can be missing an input. Refetched after every save
+  // (targetsKey), so filling in the profile clears the note.
+  useEffect(() => {
+    if (!saved?.targets_auto) return
+    let cancelled = false
+    api
+      .getBodyTargets()
+      .then((targets: BodyTargets) => !cancelled && setMissing(targets.missing))
+      .catch(() => !cancelled && setMissing([]))
+    return () => {
+      cancelled = true
+    }
+  }, [saved?.targets_auto, targetsKey])
+
+  const trackSwitches = (
+    <Block label="Also track">
+      <div className="grid divide-y divide-rule">
+        {(
+          [
+            ['track_carbs', 'Carbs'],
+            ['track_fat', 'Fat'],
+          ] as const
+        ).map(([key, label]) => (
+          <SwitchRow
+            key={key}
+            label={label}
+            detail="Shown on Today and in Progress"
+            checked={draft[key]}
+            onCheckedChange={(on) => saveNow({ [key]: on })}
+          />
+        ))}
+      </div>
+    </Block>
+  )
+
+  if (!targetIsSet(draft)) {
+    return (
+      <>
+        <Block>
+          <p className="font-semibold">No target yet.</p>
+          <p className="text-small text-ink-2">
+            A few questions about you and your goal, and it works out your calories and protein.
+          </p>
+          <div>
+            <Button asChild>
+              <Link to="/setup">Set my target</Link>
+            </Button>
+          </div>
+        </Block>
+        {trackSwitches}
+      </>
+    )
+  }
+
+  const goals = GOALS.filter((goal) => shows(draft, goal.key))
+  // Switched to automatic but not saved yet: the numbers on the row are still
+  // the typed ones, so they are not shown as if they were worked out.
+  const switchingToAuto = draft.targets_auto && !saved?.targets_auto
 
   return (
-    <div className="space-y-6 py-3.5">
-      {/* Until a target is chosen, the goal fields below hold the signup
-          placeholders; this says so and points at setup. Typing goals here
-          and saving sets a target too. */}
-      {!targetIsSet(settings) && (
-        <Card as="section">
-          <h2 className="mb-1 font-semibold">Daily target</h2>
-          <p className="mb-4 text-sm text-ink-muted">
-            Not set yet. Answer a few questions and it works one out, or type your own numbers.
-          </p>
-          <Button asChild>
-            <Link to="/setup">Set your target</Link>
-          </Button>
-        </Card>
+    <>
+      <Block>
+        <div role="radiogroup" aria-label="How your target is set" className="flex flex-wrap gap-1.5">
+          <Chip role="radio" pressed={draft.targets_auto} onClick={() => update({ targets_auto: true })}>
+            Work it out for me
+          </Chip>
+          <Chip role="radio" pressed={!draft.targets_auto} onClick={() => update({ targets_auto: false })}>
+            My own numbers
+          </Chip>
+        </div>
+      </Block>
+
+      {draft.targets_auto ? (
+        <Block>
+          {switchingToAuto ? (
+            <p className="text-small text-ink-2">Save, and your numbers are replaced by worked-out ones.</p>
+          ) : (
+            <>
+              <StatGrid>
+                {goals.map((goal) => (
+                  <Stat key={goal.key} label={goal.label} unit={goal.unit}>
+                    {Math.round(draft[goal.key]).toLocaleString()}
+                  </Stat>
+                ))}
+              </StatGrid>
+              {missing.length > 0 ? (
+                <p className="text-small text-ink-2">
+                  Needs {missing.map((field) => MISSING[field] ?? field).join(', ')} to work these out.{' '}
+                  <Link to="/you/body" className="font-semibold text-ink underline underline-offset-3">
+                    Body and goal weight
+                  </Link>
+                </p>
+              ) : (
+                <p className="text-small text-ink-2">Worked out from your body and goal, and it follows your weight.</p>
+              )}
+              <Link
+                to="/how-it-works/target"
+                className="inline-flex min-h-8 items-center gap-1 justify-self-start text-small text-ink-2 underline underline-offset-3 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+              >
+                How is this worked out?
+                <ExpandIcon size={14} aria-hidden="true" className="-rotate-90" />
+              </Link>
+            </>
+          )}
+        </Block>
+      ) : (
+        <Block>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+            {goals.map((goal) => (
+              <SettingNumber
+                key={goal.key}
+                id={`goal-${goal.key}`}
+                label={goal.label}
+                unit={goal.unit}
+                inputMode="numeric"
+                required
+                value={draft[goal.key]}
+                onValue={(value) => value !== null && update({ [goal.key]: value })}
+                onBlur={guard(goal.key)}
+              />
+            ))}
+          </div>
+          {(draft.track_carbs || draft.track_fat) && (
+            <p className="text-small text-ink-2">Carbs and fat have to fit inside the calories.</p>
+          )}
+        </Block>
       )}
 
-      <Card as="section">
-        <h2 className="mb-3 font-semibold">Tracked macros</h2>
-        <p className="mb-4 text-sm text-slate-400">
-          Calories and protein are always tracked. Enable carbs and fat if you want the full
-          breakdown — they appear on the dashboard, meal log and analytics.
-        </p>
-        <div className="flex flex-wrap gap-4">
-          {(
-            [
-              { key: 'track_carbs', label: 'Track carbs' },
-              { key: 'track_fat', label: 'Track fat' },
-            ] as const
-          ).map(({ key, label }) => (
-            <OptionChip key={key}>
-              <input
-                type="checkbox"
-                checked={settings[key]}
-                onChange={(event) => update({ [key]: event.target.checked })}
-                className="h-4 w-4 accent-emerald-500"
-              />
-              {label}
-            </OptionChip>
-          ))}
-        </div>
-      </Card>
-
-      <Card as="section">
-        <h2 className="mb-4 font-semibold">Daily goals</h2>
-
-        <OptionChip block className="mb-4">
-          <input
-            type="checkbox"
-            checked={settings.targets_auto}
-            onChange={(event) => update({ targets_auto: event.target.checked })}
-            className="mt-0.5 h-4 w-4 accent-emerald-500"
-          />
-          <span>
-            Work out my goals from my body profile
-            {/* ink-MUTED, not ink-faint, and the difference is measured. An
-                OptionChip's ground is bg-raised (#1e293b), where ink-faint is
-                4.19:1 and fails AA -- this was the only such caption in the app
-                and axe found it. See the token's note in index.css. */}
-            <span className="mt-1 block text-xs text-ink-muted">
-              Turning this on <strong>replaces</strong> the four goals below with
-              calculated ones, and keeps updating them every time you log a
-              weigh-in. Anything you typed here yourself is not kept — hit Save
-              to confirm, or untick this to go back to setting them by hand.
-            </span>
-          </span>
-        </OptionChip>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          {goalFields.filter((field) => showGoal(field.key)).map((field) => (
-            <Field
-              key={field.key}
-              label={
-                <>
-                  {field.label} ({field.unit})
-                </>
-              }
-            >
-              <TextInput
-                type="number"
-                min={1}
-                value={settings[field.key]}
-                readOnly={settings.targets_auto}
-                onChange={(event) => update({ [field.key]: Number(event.target.value) })}
-                onBlur={guard(field.key)}
-                className={`w-full ${
-                  settings.targets_auto ? 'cursor-not-allowed text-slate-400' : ''
-                }`}
-              />
-            </Field>
-          ))}
-        </div>
-        {settings.targets_auto && (
-          <p className="mt-3 text-xs text-ink-faint">
-            Calculated from your body profile. These update on save and whenever
-            you log a weigh-in.
-          </p>
-        )}
-      </Card>
-
-      <BodyTargetsCard reloadKey={targetsKey} unit={settings.weight_unit} />
-
-    </div>
+      {trackSwitches}
+    </>
   )
 }
