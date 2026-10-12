@@ -31,11 +31,12 @@ export default defineConfig({
         name: 'Trackaholic',
         short_name: 'Trackaholic',
         description: 'Track meals, macros, and goals',
-        // theme_color paints the PWA status bar; background_color is the
-        // splash screen. Both are the ground (Daylight dark, #0b0e0c), which
-        // the new shell's pages and tab bar sit on, so the bar meets the page
-        // with no seam. index.html's theme-color meta is the same value; if
-        // the ground ever changes, all three move together.
+        // theme_color paints the PWA status bar until the page loads;
+        // background_color is the splash screen. A manifest holds one colour,
+        // not one per theme or palette, so both stay Daylight dark's ground
+        // (#0b0e0c) and the splash is dark even for a light-mode phone
+        // (accepted in 3b). Once the page is up, index.html's theme-color
+        // metas and then the app set the bar to the real ground.
         theme_color: '#0b0e0c',
         background_color: '#0b0e0c',
         display: 'standalone',
