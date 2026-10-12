@@ -12,8 +12,8 @@
  * *filtered* array, not the whole library, so a filter that already narrows to
  * three results is not then asked to expand.
  *
- * Not a components/ui/ primitive: those exist to settle colliding Tailwind
- * utilities behind variant props (see ui/Button.tsx), and this has none to
+ * Not a primitive in src/ui/: those exist to settle colliding Tailwind
+ * utilities behind variant props (see ui/button.tsx), and this has none to
  * settle. It is one button with one job in three files.
  *
  * It lived under components/settings/ until the Weight page's history list
