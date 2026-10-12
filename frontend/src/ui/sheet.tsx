@@ -83,15 +83,15 @@ export default function Sheet({
                     ? 'inset-y-0 right-0 h-full w-[480px] border-l border-rule'
                     : center
                       ? // Centred by margins, not translate: Motion owns `transform` here.
-                      'inset-0 m-auto h-fit max-h-[90dvh] w-[440px] rounded-[10px] border border-rule'
-                      : 'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-sheet border-t border-rule',
+                      'inset-0 m-auto h-fit max-h-[90dvh] w-[440px] rounded-[10px] border border-rule label:rounded-none label:border-2'
+                      : 'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-sheet border-t border-rule label:border-t-[5px]',
                 )}
                 initial={hidden}
                 animate={{ x: 0, y: 0, opacity: 1, scale: 1, transition: SPRING.panel }}
                 exit={{ ...hidden, transition: exitEase }}
               >
                 {!wide && <div aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-rule" />}
-                <header className="flex min-h-[54px] shrink-0 items-center gap-1.5 border-b border-rule px-2">
+                <header className="flex min-h-[54px] shrink-0 items-center gap-1.5 border-b border-rule px-2 label:border-b-[5px] label:bg-label">
                   <span className="size-11 shrink-0" />
                   <Dialog.Title className="flex-1 truncate text-center text-title">{title}</Dialog.Title>
                   {closable ? (

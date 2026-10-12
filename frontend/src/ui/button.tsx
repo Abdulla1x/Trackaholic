@@ -22,16 +22,18 @@ const buttonVariants = cva(
     'transition-[background-color,border-color,color,opacity] duration-150 ease-out-expo',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
     'disabled:pointer-events-none disabled:opacity-45',
+    // Label: square (the radius token), a 2px ink border, heavier type.
+    'label:border-2 label:font-extrabold',
     '[&_svg]:pointer-events-none [&_svg]:shrink-0',
   ],
   {
     variants: {
       variant: {
         primary: 'border-action bg-action text-action-ink hover:bg-action/90',
-        secondary: 'border-ink bg-transparent text-ink hover:bg-ink/5',
-        ghost: 'border-rule bg-transparent text-ink hover:bg-ink/5',
+        secondary: 'border-ink bg-transparent text-ink hover:bg-ink/5 label:bg-label',
+        ghost: 'border-rule bg-transparent text-ink hover:bg-ink/5 label:bg-label',
         // The middle of the tab bar and the top of the side rail.
-        log: 'gap-2 rounded-log border-ink bg-ink text-[15px] font-bold text-ground [font-stretch:108%] tracking-[0.02em] hover:bg-ink/90',
+        log: 'gap-2 rounded-log border-ink bg-ink text-[15px] font-bold text-ground [font-stretch:108%] tracking-[0.02em] hover:bg-ink/90 label:font-black label:text-label',
       },
       size: {
         default: 'h-[42px] px-4',

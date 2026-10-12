@@ -3,10 +3,17 @@ import { cn } from '@/lib/utils'
 
 const TONES = {
   // On the page's own ground: water, the unlock meters.
-  ground: { on: 'bg-fill', off: 'bg-track', plan: 'bg-plan' },
+  // In the Label style these meters are a 2px ink box filled with ink, no
+  // gaps and no grey track (0b's look-b).
+  ground: {
+    on: 'bg-fill',
+    off: 'bg-track label:bg-transparent',
+    plan: 'bg-plan',
+    box: 'label:gap-0 label:border-2 label:border-ink',
+  },
   // Inside the calories band, which has its own colours in every palette but
   // Daylight (DESIGN.md: The calories band).
-  band: { on: 'bg-band-fill', off: 'bg-band-track', plan: 'bg-band-plan' },
+  band: { on: 'bg-band-fill', off: 'bg-band-track', plan: 'bg-band-plan', box: '' },
 } as const
 
 /** A segmented gauge (DESIGN.md: Gauges and meters). Square segments, lit in
@@ -76,7 +83,7 @@ export default function Gauge({
     <span
       aria-hidden="true"
       data-gauge=""
-      className={cn('grid gap-[3px]', className)}
+      className={cn('grid gap-[3px]', colours.box, className)}
       style={{
         gridTemplateColumns: `repeat(${segments}, minmax(0, 1fr))${target ? ' 3px' : ''}`,
       }}
