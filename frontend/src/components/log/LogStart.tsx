@@ -47,6 +47,7 @@ export default function LogStart() {
       <MealAnalyzer
         alwaysOpen
         onApply={() => open('hand', { state: { fromEstimate: true } })}
+        onOtherWays={(search) => open('hand', { state: { focusFoodSearch: search } })}
       />
 
       <MealShortcuts />

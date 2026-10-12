@@ -13,6 +13,9 @@ export type LogState = {
   sharedCode?: string
   /** The estimate in AnalysisProvider should fill the form. */
   fromEstimate?: boolean
+  /** Arrived from "Search a food" after an estimate failed: the cursor goes
+   *  to the food search. */
+  focusFoodSearch?: boolean
 }
 
 /** Open, move within and close the Log panel (see logPanelUrl.ts for why it

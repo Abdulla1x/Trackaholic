@@ -116,6 +116,8 @@ export default function LogMeal() {
   // the meal's own date is deliberately ignored. Copying Tuesday's dinner is
   // logging dinner today, not editing Tuesday.
   const copyMeal = (location.state as { copyMeal?: Meal } | null)?.copyMeal ?? null
+  // Arrived from "Search a food" after an estimate failed.
+  const focusFoodSearch = (location.state as { focusFoodSearch?: boolean } | null)?.focusFoodSearch === true
   // Set when a meal code was pasted below. The decoded meal and the code that
   // produced it travel together: the meal fills the form, and the code is the
   // only stable identity it has -- see the context string in the effect below.
@@ -463,6 +465,7 @@ export default function LogMeal() {
               value={row.name}
               onChange={(name) => updateRow(row.key, { name, fromLibrary: false })}
               onSelect={(food, fromLibrary) => selectFood(row.key, food, fromLibrary)}
+              focusOnMount={index === 0 && focusFoodSearch}
             />
 
             <div className="grid grid-cols-2 gap-3">

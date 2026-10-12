@@ -12,6 +12,9 @@ interface Props {
    *  from a table or Open Food Facts is NOT saved by picking it; LogMeal offers
    *  the "save to library" tick for it instead, unticked. */
   onSelect: (food: FoodCreate, fromLibrary: boolean) => void
+  /** Put the cursor here on arrival: "Search a food" after an estimate
+   *  failed lands on this field, ready to type. */
+  focusOnMount?: boolean
 }
 
 /** One row of the suggestion list, from any of the three sources.
@@ -54,7 +57,7 @@ type Suggestion =
  * ring, because it is not a suggestion: it starts a search. It remains a real
  * button and a normal tab stop, which is the honest description of it.
  */
-export default function FoodAutocomplete({ value, onChange, onSelect }: Props) {
+export default function FoodAutocomplete({ value, onChange, onSelect, focusOnMount = false }: Props) {
   const [open, setOpen] = useState(false)
   const [localResults, setLocalResults] = useState<Food[]>([])
   const [referenceResults, setReferenceResults] = useState<ReferenceFood[]>([])
@@ -78,6 +81,11 @@ export default function FoodAutocomplete({ value, onChange, onSelect }: Props) {
   const [activeIndex, setActiveIndex] = useState(-1)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (focusOnMount) inputRef.current?.focus({ preventScroll: true })
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const listRef = useRef<HTMLUListElement>(null)
   const skipNextSearch = useRef(false)
   // Stable across renders and unique per instance -- LogMeal renders one of
