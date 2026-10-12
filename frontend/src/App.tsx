@@ -144,10 +144,12 @@ const router = createBrowserRouter(
           <Route path="/you/library" lazy={page(() => import('./pages/you/Library'))} />
           <Route path="/you/saved-meals" lazy={page(() => import('./pages/you/SavedMeals'))} />
           <Route path="/you/appearance" lazy={page(() => import('./pages/you/Appearance'))} />
-          <Route path="/you/account" lazy={page(() => import('./pages/you/Account'))} />
           <Route path="/you/password" lazy={page(() => import('./pages/you/Password'))} />
           <Route path="/you/delete" lazy={page(() => import('./pages/you/Delete'))} />
           <Route path="/you/contact" lazy={page(() => import('./pages/you/Contact'))} />
+          {/* Where password, export and delete sat for a day during the
+              rebuild; they are rows on You now. */}
+          <Route path="/you/account" element={<Navigate replace to="/you" />} />
           {/* The old Settings addresses (see SettingsRedirect). */}
           <Route path="/settings/*" element={<SettingsRedirect />} />
           {/* Not in nav, same posture as /admin: it is somewhere you go when a
