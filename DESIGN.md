@@ -409,7 +409,7 @@ Motion says what changed. Nothing moves for decoration. Animations are built wit
 **Name:** Trackaholic, renamed from "Macros Calculator" on 2026-10-06.
 
 ### Wordmark
-The name set in Libre Franklin 900, with the segmented gauge as its rule (nine lit segments, three unlit, and the plan-coloured target tick), and a nutrition-label line beneath: "Serving size … 1 habit". It sits at the top of the desktop rail (28px) and on the sign-in screen (40px).
+The name set in Libre Franklin 900, with the segmented gauge as its rule (nine lit segments, three unlit, and the plan-coloured target tick), and a nutrition-label line beneath: "Serving size … 1 habit". It sits at the top of the desktop rail (28px) and on the sign-in screens (40px). There it is centred over the form with the page title, like a front door; the labels, boxes and notes keep the left edge, and the links under the button are centred.
 
 ```svg
 <svg viewBox="0 0 212 68" role="img" aria-label="Trackaholic">
