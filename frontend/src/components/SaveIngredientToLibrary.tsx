@@ -31,7 +31,7 @@ import { useLiveMessage } from '../hooks/useLiveMessage'
  *
  * Macros are stored per 100 g, converted by foodFromAnalyzedItem. Serving size
  * is fixed here rather than editable: changing it would have to rescale four
- * numbers underneath the user mid-edit, and the library editor in Settings is
+ * numbers underneath the user mid-edit, and the food library on You is
  * where a food gets a different serving.
  */
 

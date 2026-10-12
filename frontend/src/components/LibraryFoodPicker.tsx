@@ -21,7 +21,7 @@ interface Props {
  * a deliberate difference, not an inconsistency: filling in an ingredient you
  * are already naming is searching, while deciding which of your foods are on
  * this plate is browsing, and an empty search box shows nothing to browse. It
- * is the idiom Saved meals's "Browse all" and the Settings food library already
+ * is the idiom Saved meals's "Browse all" and the food library on You already
  * use, and the filtering costs no round trips because the list is in memory.
  *
  * Closed by default: on a phone an always-open list would push the Estimate

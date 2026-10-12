@@ -174,7 +174,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   }, [toast])
 
   // Fetched each time a screen opens the picker, not once per session: foods
-  // added in Settings since should be attachable without a reload. A failure is
+  // added on You since should be attachable without a reload. A failure is
   // swallowed on purpose; the picker then has nothing to offer and says so, and
   // every other part of the analysis still works.
   const loadLibrary = useCallback(() => {

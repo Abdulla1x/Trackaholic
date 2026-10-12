@@ -142,7 +142,9 @@ function Supplements() {
 
   return (
     <Block>
-      <p className="text-small text-ink-2">Tick doses on Today. Changes here save straight away.</p>
+      <p className="text-small text-ink-2">
+        Tick doses on Today. The times are boxes to tick there, not phone alerts. Changes here save straight away.
+      </p>
       {!items ? (
         <p className="text-ink-2">{loadError || 'Loading…'}</p>
       ) : items.length === 0 ? (
@@ -247,7 +249,7 @@ function Supplements() {
                   value={time}
                   onChange={(event) => setTime(index, event.target.value)}
                   aria-label={`Time ${index + 1}`}
-                  className={cn(FIELD, 'w-[124px] rounded-r-none')}
+                  className={cn(FIELD, 'w-[140px] rounded-r-none')}
                 />
                 <button
                   type="button"

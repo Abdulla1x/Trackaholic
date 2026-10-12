@@ -227,8 +227,8 @@ export default function SupplementsCard({ date, chosen = false }: Props) {
 /** What is outstanding, and — for a past day — why an unfamiliar row is there.
  *
  * Nothing here promises a notification. The card can only speak while the app
- * is open, and the Settings section says so at length rather than this caption
- * repeating it every single day.
+ * is open, and the Supplements screen on You says so once rather than this
+ * caption repeating it every single day.
  */
 function DoseCaption({
   day,

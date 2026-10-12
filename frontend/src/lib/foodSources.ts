@@ -57,7 +57,7 @@ export interface DataCredit {
   url: string
 }
 
-/** Shown on Settings → Library. Every licence here except USDA's requires the
+/** Shown on You → Food library, under "Where food data comes from". Every licence here except USDA's requires the
  *  credit; backend/app/data/reference/NOTICE.md carries the same text plus
  *  what was changed. Ciqual's terms also require that nothing suggests ANSES
  *  endorses the app, hence that sentence in the block itself. */

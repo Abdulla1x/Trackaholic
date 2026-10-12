@@ -473,7 +473,7 @@ function NutritionBlock({
       (series.key !== 'carbs' || settings.track_carbs) && (series.key !== 'fat' || settings.track_fat),
   )
   const [picked, setPicked] = useState<Series['key']>('calories')
-  // A series switched off in Settings since it was picked falls back.
+  // A series switched off on You since it was picked falls back.
   const series = offered.find((option) => option.key === picked) ?? SERIES[0]
 
   if (failed || !food) {

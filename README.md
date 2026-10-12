@@ -31,13 +31,13 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **Layered AI quotas**: 12 analyses + 16 voice notes + 3 review summaries per user per day, under a **global ceiling** of 40 calls/day across every account — sized for Gemini's free tier of 20 requests a day per model, and checked against the heaviest real user's busiest days. The per-user caps stop one person using up the shared quota, the global one stops mass signups draining it (or running up a bill on a paid key). All of them are env-tunable
 - **What the AI sees**: your photos, voice note and description are sent to Google Gemini to estimate the meal, and the app says so under the Estimate button. Photos are shrunk on your phone first, which also strips their location data, and only the text of the estimate is kept: the photo and audio are discarded. On Gemini's free tier, Google may use what it is sent to improve its products
 - **What you search for is not logged**: the food searches send what you type as a URL parameter, and both the server's access log and its outgoing-request log blank that value before writing the line. The app's own log lines count results and time them, never the text
-- **Own your data**: change your password (revokes all previously issued tokens), download everything as JSON, export or import your meals as CSV (duplicates are skipped and dates normalized), or permanently delete your account, all from Settings → Account
+- **Own your data**: export or import your meals as CSV (duplicates are skipped and dates normalized) and download everything as JSON, from **You → Your data**; the import's counts stay on the row afterwards. Change your password (it signs every other device out; the new one is typed twice, because a forgotten password can't be reset yet) or permanently delete your account from **You → Account**. Deleting is a plain ink button, not a red one; it offers the full download first, and asks once more
 - **Password reset by email — built, deployed, and switched off.** The endpoints, the single-use link (hashed at rest, valid an hour, revoking every session when used) and 38 tests are all here and running in production. They answer **503 to every address**, because no email provider is configured — three free providers were tried and all three refused a domainless free account, which is the profile their fraud screening targets. Until one is wired up **a forgotten password means a lost account**, and the signup page says so rather than letting you find out later. Nothing about the feature needs a deploy to switch on; it activates on credentials alone
 
 ### 🧭 Getting around
 - **Four places, each one tap away**: **Today**, **Progress** and **You** as tabs, with **Log** as a button in the middle. A bottom bar on phones; from 900 px a side rail with the wordmark. Progress holds the weight trend, nutrition, daily burn, the weekly review and the AI's accuracy
 - **Log opens over the page you are on**, as a sheet rising from the bottom on a phone and a panel from the right on a desktop, so Today, Progress or a half-edited setting is still underneath when you close it. It is in the address (`?log`), so the phone's back button closes it, and "Enter it by hand" is one step in that Back steps out of. Top to bottom: the day the meal is for (Today, Yesterday or any other), the AI box, your saved meals and recent meals, then entering a meal by hand or pasting a meal code. Saving closes it with a short confirmation, and the page underneath updates; on Today it first scrolls back to the top, so the numbers roll and the gauge fills where you can see them
-- **Unsaved settings are never dropped silently.** Leaving Settings with changes asks first ("Leave without saving?"); reloading or closing the tab gets the browser's own prompt
+- **Unsaved settings are never dropped silently.** Typed numbers wait for a **Save bar** pinned above the tab bar, with Undo beside Save; switches and choices that stand alone save the moment you tap them, so the bar appearing is itself the sign something is still waiting. Leaving a screen with changes asks first ("Leave without saving?"), whichever way you leave; reloading or closing the tab gets the browser's own prompt
 - **Each page loads its own code the first time you open it**, so the sign-in page no longer downloads the charts: the first download went from 911 KB to 334 KB when it was split, and is about 470 KB (145 KB compressed) with the redesign's shell, its animation library and icons. The Log panel is fetched the first time it opens, or quietly beforehand once the page is idle. A tab still running the previous version when a new one deploys reloads itself once rather than failing to open a page
 
 ### 👋 First use
@@ -56,7 +56,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **The day in detail**, one tap on the calories: eaten, target, left or over, and each macro against its goal, plus the way into calorie planning
 - **Meals open their own screen.** Each row is one large target with the time you logged it, the name, the macros you track and the kcal. The meal's screen has **Edit**, **Log it again** (a copy on today), **Share as a code**, **Keep as a saved meal** and **Delete**
 - **Delete with ten seconds to undo.** The meal's line is struck through in its own place, with Undo and a bar draining over ten seconds, and it leaves your totals at once. Nothing is sent to the server until the ten seconds are up, so Undo brings back exactly the meal you had, not a copy; leaving Today or switching apps sends it at once, so a deletion you walked away from still happens
-- **The logged time, only where it is honest.** The app records when a meal was logged, not when it was eaten, so the time shows only beside meals logged on the day they were eaten. It can be switched off in Settings → Goals
+- **The logged time, only where it is honest.** The app records when a meal was logged, not when it was eaten, so the time shows only beside meals logged on the day they were eaten. It can be switched off in You → Appearance
 - **Weigh in from Today.** A card with your latest weight prefilled, in kg or lb; once saved, it shows the weight with Edit. It carries the optional weigh-in reminder (below), and says when an automatic target is waiting for a weigh-in (none in 90 days)
 - **Your target moved, and why.** An automatic target changes a little with every weigh-in, which needs no comment. When something named moves it — your burn becoming measured, reaching your goal weight, or a limit starting or stopping deciding it — one line under the calories says so, with the numbers
 - **Water tracker** with configurable quick-add buttons and a goal derived from your trend weight — with the arithmetic one tap away, under "How is this worked out?", rather than always on the card
@@ -88,7 +88,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **Ranked for plain ingredients, not dishes**: the tables are searched in memory on the server with ranking of its own, because USDA's search API put croissants first for "green apple". "Apples, raw" beats "Croissants, apple", "Egg, fried" beats "Fried eggplant", a few regional and British names are understood ("arabic bread" finds pita, "moong dal" finds mung beans, "aubergine" finds eggplant), and a query no row fully matches falls back to its last word. Measured against 25 of the author's own everyday foods, **the plain food is in the top 3 for 92%**, and CI fails if a change drops that below 90%
 - **Open Food Facts for packaged products**, on request: one tap searches the public OFF database (per-serving macros normalized automatically). It is a button rather than part of the type-ahead because it is a slower third-party call on a shared rate limit. Its results join the end of the list, so the first of them is scrolled into view and the count is shown and read out ("3 results from Open Food Facts")
 - **Nothing is saved behind your back**: picking a table or Open Food Facts result fills the ingredient and offers "save to my food library", unticked. Saved, it keeps its source badge; change any of its numbers first and it is saved as yours
-- **A food library you can edit**, not just accumulate — rename, correct or delete saved foods from Settings, filter by name, and sort by name or by when each one arrived. Correcting one that came from Open Food Facts or a food table makes it yours, so the badge never claims figures you changed. Both lists show their first few rows with the rest a tap away, so the controls that act on them — the filter, and adding a food by hand — stay on the first screen instead of sitting below everything you have ever saved
+- **A food library you can edit**, not just accumulate — rename, correct or delete saved foods from You → Food library, each one opening in a sheet, filter by name, and sort by name or by when each one arrived. Correcting one that came from Open Food Facts or a food table makes it yours, so the badge never claims figures you changed. Both lists show their first few rows with the rest a tap away, so the controls that act on them — the filter, and adding a food by hand — stay on the first screen instead of sitting below everything you have ever saved
 - **Every saved food is comparable, whatever it was saved against.** Macros are stored per the food's own serving size, which is what the packet says and useless for comparing two of them — 108 kcal per 90 g and 70 kcal per 50 g are the same food twice, and nothing about those two lines says so. Any row that is not already per 100 g now shows what it works out to, and a **Per 100 g** button rewrites it that way for good: it previews the figures first, and it **keeps the food's source badge**, because a rescale is the same claim in different units and corrects nothing
 - **It tells you when you have saved the same food twice.** The library fills up with little thought per entry — every ticked ingredient is saved, and Open Food Facts picks were cached automatically until October 2026 — so the same thing arrives under names nobody chose to make match. A pair is flagged only when the names overlap **and** the per-100 g calories and protein are close, because names alone would call "chicken breast" and "chicken thigh" duplicates. And it argues rather than acts: both rows are put side by side in the same units so you can see why, every delete is yours, and "not a duplicate" makes it stop asking
 - **Saved meals**: keep a meal you eat often, from the by-hand form or straight from an AI estimate, and re-log it from the Log panel, where the three you used most recently come first and the rest are behind "Show all"
@@ -116,7 +116,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
   weight, goal rate) turns into BMI, a daily burn, and calorie/macro targets —
   every figure shown next to the input it came from. Activity is described in
   workouts a week and time on your feet ("Active: 3–5 workouts a week, or on
-  your feet most of the day"), the same words in setup and in Settings
+  your feet most of the day"), the same words in setup and on You
 - **Every limit on a target comes from a source and says what it changed**:
   activity levels from measured data (FAO/WHO/UNU), loss at most 1% of body
   weight a week and never over 1 kg, gain at most 0.5%, no loss plan below a
@@ -132,7 +132,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - Let the app **keep those goals in step with your weight**: with auto-targets
   on, the daily goals are recalculated on every weigh-in instead of staying
   wherever you first set them
-- Settings (under **You**) is five addressable tabs — Goals, Body, Trackers, Library, Account — each with its own URL, and a save bar that follows you between them rather than scrolling away. **Log out** is in Account
+- **Every setting is on one page, You**, in groups from daily to rare: Goals and body, Trackers, Food, Appearance, Your data, Account, Help. Each row shows what it is set to underneath ("2,500 ml a day, from your weight · +250 +500 +750", "48 foods · 1 possible duplicate"), so most visits end there without opening anything. A row opens its own screen with its own address, and a supplement, food or saved meal opens in a sheet (from the bottom on a phone, from the side on a desktop) with its fields, its other actions and Delete. **Log out** asks first. The old `/settings/…` addresses still lead to the right screen
 
 ### 🗓️ Weekly review
 - **Everything the app already knew, added up in one place**, opened from Progress (and from Today on Mondays): how much you logged, calories and protein against target, whether your weight is moving the way you asked, where your daily burn figure came from, water, steps, and one line on estimate accuracy
@@ -407,7 +407,9 @@ Trackaholic
 │       │   │                    #   recent meals, the estimate's stages and result, the AI tips
 │       │   ├── ui/              # the six older primitives (Modal, Card, TextInput, OptionChip,
 │       │   │                    #   Field, Button), replaced screen by screen in the redesign
-│       │   ├── settings/        # the Settings panels' sections
+│       │   ├── you/             # You's screens: SettingsScreen (one draft + Save bar + leave
+│       │   │                    #   guard per screen), ItemSheet, Your data, food duplicates
+│       │   ├── settings/        # the body and calorie-plan fields You's screens share
 │       │   └── ...              # Layout, DailyTrackerCard, MealAnalyzer,
 │       │                        #   FoodAutocomplete, ShareCodePanel
 │       ├── hooks/               # useAudioRecorder (MediaRecorder voice notes), useWarmup,
@@ -428,7 +430,7 @@ Trackaholic
 │       └── pages/               # Today, Day (the day in detail), Meal (one meal's screen),
 │                                #   LogMeal (the panel's by-hand form), Progress, WeighIns,
 │                                #   DailyTotals, WeeklyReview, AiAccuracy, Admin, WhatsNew,
-│                                #   settings/ (five tab panels), and the four auth pages
+│                                #   You + you/ (one screen per row), Setup, HowItWorks, and the four auth pages
 ├── docs/                        # AI provider runbook, the Gemini EEA-region incident write-up,
 │                                #   the photo-size A/B note, and the goal-setting rules
 ├── scripts/                     # check.sh (all six gates), dev.sh, review-changes.sh,
@@ -482,7 +484,7 @@ managed by Alembic (`alembic upgrade head`). All 23 env vars are documented in
 
 **Migrating from the single-user version:** the old `macros.db` isn't read by
 the multi-user schema. Export your meals as CSV from the old app (or keep the
-file), create an account, and use **Settings → Account → Import meals (CSV)**.
+file), create an account, and use **You → Your data → Import meals**.
 
 ### 2. Frontend (React)
 
@@ -818,7 +820,7 @@ only on the caller's data, except these public ones: `/api/health`,
 
 ## 🥕 Food data sources
 
-The generic foods in the search come from open national food-composition tables, used under their licences and credited here and in the app (Settings → Library). Each was reduced to energy, protein, carbohydrate, fat and fibre per 100 g, with carbohydrate shown **excluding fibre** — subtracted where a table publishes it included. Full credits and every change made are in [`backend/app/data/reference/NOTICE.md`](backend/app/data/reference/NOTICE.md). None of these organisations endorses this app.
+The generic foods in the search come from open national food-composition tables, used under their licences and credited here and in the app (You → Food library → Where food data comes from). Each was reduced to energy, protein, carbohydrate, fat and fibre per 100 g, with carbohydrate shown **excluding fibre** — subtracted where a table publishes it included. Full credits and every change made are in [`backend/app/data/reference/NOTICE.md`](backend/app/data/reference/NOTICE.md). None of these organisations endorses this app.
 
 | Table | Publisher | Licence |
 |---|---|---|
