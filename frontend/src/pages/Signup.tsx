@@ -2,13 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { isSessionPersistent } from '../auth/token'
-import StatusBanner from '../components/StatusBanner'
-import WarmupNotice from '../components/WarmupNotice'
-import { useAnnouncements } from '../hooks/useAnnouncements'
-import Card from '../components/ui/Card'
-import TextInput from '../components/ui/TextInput'
-import Field from '../components/ui/Field'
-import Button from '../components/ui/Button'
+import AuthFrame, { AUTH_LINK, AUTH_NOTE, AUTH_TITLE, AuthField } from '../components/auth/AuthFrame'
+import { Button } from '@/ui/button'
+import { FIELD } from '@/ui/field'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 export default function Signup() {
@@ -21,7 +17,6 @@ export default function Signup() {
   // Probed once per mount: the answer cannot change while the page is open.
   const [persistentSession] = useState(isSessionPersistent)
   const [submitting, setSubmitting] = useState(false)
-  const announcements = useAnnouncements()
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -42,75 +37,55 @@ export default function Signup() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center justify-center gap-2">
-          <img src="/favicon.svg" alt="" className="size-8 rounded-[5px]" />
-          <h1 className="text-xl font-bold tracking-tight">Trackaholic</h1>
-        </div>
-        <StatusBanner banner={announcements?.banner ?? null} />
-        <Card as="form" pad="lg" className="space-y-4" onSubmit={handleSubmit}>
-          <h2 className="text-lg font-semibold">Create your account</h2>
-          {!persistentSession && (
-            <p className="text-sm text-amber-400">
-              This browser is blocking site data, so you&rsquo;ll stay signed in
-              only until you close this tab. Allowing it for this site, or
-              leaving private browsing, keeps you signed in.
-            </p>
-          )}
-          <Field label="Email">
-            <TextInput size="md"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full"
-            />
-          </Field>
-          {/* No `caption` prop here: this field has TWO notes and Field renders
-              its caption after the children, which would put "At least 8
-              characters." below the password-reset warning rather than above
-              it. Both stay as children, in order. */}
-          <Field label="Password">
-            <TextInput size="md"
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full"
-            />
-            <span className="mt-1 block text-xs text-ink-faint">At least 8 characters.</span>
-            {/* Password reset exists in the codebase but is not switched on —
-                sending email needs a provider we don't have yet. Until it is,
-                forgetting this password means losing the account for good, so
-                say that here rather than at the point someone is already locked
-                out. Amber because that is what this app already uses for a
-                warning (StatusBanner, MealAnalyzer). Delete this the day reset
-                goes live. */}
-            <span className="mt-1 block text-xs text-amber-300/90">
-              There's no password reset yet — keep it somewhere safe.
-            </span>
-          </Field>
-          {error && <p className="text-sm text-rose-400">{error}</p>}
-          <Button
-            type="submit"
-            disabled={submitting}
-            className="w-full px-5 py-2"
-          >
-            {submitting ? 'Creating account…' : 'Sign up'}
-          </Button>
-          <p className="text-center text-sm text-slate-400">
-            Already have an account?{' '}
-            <Link to="/login" className="text-emerald-400 underline hover:text-emerald-300">
-              Log in
-            </Link>
+    <AuthFrame>
+      <form className="grid gap-3.5" onSubmit={handleSubmit}>
+        <h1 className={AUTH_TITLE}>Create your account</h1>
+        {!persistentSession && (
+          <p className={AUTH_NOTE}>
+            This browser is blocking site data, so you&rsquo;ll stay signed in
+            only until you close this tab. Allowing it for this site, or
+            leaving private browsing, keeps you signed in.
           </p>
-        </Card>
-        <WarmupNotice />
-      </div>
-    </div>
+        )}
+        <AuthField label="Email">
+          <input
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={FIELD}
+          />
+        </AuthField>
+        <AuthField label="Password">
+          <input
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={FIELD}
+          />
+          <span className="text-small text-ink-2">At least 8 characters.</span>
+          {/* Password reset exists in the codebase but is not switched on:
+              sending email needs a provider we don't have yet. Until it is,
+              forgetting this password means losing the account for good, so
+              say that here rather than at the point someone is already locked
+              out. Delete this the day reset goes live. */}
+          <span className={AUTH_NOTE}>There's no password reset yet — keep it somewhere safe.</span>
+        </AuthField>
+        {error && <p className={AUTH_NOTE}>{error}</p>}
+        <Button type="submit" disabled={submitting} className="w-full">
+          {submitting ? 'Creating account…' : 'Sign up'}
+        </Button>
+        <p className="text-center text-small text-ink-2">
+          Already have an account?{' '}
+          <Link to="/login" className={AUTH_LINK}>
+            Log in
+          </Link>
+        </p>
+      </form>
+    </AuthFrame>
   )
 }

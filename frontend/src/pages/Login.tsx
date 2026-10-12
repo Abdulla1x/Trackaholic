@@ -2,13 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { isSessionPersistent } from '../auth/token'
-import StatusBanner from '../components/StatusBanner'
-import WarmupNotice from '../components/WarmupNotice'
-import { useAnnouncements } from '../hooks/useAnnouncements'
-import Card from '../components/ui/Card'
-import TextInput from '../components/ui/TextInput'
-import Field from '../components/ui/Field'
-import Button from '../components/ui/Button'
+import AuthFrame, { AUTH_LINK, AUTH_NOTE, AUTH_TITLE, AuthField } from '../components/auth/AuthFrame'
+import { Button } from '@/ui/button'
+import { FIELD } from '@/ui/field'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 export default function Login() {
@@ -22,9 +18,6 @@ export default function Login() {
   // Probed once per mount: the answer cannot change while the page is open.
   const [persistentSession] = useState(isSessionPersistent)
   const [submitting, setSubmitting] = useState(false)
-  // An outage notice matters most here: this is where someone lands when the
-  // app looks broken to them.
-  const announcements = useAnnouncements()
   // Set by the reset page, which sends people here rather than logging them in.
   const notice = (location.state as { notice?: string } | null)?.notice ?? null
 
@@ -45,82 +38,57 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center justify-center gap-2">
-          <img src="/favicon.svg" alt="" className="size-8 rounded-[5px]" />
-          <h1 className="text-xl font-bold tracking-tight">Trackaholic</h1>
-        </div>
-        <StatusBanner banner={announcements?.banner ?? null} />
-        <Card as="form" pad="lg" className="space-y-4" onSubmit={handleSubmit}>
-          <h2 className="text-lg font-semibold">Log in</h2>
-          {!persistentSession && (
-            <p className="text-sm text-amber-400">
-              This browser is blocking site data, so you&rsquo;ll stay signed in
-              only until you close this tab. Allowing it for this site, or
-              leaving private browsing, keeps you signed in.
-            </p>
-          )}
-          {notice && <p className="text-sm text-emerald-400">{notice}</p>}
-          <Field label="Email">
-            <TextInput size="md"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full"
-            />
-          </Field>
-          <Field label="Password">
-            <TextInput size="md"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full"
-            />
-          </Field>
-          {error && <p className="text-sm text-rose-400">{error}</p>}
-          <Button
-            type="submit"
-            disabled={submitting}
-            className="w-full px-5 py-2"
-          >
-            {submitting ? 'Logging in…' : 'Log in'}
-          </Button>
-          {/* `underline` is not decoration, and the rule is PROSE, not sentences.
-              A link inside a sentence may not be distinguished by colour alone
-              (WCAG 1.4.1) unless it clears 3:1 against the surrounding text --
-              emerald-400 on slate-400 measures 1.35. That is what the audit
-              flagged, at four links.
-
-              The other two -- this one and "Back to log in" -- are each the only
-              thing in their paragraph, so strictly they are not in a text block
-              and the rule does not reach them. They are underlined anyway: they
-              are prose text sitting inches from links that now are, and a user
-              who has just learnt that underline means link should not meet one
-              that does not. Link-SHAPED CONTROLS are the ones left alone -- nav
-              items, card links, anything wearing a button -- because those are
-              not prose and never read as a sentence. */}
-          <p className="text-center text-sm text-slate-400">
-            <Link
-              to="/forgot-password"
-              className="text-emerald-400 underline hover:text-emerald-300"
-            >
-              Forgot your password?
-            </Link>
+    <AuthFrame>
+      <form className="grid gap-3.5" onSubmit={handleSubmit}>
+        <h1 className={AUTH_TITLE}>Log in</h1>
+        {!persistentSession && (
+          <p className={AUTH_NOTE}>
+            This browser is blocking site data, so you&rsquo;ll stay signed in
+            only until you close this tab. Allowing it for this site, or
+            leaving private browsing, keeps you signed in.
           </p>
-          <p className="text-center text-sm text-slate-400">
-            No account?{' '}
-            <Link to="/signup" className="text-emerald-400 underline hover:text-emerald-300">
-              Sign up
-            </Link>
-          </p>
-        </Card>
-        <WarmupNotice />
-      </div>
-    </div>
+        )}
+        {notice && <p className="text-small font-semibold">{notice}</p>}
+        <AuthField label="Email">
+          <input
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={FIELD}
+          />
+        </AuthField>
+        <AuthField label="Password">
+          <input
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={FIELD}
+          />
+        </AuthField>
+        {error && <p className={AUTH_NOTE}>{error}</p>}
+        <Button type="submit" disabled={submitting} className="w-full">
+          {submitting ? 'Logging in…' : 'Log in'}
+        </Button>
+        {/* Underlined, not told apart by colour alone (WCAG 1.4.1). Each of
+            these is the only thing in its paragraph, so strictly the rule does
+            not reach it; it is underlined anyway, because a reader who has
+            learnt that underline means link should not meet one that is not. */}
+        <p className="text-center text-small text-ink-2">
+          <Link to="/forgot-password" className={AUTH_LINK}>
+            Forgot your password?
+          </Link>
+        </p>
+        <p className="text-center text-small text-ink-2">
+          No account?{' '}
+          <Link to="/signup" className={AUTH_LINK}>
+            Sign up
+          </Link>
+        </p>
+      </form>
+    </AuthFrame>
   )
 }
