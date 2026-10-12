@@ -350,7 +350,7 @@ function WeightBlock({
                 tick={chartTick}
                 stroke={chartRule}
                 tickLine={false}
-                width={44}
+                width="auto"
                 domain={axis.domain}
                 ticks={axis.ticks}
                 interval={0}
@@ -540,7 +540,7 @@ function NutritionBlock({
                 tick={chartTick}
                 stroke={chartRule}
                 tickLine={false}
-                width={44}
+                width="auto"
                 tickFormatter={(value: number) => n(value)}
               />
               <Tooltip
