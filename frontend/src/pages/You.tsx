@@ -1,14 +1,17 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import TrackersSheet from '../components/today/TrackersSheet'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import { activityName } from '../lib/activity'
+import { localIsoDate } from '../lib/dates'
+import { DEFAULT_WATER_QUICK_ADDS } from '../lib/limits'
 import { targetIsSet } from '../lib/today'
 import { canChooseTrackers, CHANGE_TRACKERS, TRACKERS } from '../lib/trackers'
 import { formatHeight, formatWeight, unitLabel } from '../lib/units'
 import { useSettings } from '../settings/SettingsContext'
 import { useInstantSave } from '../settings/useInstantSave'
-import type { Settings } from '../types'
+import type { Settings, Supplement, WaterDay } from '../types'
 import Block from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import { RowButton, RowLink } from '@/ui/row'
@@ -45,6 +48,27 @@ function reminderDetail(settings: Settings): string {
   return `${settings.weigh_in_reminder_time} · after ${days === 1 ? 'a day' : `${days} days`} without one`
 }
 
+function waterDetail(settings: Settings, day: WaterDay | null): string {
+  const buttons = (settings.water_quick_adds ?? DEFAULT_WATER_QUICK_ADDS).map((ml) => `+${n(ml)}`).join(' ')
+  // The day's goal is the server's (it owns the formula); until it arrives,
+  // a derived goal is described rather than guessed.
+  const goal =
+    settings.water_goal_ml !== null
+      ? `${n(settings.water_goal_ml)} ml a day`
+      : day
+        ? `${n(day.goal_ml)} ml a day, from your weight`
+        : 'Goal from your weight'
+  return `${goal} · ${buttons}`
+}
+
+function supplementsDetail(items: Supplement[] | null): string {
+  if (!items || items.length === 0) return 'What you take, and when'
+  const doses = items.filter((item) => item.active).reduce((sum, item) => sum + item.times.length, 0)
+  const paused = items.length - items.filter((item) => item.active).length
+  const text = `${doses} ${doses === 1 ? 'dose' : 'doses'} a day`
+  return paused > 0 ? `${text} · ${paused} paused` : text
+}
+
 function trackersDetail(settings: Settings): string | undefined {
   if (!settings.trackers) return undefined
   const names = ['Weigh-in', ...TRACKERS.filter((tracker) => settings.trackers?.includes(tracker.key)).map((tracker) => tracker.name)]
@@ -62,6 +86,18 @@ export default function You() {
   const { user } = useAuth()
   const saveNow = useInstantSave()
   const [choosingTrackers, setChoosingTrackers] = useState(false)
+  const [waterDay, setWaterDay] = useState<WaterDay | null>(null)
+  const [supplements, setSupplements] = useState<Supplement[] | null>(null)
+  // Two small reads so the rows can say what is set. Either failing leaves
+  // its row with the general wording, which is still true.
+  useEffect(() => {
+    let cancelled = false
+    api.getWaterDay(localIsoDate()).then((day) => !cancelled && setWaterDay(day), () => {})
+    api.getSupplements().then((items) => !cancelled && setSupplements(items), () => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
   useLiveMessage(error)
 
   return (
@@ -103,14 +139,14 @@ export default function You() {
             <RowLink
               to="/you/water"
               label="Water"
-              detail={settings.water_goal_ml === null ? 'Goal from your weight' : `${n(settings.water_goal_ml)} ml a day`}
+              detail={waterDetail(settings, waterDay)}
             />
             <RowLink
               to="/you/steps"
               label="Steps"
               detail={settings.steps_goal === null ? 'No goal · import your history' : `${n(settings.steps_goal)} a day`}
             />
-            <RowLink to="/you/supplements" label="Supplements" detail="What you take, and when" />
+            <RowLink to="/you/supplements" label="Supplements" detail={supplementsDetail(supplements)} />
             {canChooseTrackers(settings) && (
               <RowButton
                 label={CHANGE_TRACKERS}
