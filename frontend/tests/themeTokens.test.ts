@@ -2,9 +2,9 @@
 //
 // theme.css is generated from DESIGN.md's token block, and DESIGN.md promises
 // every text pair is at least 4.5:1 and every non-text pair at least 3:1, in
-// all eight palettes, light and dark, and in the Label style. These tests hold
+// all nine palettes, light and dark, and in the Label style. These tests hold
 // both promises: a hand edit to either file that drifts from the other, or a
-// colour that breaks contrast in any one of the 18 themes, fails here.
+// colour that breaks contrast in any one of the 20 themes, fails here.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
@@ -33,7 +33,7 @@ const designBlock = (() => {
   )
 })()
 
-const PALETTES = ['daylight', 'ocean', 'sand', 'berry', 'mono', 'ember', 'citrus', 'violet'] as const
+const PALETTES = ['daylight', 'ocean', 'teal', 'citrus', 'violet', 'berry', 'clay', 'sand', 'ember'] as const
 
 const selectorFor = (palette: string, dark: boolean): string =>
   palette === 'daylight'
@@ -124,13 +124,13 @@ const PAIRS: [string, string, number][] = [
   ['band-fill', 'band-track', 3],
 ]
 
-test('every pair passes WCAG contrast in all 18 themes', () => {
+test('every pair passes WCAG contrast in all 20 themes', () => {
   const themes = [
     ...PALETTES.flatMap((palette) => [false, true].map((dark) => ({ palette, dark, label: false }))),
     { palette: 'daylight', dark: false, label: true },
     { palette: 'daylight', dark: true, label: true },
   ]
-  assert.equal(themes.length, 18)
+  assert.equal(themes.length, 20)
   for (const { palette, dark, label } of themes) {
     const tokens = compose(palette, dark, label)
     const name = `${label ? 'label' : palette} ${dark ? 'dark' : 'light'}`

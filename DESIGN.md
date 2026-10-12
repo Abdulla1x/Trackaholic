@@ -145,7 +145,7 @@ The look holds two ideas from the brand. The **segmented gauge** (the calories d
 
 ## Colors
 
-Restrained: a tinted neutral ground, ink, one action colour and one plan colour. The default palette is **Daylight**. Seven more palettes (see Themes and palettes) change the ground tint, the action and plan colours, and the colour of the calories **band**.
+Restrained: a tinted neutral ground, ink, one action colour and one plan colour. The default palette is **Daylight**. Eight more palettes (see Themes and palettes) change the ground tint, the action and plan colours, and the colour of the calories **band**.
 
 ### Primary
 - **Action blue** (#1747e0 light / #7d9bff dark): primary buttons, links, "Due today", focus rings. Only on things that respond to a tap.
@@ -330,7 +330,7 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - **Do** separate content with hairline rules and spacing before reaching for a panel.
 - **Do** keep the action colour for pressable things and the plan colour for targets.
 - **Do** design every screen's empty state, with the next step in plain words.
-- **Do** check every new colour pair at 4.5:1 for text and 3:1 for non-text, in light and dark, in all eight palettes.
+- **Do** check every new colour pair at 4.5:1 for text and 3:1 for non-text, in light and dark, in all nine palettes.
 - **Do** keep touch targets at least 24px (WCAG 2.2), and 44px for primary actions.
 
 ### Don't:
@@ -464,7 +464,7 @@ Wry, in small doses. Humour lives in quiet, good moments. Errors, going over a t
 
 **Style:** **Fields** (default, this document) or **Label** (every screen as a black-and-white nutrition label, in Libre Franklin). Palettes apply to Fields only.
 
-**Palettes:** eight, chosen in You → Appearance. Every text pair measures at least 4.5:1 and every non-text pair at least 3:1, in both themes; the lowest is Citrus's action colour on its light ground, at 4.7:1. Daylight keeps the calories band on the ground; every other palette gives the band its own deep colour.
+**Palettes:** nine, chosen in You → Appearance, in this order: Daylight, Ocean, Teal, Citrus, Violet, Berry, Clay, Sand, Ember. Every text pair measures at least 4.5:1 and every non-text pair at least 3:1, in both themes; the lowest are on Citrus's light ground, its fact colour at 4.60:1 and its action colour at 4.65:1. Daylight keeps the calories band on the ground; every other palette gives the band its own deep colour.
 
 The exact tokens, as CSS custom properties. Each palette defines the full set for light; its dark block redefines the same names. In the band tokens, `band-ink` and the like apply to text and segments drawn on the band.
 
@@ -485,37 +485,13 @@ The exact tokens, as CSS custom properties. Each palette defines the full set fo
 --ground: #06101a; --field: #0c1825; --ink: #e6eef5; --ink-2: #93a8bb; --rule: #1b2b3b; --track: #172635; --fill: #e6eef5;
 --action: #6fa8ff; --action-ink: #06101a; --plan: #ffb24a; --label: #03080d; --fact: #5fd6a2; --band: #0f2d4d; --band-rule: #23466e;
 
-/* Sand */
---ground: #eae1d2; --field: #f3ede2; --ink: #1f1a14; --ink-2: #5a5044; --rule: #cdc1ae; --track: #d8cdbb; --fill: #1f1a14;
---action: #12595e; --action-ink: #ffffff; --plan: #8a2d5a; --label: #fbf8f2; --fact: #12595e;
---band: #2b2420; --band-ink: #f5ede1; --band-ink-2: #c6b6a2; --band-track: #4b4038; --band-fill: #f5ede1; --band-plan: #f2a6cb; --band-rule: #463b33;
-/* Sand dark */
---ground: #14110d; --field: #1c1813; --ink: #efe6d8; --ink-2: #ab9e8c; --rule: #2e281f; --track: #2a241c; --fill: #efe6d8;
---action: #5cc6c9; --action-ink: #14110d; --plan: #f2a6cb; --label: #0a0806; --fact: #5cc6c9; --band: #2e2621; --band-rule: #4a3f36;
-
-/* Berry */
---ground: #ecdfe7; --field: #f5ecf1; --ink: #22101c; --ink-2: #5d4555; --rule: #d1bbca; --track: #dccad6; --fill: #22101c;
---action: #8c1a5a; --action-ink: #ffffff; --plan: #0d6a64; --label: #fcf7fa; --fact: #0d6a64;
---band: #3a1430; --band-ink: #fbeef6; --band-ink-2: #d6b0c8; --band-track: #5c2b4f; --band-fill: #fbeef6; --band-plan: #7fe0d6; --band-rule: #57284b;
-/* Berry dark */
---ground: #120a10; --field: #1b1018; --ink: #f3e6ee; --ink-2: #b399a9; --rule: #2e1d29; --track: #2a1a25; --fill: #f3e6ee;
---action: #ff8fc8; --action-ink: #120a10; --plan: #7fe0d6; --label: #0a0509; --fact: #7fe0d6; --band: #3d1633; --band-rule: #5c2c50;
-
-/* Mono */
---ground: #e7e7e7; --field: #f1f1f1; --ink: #111111; --ink-2: #4a4a4a; --rule: #c8c8c8; --track: #d3d3d3; --fill: #111111;
---action: #111111; --action-ink: #ffffff; --plan: #b0136e; --label: #fafafa; --fact: #1d6b3a;
---band: #111111; --band-ink: #f2f2f2; --band-ink-2: #a8a8a8; --band-track: #333333; --band-fill: #f2f2f2; --band-plan: #ff6fb5; --band-rule: #2e2e2e;
-/* Mono dark */
---ground: #0c0c0c; --field: #161616; --ink: #ededed; --ink-2: #a3a3a3; --rule: #2c2c2c; --track: #262626; --fill: #ededed;
---action: #ededed; --action-ink: #0c0c0c; --plan: #ff6fb5; --label: #050505; --fact: #6fd394; --band: #1c1c1c; --band-rule: #333333;
-
-/* Ember */
---ground: #e6e4e3; --field: #f0eeed; --ink: #141212; --ink-2: #4d4847; --rule: #c9c5c3; --track: #d4d0ce; --fill: #141212;
---action: #b3261e; --action-ink: #ffffff; --plan: #1f5fa8; --label: #faf9f8; --fact: #1d6b3a;
---band: #1a1717; --band-ink: #f4f1f0; --band-ink-2: #b0a9a7; --band-track: #3a3434; --band-fill: #f4f1f0; --band-plan: #7fb2ff; --band-rule: #332d2d;
-/* Ember dark */
---ground: #0e0c0c; --field: #171414; --ink: #efeceb; --ink-2: #a9a2a0; --rule: #2d2828; --track: #282323; --fill: #efeceb;
---action: #ff5a4e; --action-ink: #0e0c0c; --plan: #7fb2ff; --label: #070606; --fact: #6fd394; --band: #1d1919; --band-rule: #3a3333;
+/* Teal */
+--ground: #dde9e6; --field: #eaf2f0; --ink: #0b1f1c; --ink-2: #3e5651; --rule: #b5cbc6; --track: #c4d6d2; --fill: #0b1f1c;
+--action: #0b6b62; --action-ink: #ffffff; --plan: #a8431f; --label: #f7fbfa; --fact: #1d6b3a;
+--band: #0d3b3a; --band-ink: #eef8f6; --band-ink-2: #a6cbc5; --band-track: #2a5c59; --band-fill: #eef8f6; --band-plan: #ff9e7a; --band-rule: #24524f;
+/* Teal dark */
+--ground: #071413; --field: #0d1d1b; --ink: #e4f1ee; --ink-2: #93aea8; --rule: #1a2f2c; --track: #162a27; --fill: #e4f1ee;
+--action: #4fd1c1; --action-ink: #071413; --plan: #ff9e7a; --label: #030a09; --fact: #6fd394; --band: #0e3634; --band-rule: #23504d;
 
 /* Citrus */
 --ground: #f3f3ee; --field: #fbfbf7; --ink: #1a1c14; --ink-2: #50544a; --rule: #d6d7cd; --track: #dfe0d6; --fill: #1a1c14;
@@ -532,6 +508,38 @@ The exact tokens, as CSS custom properties. Each palette defines the full set fo
 /* Violet dark */
 --ground: #0d0a17; --field: #151122; --ink: #ece8f7; --ink-2: #a49cbc; --rule: #2a2440; --track: #241e38; --fill: #ece8f7;
 --action: #a98bff; --action-ink: #0d0a17; --plan: #ffb067; --label: #06050b; --fact: #6fd394; --band: #2b1b60; --band-rule: #46368a;
+
+/* Berry */
+--ground: #ecdfe7; --field: #f5ecf1; --ink: #22101c; --ink-2: #5d4555; --rule: #d1bbca; --track: #dccad6; --fill: #22101c;
+--action: #8c1a5a; --action-ink: #ffffff; --plan: #0d6a64; --label: #fcf7fa; --fact: #0d6a64;
+--band: #3a1430; --band-ink: #fbeef6; --band-ink-2: #d6b0c8; --band-track: #5c2b4f; --band-fill: #fbeef6; --band-plan: #7fe0d6; --band-rule: #57284b;
+/* Berry dark */
+--ground: #120a10; --field: #1b1018; --ink: #f3e6ee; --ink-2: #b399a9; --rule: #2e1d29; --track: #2a1a25; --fill: #f3e6ee;
+--action: #ff8fc8; --action-ink: #120a10; --plan: #7fe0d6; --label: #0a0509; --fact: #7fe0d6; --band: #3d1633; --band-rule: #5c2c50;
+
+/* Clay */
+--ground: #ece3dc; --field: #f5efea; --ink: #21160f; --ink-2: #5c4a3f; --rule: #d2c2b6; --track: #dccdc1; --fill: #21160f;
+--action: #a33c12; --action-ink: #ffffff; --plan: #1f5f78; --label: #fcf8f5; --fact: #1d6b3a;
+--band: #63301f; --band-ink: #fbeee6; --band-ink-2: #dcb7a6; --band-track: #7e4734; --band-fill: #fbeee6; --band-plan: #9fd6e8; --band-rule: #74402d;
+/* Clay dark */
+--ground: #140d0a; --field: #1d1410; --ink: #f1e4dc; --ink-2: #b39d90; --rule: #33241d; --track: #2c1f19; --fill: #f1e4dc;
+--action: #ff8a5c; --action-ink: #140d0a; --plan: #8fd0e6; --label: #0a0605; --fact: #6fd394; --band: #4a2216; --band-rule: #63321f; --band-track: #6e3c2b;
+
+/* Sand */
+--ground: #eae1d2; --field: #f3ede2; --ink: #1f1a14; --ink-2: #5a5044; --rule: #cdc1ae; --track: #d8cdbb; --fill: #1f1a14;
+--action: #12595e; --action-ink: #ffffff; --plan: #8a2d5a; --label: #fbf8f2; --fact: #12595e;
+--band: #2b2420; --band-ink: #f5ede1; --band-ink-2: #c6b6a2; --band-track: #4b4038; --band-fill: #f5ede1; --band-plan: #f2a6cb; --band-rule: #463b33;
+/* Sand dark */
+--ground: #14110d; --field: #1c1813; --ink: #efe6d8; --ink-2: #ab9e8c; --rule: #2e281f; --track: #2a241c; --fill: #efe6d8;
+--action: #5cc6c9; --action-ink: #14110d; --plan: #f2a6cb; --label: #0a0806; --fact: #5cc6c9; --band: #2e2621; --band-rule: #4a3f36;
+
+/* Ember */
+--ground: #e3e5e8; --field: #eff1f3; --ink: #121315; --ink-2: #4b4f56; --rule: #c5c9cf; --track: #d0d4d9; --fill: #121315;
+--action: #b3121b; --action-ink: #ffffff; --plan: #b3121b; --label: #ffffff; --fact: #1d6b3a;
+--band: #131416; --band-ink: #f3f4f6; --band-ink-2: #a9aeb6; --band-track: #34373c; --band-fill: #e6e8ec; --band-plan: #ff3b44; --band-rule: #2c2f34;
+/* Ember dark */
+--ground: #0b0c0e; --field: #15171a; --ink: #eceef1; --ink-2: #a3a8b0; --rule: #2a2d32; --track: #25282c; --fill: #eceef1;
+--action: #ff4d55; --action-ink: #0b0c0e; --plan: #ff4d55; --label: #050506; --fact: #6fd394; --band: #1b1d21; --band-rule: #34373d;
 
 /* Label style (palettes do not apply; it sets every token a palette sets, so none leaks through) */
 --ground: #e9ebec; --label: #ffffff; --ink: #000000; --ink-2: #3f4245; --track: #d4d7d9; --action: #000000; --action-ink: #ffffff; --field: #ffffff; --rule: #000000; --fill: #000000; --plan: #000000; --fact: #000000;

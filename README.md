@@ -396,7 +396,7 @@ Trackaholic
 │       │                        #   DESIGN.md (button, chip, field, toast), the segmented
 │       │                        #   gauge, rolling numbers, quiet blocks, rows and stats, skeletons, and icons
 │       │                        #   (Phosphor + the weigh-in scale)
-│       ├── theme.css            # DESIGN.md's colour tokens, 8 palettes × light/dark + Label;
+│       ├── theme.css            # DESIGN.md's colour tokens, 9 palettes × light/dark + Label;
 │       │                        #   generated from DESIGN.md and tested against it
 │       ├── components/
 │       │   ├── shell/           # the app shell: tab bar, side rail, wordmark, which tab is current
