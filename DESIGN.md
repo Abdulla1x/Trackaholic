@@ -181,8 +181,8 @@ Restrained: a tinted neutral ground, ink, one action colour and one plan colour.
 
 ### Hierarchy
 - **Display number** (820, 92px phone / 132px desktop, line-height 0.86, width 75%): the calories headline on Today only.
-- **Field number** (780, 30px, width 78%): secondary numbers in fields: eaten, protein, weekly rate.
-- **Row number** (760, 20px, width 80%): kcal on meal rows.
+- **Field number** (780, 30px, width 78%): secondary numbers in fields: the weight trend, weekly rate.
+- **Row number** (760, 20px, width 80%): kcal on meal rows, and the macro rows in the calories band.
 - **Title** (750, 16px, width 112%): screen titles in the app bar and the date bar.
 - **Body** (400, 15px, line-height 1.4): rows, descriptions, form text. Prose capped at about 70 characters per line.
 - **Small** (400, 13px): captions, helper text, ranges.
@@ -218,13 +218,13 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 ## Components
 
 ### The calories band (signature)
-- **What:** the top of Today. A "KCAL LEFT" (or "KCAL OVER") label, the display number, "of 2,100 target", a 20-segment gauge with the plan-coloured target tick, then two fields: Eaten and Protein (with a 10-segment bar).
+- **What:** the top of Today. A "KCAL LEFT" (or "KCAL OVER") label, the display number, one line under it reading "1,240 eaten of 2,300 target", a 20-segment gauge with the plan-coloured target tick, then one full-width row per macro: the name, a 10-segment bar and "142 / 240 g". The value column has a fixed width, so every row's bar starts and ends on the same lines.
 - **Colour:** the palette's band colour. In Daylight the band is the ground; in the other palettes it is a deep coloured panel with light ink.
-- **On target:** within 2% of the day's target, either side (40 kcal on 2,000; the weekly review uses the same band), the label reads "CALORIES" and the display number is replaced by the words "On target" (58px phone / 84px desktop), with nothing under them. Eaten reads "2,008 / 2,000 kcal", like Protein, so the target is still on screen once. "Kcal left" and "Kcal over" stay exact outside the band.
+- **On target:** within 2% of the day's target, either side (40 kcal on 2,000; the weekly review uses the same band), the label reads "CALORIES" and the display number is replaced by the words "On target" (58px phone / 84px desktop). The line under them stays ("2,008 eaten of 2,000 target"), so the target is still on screen once. Chosen from the 3a prototype (option A) over moving the numbers into the label line. "Kcal left" and "Kcal over" stay exact outside the band.
 - **Over target:** past the band, the gauge is full, the label reads "KCAL OVER", and one plain line reads "Over is fine. The week evens out." with a link to spread it.
 - **Tap:** opens the day in detail, with calorie plans.
-- **Carbs and fat:** when switched on, they are added as fields under protein. When off, nothing mentions them.
-- **Before a target is set:** the label reads "EATEN TODAY", the display number is what was eaten with "kcal / no target yet" beside it, and the fields are Protein (no goal) and Target, reading "Not set yet". No gauge, no "left", no Spread it. Chosen from the first-use prototype over a quiet "No target yet" line.
+- **Carbs and fat:** when switched on, each adds a row under protein. When off, nothing mentions them.
+- **Before a target is set:** the label reads "EATEN TODAY", the display number is what was eaten, and the line under it reads "kcal · no target yet". The macro rows show amounts with no bars, since there is no goal to fill towards. No gauge, no "left", no Spread it. Chosen from the first-use prototype over a quiet "No target yet" line.
 - **When a named event moves an automatic target** (the burn becomes measured, the goal weight is reached, a limit starts or stops deciding it), one plain block under the band says so with the old and new numbers, until "Got it". The daily drift of a weigh-in is never mentioned.
 
 ### Getting started

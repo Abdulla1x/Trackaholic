@@ -17,14 +17,25 @@ export interface BandTargets {
 
 const n = (value: number) => Math.round(value).toLocaleString()
 
-/** One number in a fixed place, with its label above (DESIGN.md: the
- *  training computer's data page). */
-function Field({ label, children, meter }: { label: string; children: ReactNode; meter?: ReactNode }) {
+/** One macro as a full-width row: its name, a 10-segment bar, and "142 /
+ *  240 g" (chosen from the 3a prototype, 2026-10-12). One row each rather
+ *  than fields side by side, so carbs and fat add rows instead of squeezing
+ *  protein. The value column has a fixed width, so the bars of every row
+ *  start and end on the same lines. With no goal there is nothing to fill
+ *  towards, so the bar is left out and only the amount shows. */
+function MacroRow({ label, value, goal }: { label: string; value: number; goal?: number }) {
   return (
-    <div className="grid min-w-0 content-start gap-1.5 py-3 [&+&]:border-l [&+&]:border-band-rule [&+&]:pl-4">
+    <div className="grid min-h-[34px] grid-cols-[74px_minmax(0,1fr)_112px] items-center gap-3 [&+&]:border-t [&+&]:border-band-rule">
       <span className="text-field-label text-band-ink-2">{label}</span>
-      <span className="text-field-number leading-none">{children}</span>
-      {meter}
+      {goal === undefined ? (
+        <span />
+      ) : (
+        <Gauge segments={10} lit={litSegments(value, goal, 10)} tone="band" className="h-2" />
+      )}
+      <span className="text-right text-row-number whitespace-nowrap">
+        <RollingNumber value={value} />
+        <Unit>{goal === undefined ? 'g' : `/ ${n(goal)} g`}</Unit>
+      </span>
     </div>
   )
 }
@@ -52,15 +63,16 @@ function Unit({ children }: { children: ReactNode }) {
 }
 
 /** The top of Today (DESIGN.md: The calories band). Calories as the one
- *  headline (UA-2), a 20-segment gauge closed by the plan-coloured target
- *  tick, then Eaten and Protein as fields; carbs and fat join them only when
- *  tracked, and are never mentioned otherwise.
+ *  headline (UA-2), "1,240 eaten of 2,300 target" in the line under it, a
+ *  20-segment gauge closed by the plan-coloured target tick, then one row per
+ *  macro: protein, and carbs and fat only when tracked (never mentioned
+ *  otherwise).
  *
  *  Within 2% of the target, either side, the headline is the words "On
- *  target" instead of a number. Nothing under it argues back ("8 kcal over"
- *  would), and the exact figure moves into Eaten as "2,008 / 2,000 kcal", the
- *  way Protein shows its goal, so the target is still on screen once (chosen
- *  from a prototype, 2026-10-11).
+ *  target" instead of a number. The line under it stays, so the exact figure
+ *  and the target are still on screen once (option A, chosen from the 3a
+ *  prototype on 2026-10-12; it replaces the look-E rule of nothing under the
+ *  words).
  *
  *  Tapping anywhere on it opens the day in detail, where calorie plans live.
  *
@@ -69,10 +81,10 @@ function Unit({ children }: { children: ReactNode }) {
  *  motion (the No Red Rule, the Never Punish Rule).
  *
  *  Before the account has chosen a target (`targetSet` false) it shows what
- *  was eaten and nothing to measure it against: no gauge, no "left", and
- *  "Not set yet" where the target would be. Every account starts with a
- *  2,000 kcal placeholder, and a gauge drawn against it would be an invented
- *  number (chosen from the first-use prototype, 2026-10-11). */
+ *  was eaten and nothing to measure it against: "no target yet" under the
+ *  number, no gauge, no "left", and macro amounts without bars. Every account
+ *  starts with a 2,000 kcal placeholder, and a gauge drawn against it would
+ *  be an invented number (chosen from the first-use prototype, 2026-10-11). */
 export default function CaloriesBand({
   day,
   isToday,
@@ -106,13 +118,14 @@ export default function CaloriesBand({
   // Reaching it today is marked, once: the sweep runs, the target tick lifts,
   // and the words roll up. Nothing plays for going over (the Never Punish Rule).
   const moment = useOnTargetMoment(day, onTarget, lit)
-  const macro = (value: number, goal: number) => (
-    <Gauge
-      segments={10}
-      lit={litSegments(value, goal, 10)}
-      tone="band"
-      className="mt-1 h-1.5 max-w-[180px]"
-    />
+  // Protein always, then carbs and fat only when tracked (never mentioned
+  // otherwise). Without a target the rows show amounts and no bars.
+  const macros = (
+    <div className="grid border-t border-band-rule pt-1 pb-2">
+      <MacroRow label="Protein" value={eaten.protein} goal={targetSet ? targets.protein_goal : undefined} />
+      {trackCarbs && <MacroRow label="Carbs" value={eaten.carbs} goal={targetSet ? targets.carbs_goal : undefined} />}
+      {trackFat && <MacroRow label="Fat" value={eaten.fat} goal={targetSet ? targets.fat_goal : undefined} />}
+    </div>
   )
 
   if (!targetSet) {
@@ -122,41 +135,11 @@ export default function CaloriesBand({
           <h2 className="text-field-label text-band-ink-2">{isToday ? 'Eaten today' : 'Eaten'}</h2>
           <DayLink day={day} />
         </div>
-        <p className="flex items-end gap-3 pb-1">
-          <span className="text-display-number desk:text-[132px]">
-            <RollingNumber value={eaten.calories} />
-          </span>
-          <span className="pb-1.5 text-small text-band-ink-2">
-            kcal
-            <br />
-            no target yet
-          </span>
+        <p className="text-display-number desk:text-[132px]">
+          <RollingNumber value={eaten.calories} />
         </p>
-        <div className="grid grid-cols-2 border-t border-band-rule">
-          <Field label="Protein">
-            <RollingNumber value={eaten.protein} />
-            <Unit>g</Unit>
-          </Field>
-          <Field label="Target">
-            <span className="text-[16px] font-semibold [font-stretch:100%]">Not set yet</span>
-          </Field>
-        </div>
-        {(trackCarbs || trackFat) && (
-          <div className="-mt-2.5 grid grid-cols-2 border-t border-band-rule">
-            {trackCarbs && (
-              <Field label="Carbs">
-                <RollingNumber value={eaten.carbs} />
-                <Unit>g</Unit>
-              </Field>
-            )}
-            {trackFat && (
-              <Field label="Fat">
-                <RollingNumber value={eaten.fat} />
-                <Unit>g</Unit>
-              </Field>
-            )}
-          </div>
-        )}
+        <p className="text-small text-band-ink-2">kcal · no target yet</p>
+        {macros}
       </section>
     )
   }
@@ -179,17 +162,15 @@ export default function CaloriesBand({
           On target
         </p>
       ) : (
-        <p className="flex items-end gap-3">
-          <span className="text-display-number desk:text-[132px]">
-            {firstTarget ? <CountUp value={amount} /> : <RollingNumber value={amount} />}
-          </span>
-          <span className="pb-1.5 text-small text-band-ink-2">
-            of <b className="font-semibold text-band-ink">{n(targets.calorie_goal)}</b>
-            <br />
-            target
-          </span>
+        <p className="text-display-number desk:text-[132px]">
+          {firstTarget ? <CountUp value={amount} /> : <RollingNumber value={amount} />}
         </p>
       )}
+      {/* Eaten lives in this line now, under the number or the words, so the
+          target is on screen once either way (option A, 2026-10-12). */}
+      <p className="text-small text-band-ink-2">
+        <RollingNumber value={eaten.calories} /> eaten of {n(targets.calorie_goal)} target
+      </p>
       <Gauge
         segments={20}
         lit={lit}
@@ -215,32 +196,7 @@ export default function CaloriesBand({
           {caption && <p>{caption}</p>}
         </div>
       )}
-      <div className="grid grid-cols-2 border-t border-band-rule">
-        <Field label="Eaten">
-          <RollingNumber value={eaten.calories} />
-          <Unit>{onTarget ? `/ ${n(targets.calorie_goal)} kcal` : 'kcal'}</Unit>
-        </Field>
-        <Field label="Protein" meter={macro(eaten.protein, targets.protein_goal)}>
-          <RollingNumber value={eaten.protein} />
-          <Unit>/ {n(targets.protein_goal)} g</Unit>
-        </Field>
-      </div>
-      {(trackCarbs || trackFat) && (
-        <div className="-mt-2.5 grid grid-cols-2 border-t border-band-rule">
-          {trackCarbs && (
-            <Field label="Carbs" meter={macro(eaten.carbs, targets.carbs_goal)}>
-              <RollingNumber value={eaten.carbs} />
-              <Unit>/ {n(targets.carbs_goal)} g</Unit>
-            </Field>
-          )}
-          {trackFat && (
-            <Field label="Fat" meter={macro(eaten.fat, targets.fat_goal)}>
-              <RollingNumber value={eaten.fat} />
-              <Unit>/ {n(targets.fat_goal)} g</Unit>
-            </Field>
-          )}
-        </div>
-      )}
+      {macros}
     </section>
   )
 }
