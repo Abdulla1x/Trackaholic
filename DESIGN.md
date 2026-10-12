@@ -287,7 +287,7 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 
 ### Save bar
 - **What waits for it:** typed numbers, and the choices on the same form (water's "From my weight" / "My own"). Switches and chips that stand alone save on tap, so the bar appearing is itself the sign that something is still waiting.
-- **Look:** pinned to the bottom of the screen just above the tab bar (the bottom of the column on desktop), field ground, a hairline along the top. "Unsaved changes" on the left, or the problem in its place, in ink; then Undo (ghost) and Save (primary), which reads "Saving…" while it works. A "Saved" toast follows.
+- **Look:** pinned to the bottom of the screen just above the tab bar (the bottom of the column on desktop), field ground, a hairline along the top. "Unsaved changes" on the left, or the problem in its place, in ink; then Undo (ghost) and Save (primary), which reads "Saving…" while it works. A "Saved" toast follows, for 1.5 seconds.
 - **One draft per screen.** Leaving a screen with changes, by the back arrow, a tab or the phone's back button, asks "Leave without saving?" (Stay / Leave without saving). A reload gets the browser's own prompt. The draft holds only your edits, so a switch saved on the same screen never overwrites a number still being typed.
 - **Change password** uses the same bar and the same question over its three boxes. The new password is typed twice while password reset is off, because a typo would lock the account for good.
 
@@ -330,7 +330,7 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
   With no target yet, it shows Calories with what was eaten, the macro amounts with no "of", and "No target yet." as the fine print.
 
 ### Toasts
-- Ink ground, ground-coloured text, 8px radius, above the tab bar on phones and bottom-right on desktop. They last 5 seconds and have a close button. One optional action ("View").
+- Ink ground, ground-coloured text, 8px radius, above the tab bar on phones and bottom-right on desktop. They last 5 seconds and have a close button. The settings screens' "Saved" is the exception at 1.5 seconds: the Save bar going away already said it, and a longer toast covers the bottom of the screen and takes taps meant for it. One optional action ("View").
 - **A toast is never the only place.** Anything you might need to read again (an import's counts, a step history's result, a failure) is also written on the screen where it happened. The toast only confirms.
 
 ### Skeletons

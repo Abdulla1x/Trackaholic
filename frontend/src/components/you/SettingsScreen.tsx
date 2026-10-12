@@ -7,6 +7,11 @@ import { AlertDialog } from '@/ui/alert-dialog'
 import { SaveBar } from '@/ui/save-bar'
 import { useToast } from '@/ui/toast'
 
+/** The Save bar going away already says it worked, so "Saved" only has to
+ *  flash: 1.5 s rather than the usual five, which covered the bottom of the
+ *  screen (and took taps meant for it) long after the point was made. */
+const SAVED_TOAST_MS = 1_500
+
 /** One settings screen, pushed from You: the back arrow, the form, and its
  *  own Save bar.
  *
@@ -23,7 +28,7 @@ export default function SettingsScreen({ title, children }: { title: string; chi
   useLiveMessage(loadError)
 
   useEffect(() => {
-    if (status === 'saved') toast.show({ text: 'Saved' })
+    if (status === 'saved') toast.show({ text: 'Saved', duration: SAVED_TOAST_MS })
     // Only the transition into 'saved' should show it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status])

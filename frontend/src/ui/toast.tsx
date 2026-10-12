@@ -5,7 +5,7 @@ import { DURATION, SPRING } from '@/lib/motion'
 
 /** DESIGN.md (Components -> Toasts): an ink ground, ground-coloured text, 8px
  *  radius, above the tab bar on phones and bottom-right on desktop. Five
- *  seconds, a close button, and at most one action.
+ *  seconds (or less, per toast), a close button, and at most one action.
  *
  *  ⚠ A toast vanishes, so it must never be the only way to reach what it
  *  offers (WCAG 2.2.1, timing). Every action passed here has to exist
@@ -16,6 +16,9 @@ export interface ToastInput {
   /** A button, not a link: the one action so far opens the Log panel over
    *  whatever page is showing when it is pressed, which no fixed href knows. */
   action?: { label: string; onSelect: () => void }
+  /** How long it stays, in ms; five seconds unless a toast only confirms
+   *  something the screen already shows, like the settings screens' "Saved". */
+  duration?: number
 }
 
 interface ToastItem extends ToastInput {
@@ -48,7 +51,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const id = nextId.current++
       setToast({ ...input, id })
       if (timer.current) clearTimeout(timer.current)
-      timer.current = setTimeout(() => dismiss(id), TOAST_MS)
+      timer.current = setTimeout(() => dismiss(id), input.duration ?? TOAST_MS)
       return id
     },
     [dismiss],
