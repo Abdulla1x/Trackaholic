@@ -28,3 +28,8 @@ export function useSettingsScreen(): SettingsScreenValue {
   if (!value) throw new Error('useSettingsScreen must be used inside a SettingsScreen')
   return value
 }
+
+/** A screen pushed from You, at least as tall as the space between the bars,
+ *  so a Save bar (`mt-auto`) sits at the bottom even when the form is short. */
+export const SCREEN_FRAME =
+  'mx-auto flex min-h-[calc(100dvh-var(--shell-bottom)-env(safe-area-inset-top)-3rem)] max-w-[760px] flex-col desk:min-h-[calc(100dvh-4rem)]'

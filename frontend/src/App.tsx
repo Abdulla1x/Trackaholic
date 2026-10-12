@@ -145,6 +145,8 @@ const router = createBrowserRouter(
           <Route path="/you/saved-meals" lazy={page(() => import('./pages/you/SavedMeals'))} />
           <Route path="/you/appearance" lazy={page(() => import('./pages/you/Appearance'))} />
           <Route path="/you/account" lazy={page(() => import('./pages/you/Account'))} />
+          <Route path="/you/password" lazy={page(() => import('./pages/you/Password'))} />
+          <Route path="/you/delete" lazy={page(() => import('./pages/you/Delete'))} />
           <Route path="/you/contact" lazy={page(() => import('./pages/you/Contact'))} />
           {/* The old Settings addresses (see SettingsRedirect). */}
           <Route path="/settings/*" element={<SettingsRedirect />} />

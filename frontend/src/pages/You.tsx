@@ -14,6 +14,7 @@ import { formatHeight, formatWeight, unitLabel } from '../lib/units'
 import { useSettings } from '../settings/SettingsContext'
 import { useInstantSave } from '../settings/useInstantSave'
 import type { Food, FoodDuplicatePair, MealTemplate, Settings, Supplement, WaterDay } from '../types'
+import { AlertDialog } from '@/ui/alert-dialog'
 import Block from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import { RowButton, RowLink } from '@/ui/row'
@@ -101,9 +102,10 @@ function trackersDetail(settings: Settings): string | undefined {
  *  itself: two chips, saved on tap. */
 export default function You() {
   const { settings, error } = useSettings()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const saveNow = useInstantSave()
   const [choosingTrackers, setChoosingTrackers] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [waterDay, setWaterDay] = useState<WaterDay | null>(null)
   const [supplements, setSupplements] = useState<Supplement[] | null>(null)
   const [foods, setFoods] = useState<Food[] | null>(null)
@@ -199,7 +201,9 @@ export default function You() {
           </Group>
 
           <Group label="Account">
-            <RowLink to="/you/account" label="Account and data" detail="Password, export, import, delete" />
+            <RowLink to="/you/password" label="Change password" />
+            <RowButton label="Log out" onClick={() => setLoggingOut(true)} />
+            <RowLink to="/you/delete" label="Delete account" detail="Deletes everything for good" />
           </Group>
 
           <Group label="Help">
@@ -209,6 +213,15 @@ export default function You() {
           </Group>
 
           <TrackersSheet open={choosingTrackers} onOpenChange={setChoosingTrackers} />
+          <AlertDialog
+            open={loggingOut}
+            title="Log out?"
+            confirm="Log out"
+            onCancel={() => setLoggingOut(false)}
+            onConfirm={logout}
+          >
+            Your data stays on your account.
+          </AlertDialog>
         </>
       )}
     </div>
