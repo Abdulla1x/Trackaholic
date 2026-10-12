@@ -6,6 +6,7 @@ import { asksForTrackers, CHANGE_TRACKERS, legacyTrackers, TRACKERS, withTracker
 import { useSettings } from '../../settings/SettingsContext'
 import { Button } from '@/ui/button'
 import Sheet from '@/ui/sheet'
+import MakeItYoursLink from './MakeItYoursLink'
 
 /** "The new Trackaholic": asked once of an account from before trackers were
  *  chosen (`trackers` null), the first time it opens Today on the redesign.
@@ -80,6 +81,10 @@ export default function NewTrackaholicPrompt({ ready }: { ready: boolean }) {
             Where things moved: How Trackaholic works
           </Link>
         </p>
+        <div className="grid gap-0.5 text-small text-ink-2">
+          <p>New: light mode and nine colours.</p>
+          <MakeItYoursLink />
+        </div>
         <p>
           Today can show only the trackers you use. Untick any you don’t want. You can change it later with{' '}
           {CHANGE_TRACKERS}, at the bottom of Today.

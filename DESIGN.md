@@ -315,6 +315,19 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 ### The nutrition-label object
 - **Used:** everywhere in the Label style, and in the wordmark.
 - **Anatomy:** a 2px ink border on label white; a heavy title; a 10px rule, then the calories row, a 5px rule, then the nutrient rows with 1px rules; a 10px rule, then fine print. All in Libre Franklin.
+- **On Today** (Label style) it replaces the calories band:
+  - "Today" and the date, a 10px rule;
+  - **Calories left** as the big line;
+  - Eaten so far and Target indented under it;
+  - a 5px rule, then Protein (and Carbohydrate and Fat when tracked) "of" their targets;
+  - a 10px rule, then "Targets are a guide, not a rule."
+  
+  It keeps the band's rules:
+  - within 2% the big line reads **On target**;
+  - past the target it reads **Calories over**, with "Over is fine. The week evens out. Spread it" as the fine print;
+  - the whole label opens the day in detail.
+  
+  With no target yet, it shows Calories with what was eaten, the macro amounts with no "of", and "No target yet." as the fine print.
 
 ### Toasts
 - Ink ground, ground-coloured text, 8px radius, above the tab bar on phones and bottom-right on desktop. They last 5 seconds and have a close button. One optional action ("View").
@@ -462,7 +475,26 @@ Wry, in small doses. Humour lives in quiet, good moments. Errors, going over a t
 
 **Theme:** light and dark, following the phone's setting by default, with an Automatic / Light / Dark choice in You → Appearance.
 
-**Style:** **Fields** (default, this document) or **Label** (every screen as a black-and-white nutrition label, in Libre Franklin). Palettes apply to Fields only.
+**Style:** **Fields** (default, this document) or **Label** (every screen as a black-and-white nutrition label, in Libre Franklin). Palettes apply to Fields only. On Appearance, the colour swatches are disabled in Label, with a line saying why.
+
+**Per device, not per account.** Theme, style and palette are kept together in one localStorage key, `trackaholic_appearance`, so every account on a phone shares them, as they share the phone's own dark mode. The defaults are Automatic, Daylight and Fields, and anything unrecognised falls back to its default.
+
+**Before the first paint.** `public/theme-init.js`, a plain script at the top of `<head>`, sets `data-theme`, `data-palette` and `data-style` on `<html>` from that key before anything is drawn, so a dark phone never flashes light. It is a file because the CSP blocks inline scripts. If it never runs, the page is Daylight light. Once the app runs, `AppearanceContext` takes over: it follows the phone on Automatic and carries a change made in another tab.
+
+**The browser bar** is the ground: two `theme-color` metas give Daylight's ground for each theme from the first paint, and the app then sets them to the ground actually painted. The install manifest holds one colour, so the splash screen stays Daylight dark (accepted).
+
+**The Label style in the app.** A `label:` variant (`:where([data-style="label"] *)`, so no added specificity) carries each change on the primitive it belongs to, and every radius token is 0:
+- **Blocks:** a white box with a 2px ink border on the grey ground, the heading in heavy type (20px/900, not capitals) over a 5px rule. The sections that are not Blocks use the same classes from `ui/block`.
+- **Controls:** buttons, chips, inputs and the switch are square, with a 2px ink border. The primary button is ink with white text.
+- **Stats** are label rows: the name in bold at the left, the number at the right.
+- **Meters** on the ground are a 2px ink box filled with ink.
+- **The shell:**
+  - screen bars, page headers, the Save bar, the tab bar, the rail and sheets sit on 5px rules;
+  - the current tab's name is underlined;
+  - the current rail item is inverted.
+- **Today's calories** are the nutrition label (Components: The nutrition-label object).
+
+**Make it yours.** "Make it yours: pick a colour", with five palette dots, links to You → Appearance from Getting started's last moment and from the new-Trackaholic prompt. It is an invitation, not a setup step.
 
 **Palettes:** nine, chosen in You → Appearance, in this order: Daylight, Ocean, Teal, Citrus, Violet, Berry, Clay, Sand, Ember. Every text pair measures at least 4.5:1 and every non-text pair at least 3:1, in both themes; the lowest are on Citrus's light ground, its fact colour at 4.60:1 and its action colour at 4.65:1. Daylight keeps the calories band on the ground; every other palette gives the band its own deep colour.
 

@@ -39,6 +39,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **Log opens over the page you are on**, as a sheet rising from the bottom on a phone and a panel from the right on a desktop, so Today, Progress or a half-edited setting is still underneath when you close it. It is in the address (`?log`), so the phone's back button closes it, and "Enter it by hand" is one step in that Back steps out of. Top to bottom: the day the meal is for (Today, Yesterday or any other), the AI box, your saved meals and recent meals, then entering a meal by hand or pasting a meal code. Saving closes it with a short confirmation, and the page underneath updates; on Today it first scrolls back to the top, so the numbers roll and the gauge fills where you can see them
 - **Unsaved settings are never dropped silently.** Typed numbers wait for a **Save bar** pinned above the tab bar, with Undo beside Save; switches and choices that stand alone save the moment you tap them, so the bar appearing is itself the sign something is still waiting. Leaving a screen with changes asks first ("Leave without saving?"), whichever way you leave; reloading or closing the tab gets the browser's own prompt
 - **Each page loads its own code the first time you open it**, so the sign-in page no longer downloads the charts: the first download went from 911 KB to 334 KB when it was split, and is about 470 KB (145 KB compressed) with the redesign's shell, its animation library and icons. The Log panel is fetched the first time it opens, or quietly beforehand once the page is idle. A tab still running the previous version when a new one deploys reloads itself once rather than failing to open a page
+- **Light or dark, nine colours, or a nutrition label**, chosen in You → Appearance. Automatic follows the phone's dark mode. Nine palettes change the ground, the buttons and the colour of the calories band. The **Label** style turns every screen black and white, as on a food packet: boxed sections with heavy rules, square controls, and Today's calories as a nutrition label. The choice belongs to the device, not the account, and a small script in `<head>` applies it before the first frame, so a dark phone never flashes white
 
 ### 👋 First use
 - **No invented target.** Every account starts with a 2,000 kcal placeholder, so until you choose a target the calories show what you ate and "Not set yet" instead: no gauge, no "left", no target line in Progress, no Monday review card
@@ -386,10 +387,13 @@ Trackaholic
 │   ├── tests/                   # node --test unit tests for DOM-free code (npm test), incl. the
 │   │                            #   colour tokens against DESIGN.md and WCAG contrast in every theme
 │   ├── components.json          # shadcn/ui CLI config: new components land in src/ui/
+│   ├── public/theme-init.js     # applies the device's theme before the first paint (a file:
+│   │                            #   the CSP blocks inline scripts)
 │   └── src/
 │       ├── api/client.ts        # typed API client
 │       ├── auth/                # AuthContext + token storage (guarded against blocked localStorage)
 │       ├── settings/            # SettingsContext — one settings fetch for the whole app
+│       ├── appearance/          # AppearanceContext — this device's theme, style and palette
 │       ├── analysis/            # AnalysisContext — the AI estimate, held for the whole session
 │       │                        #   so it keeps running while you move around the app
 │       ├── ui/                  # the redesign's components: shadcn/ui (Radix) restyled from

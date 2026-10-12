@@ -4,6 +4,7 @@ import { Button } from '@/ui/button'
 import { DoneIcon } from '@/ui/icons'
 import { cn } from '@/lib/utils'
 import { LABEL_BOX, LABEL_TITLE, LABEL_VALUE } from '@/ui/block'
+import MakeItYoursLink from './MakeItYoursLink'
 
 const LINK =
   'font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'
@@ -96,6 +97,7 @@ export default function GettingStarted({
             Done
           </Button>
         </div>
+        <MakeItYoursLink />
       </section>
     )
   }
