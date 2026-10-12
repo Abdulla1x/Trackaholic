@@ -4,15 +4,19 @@ import { addDays, dayRange, localIsoDate, parseIsoDate } from '../../lib/dates'
 import { MAX_PLAN_DAYS, MAX_PLAN_HORIZON_DAYS, validatePlan } from '../../lib/limits'
 import { num } from '../../lib/parse'
 import type { CaloriePlan, DaySurplus, PlanKind } from '../../types'
-import Card from '../ui/Card'
-import Button from '../ui/Button'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
+import { cn } from '@/lib/utils'
+import Block from '@/ui/block'
+import { Button } from '@/ui/button'
+import { Chip } from '@/ui/chip'
+import Explainer from '@/ui/explainer'
+import { FIELD } from '@/ui/field'
+import { NumberField } from '@/ui/number-field'
 
 /** Move calories between days without moving the week.
  *
- * One of the sections of the Settings page. They live in this folder rather
- * than in Settings.tsx itself, which otherwise carries every one of them at
- * once. This one has two modes, a day picker and a list of existing plans.
+ * The body of You -> Calorie plans: a form to make a plan (two kinds) and the
+ * list of plans already made.
  *
  * **This screen never offers.** Nothing here appears because you went over --
  * no prompt, no "shall we cut the next four days?". You come looking for it.
@@ -230,246 +234,192 @@ export default function CaloriePlanSection({
     }
   }
 
+  const problem = error && (
+    // Ink, not red (the No Red Rule): a refusal names what to change, it is
+    // not an alarm.
+    <p role="alert" className="border-l-2 border-ink pl-3 text-small">
+      {error}
+    </p>
+  )
+
   return (
-    <Card as="section" className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Calorie planning</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Move calories between days without changing the week. Plan a bigger
-          day and fund it from the days around it, or spread a day that already
-          ran over or under across the days ahead.
-        </p>
-        {/* The honest note, on screen rather than in a docstring. The app is
-            not keeping a ledger and it is not going to collect: your measured
-            expenditure is fitted from average intake against your weight
-            trend, so one large day already shows up as a slightly slower week
-            whether or not you do anything about it. */}
-        <p className="mt-2 text-xs text-ink-faint">
-          Nothing here is a debt. One big day already shows up as a slightly
-          slower week on its own — this only lets you decide where it lands.
-          Protein never moves; carbohydrate and fat absorb the difference.
-          Plans apply straight away, without the Save bar.
-        </p>
-      </div>
-
-      {loading ? (
-        <p className="text-sm text-ink-faint">Loading…</p>
-      ) : plans.length === 0 ? (
-        <p className="text-sm text-ink-faint">Nothing planned.</p>
-      ) : (
-        <ul className="space-y-3">
-          {plans.map((plan) => (
-            <li
-              key={plan.event_date}
-              className="rounded-lg border border-slate-800 bg-slate-950 p-3"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-medium text-slate-200">
-                  {plan.kind === 'planned'
-                    ? `Planning for ${short(plan.event_date)}`
-                    : `Making up ${short(plan.event_date)}`}
-                </span>
-                {/* GET /api/plan only returns plans with a day still ahead,
-                    so this is always true today. Kept as a condition rather
-                    than dropped: the server refuses to cancel a fully-past
-                    plan with a 409, and if this list ever widens to show
-                    finished plans, a Cancel button that 409s is the failure
-                    that would appear. */}
-                {plan.can_cancel && (
-                  <button
-                    onClick={() => cancel(plan.event_date)}
-                    disabled={busy}
-                    className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-60"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-              <ul className="mt-2 space-y-1">
-                {plan.days.map((day) => (
-                  <li
-                    key={day.date}
-                    className="flex justify-between gap-3 text-xs text-slate-400"
-                  >
-                    <span className={day.date < today ? 'text-ink-faint' : ''}>
-                      {short(day.date)}
-                      {day.date < today && ' · already passed'}
-                    </span>
-                    <span>
-                      {Math.round(day.calorie_goal).toLocaleString()} kcal
-                      <span className="ml-1 text-ink-faint">
-                        ({signed(day.calorie_delta ?? 0)})
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {mode === null ? (
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => open('planned')}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
-          >
-            Plan a bigger day
-          </button>
-          <button
-            onClick={() => open('compensating')}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
-          >
-            Make up a day
-          </button>
-        </div>
-      ) : (
-        <div ref={form} className="space-y-4 rounded-lg border border-slate-800 bg-slate-950 p-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <label className="text-sm">
-              <span className="block text-slate-400">
-                {mode === 'planned' ? 'Day to plan for' : 'Day to make up'}
-              </span>
-              <input
-                type="date"
-                value={eventDate}
-                // The mirror image of every other date input in this app. A
-                // weigh-in or a meal can only describe something that has
-                // happened; a plan is the one thing that reaches forward.
-                min={mode === 'planned' ? today : undefined}
-                max={
-                  mode === 'planned'
-                    ? addDays(today, MAX_PLAN_HORIZON_DAYS)
-                    : today
-                }
-                onChange={(e) => {
-                  if (!e.target.value) return
-                  setEventDate(e.target.value)
-                  setSelected([])
-                }}
-                className="mt-1 rounded border border-slate-800 bg-slate-900 px-2 py-1 text-slate-200"
-              />
-            </label>
-
-            {mode === 'planned' && (
-              <label className="text-sm">
-                <span className="block text-slate-400">Calories to move</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={amount}
-                  placeholder="600"
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="mt-1 w-32 rounded border border-slate-800 bg-slate-900 px-2 py-1 text-slate-200"
-                />
-                <span className="mt-1 block text-xs text-ink-faint">
-                  Negative for a deliberately smaller day.
-                </span>
-              </label>
-            )}
+    <>
+      <Block>
+        <p>Eat more on one day and less on others, or spread a day that went over. The week evens out.</p>
+        {/* The honest note, one tap away. The app is not keeping a ledger and
+            it is not going to collect: your measured burn is fitted from
+            average intake against your weight trend, so one large day already
+            shows up as a slightly slower week whether or not you plan it. */}
+        <Explainer>
+          <div className="grid gap-1.5">
+            <p>
+              Nothing here is a debt. One big day already shows up as a slightly slower week on its own; a plan only
+              decides where it lands.
+            </p>
+            <p>
+              The calories are split evenly across the days you pick. Protein never moves; carbs and fat take the
+              difference. No day goes below your calorie floor, and the server says which day if one would.
+            </p>
+            <p>Plans apply straight away, without a Save bar.</p>
           </div>
+        </Explainer>
+        {mode === null && (
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => open('planned')}>Plan a bigger day</Button>
+            <Button variant="secondary" onClick={() => open('compensating')}>
+              Make up a day
+            </Button>
+          </div>
+        )}
+        {mode === null && problem}
+      </Block>
 
-          {mode === 'compensating' && (
-            <div className="text-sm">
-              {surplusFailed ? (
-                <p className="text-slate-400">
-                  Couldn&apos;t work out how that day went. Try again.
-                </p>
-              ) : surplus === null ? (
-                <p className="text-ink-faint">Checking that day…</p>
-              ) : surplus.meal_count === 0 ? (
-                <p className="text-slate-400">
-                  Nothing is logged on {short(eventDate)}. A day with no meals
-                  on it is a day nobody recorded, not a day of eating nothing —
-                  there is nothing to spread.
-                </p>
-              ) : (
-                <div className="space-y-1">
-                  <p className="text-slate-300">
-                    {Math.round(surplus.consumed_calories).toLocaleString()} kcal
-                    eaten against a{' '}
-                    {Math.round(surplus.reference_calories).toLocaleString()} kcal
-                    target —{' '}
-                    <span className="font-medium">
-                      {signed(surplus.surplus_calories)} kcal
-                    </span>
-                    .
-                  </p>
-                  {/* Said plainly because it is a real limitation, not a
-                      footnote: this app stores one calorie goal, not a
-                      history of them, so a past day can only be measured
-                      against the target it has now. */}
-                  <p className="text-xs text-ink-faint">
-                    Measured against that day&apos;s target as it stands now. If
-                    you have changed your goal since, this number has moved with
-                    it.
-                  </p>
+      {mode !== null && (
+        <div ref={form}>
+          <Block label={mode === 'planned' ? 'Plan a bigger day' : 'Make up a day'}>
+            <div className="flex flex-wrap items-start gap-4">
+              <label className="grid gap-1.5">
+                <span className="text-small text-ink-2">{mode === 'planned' ? 'Day to plan for' : 'Day to make up'}</span>
+                <input
+                  type="date"
+                  value={eventDate}
+                  // The mirror image of every other date input in this app. A
+                  // weigh-in or a meal can only describe something that has
+                  // happened; a plan is the one thing that reaches forward.
+                  min={mode === 'planned' ? today : undefined}
+                  max={mode === 'planned' ? addDays(today, MAX_PLAN_HORIZON_DAYS) : today}
+                  onChange={(e) => {
+                    if (!e.target.value) return
+                    setEventDate(e.target.value)
+                    setSelected([])
+                  }}
+                  className={cn(FIELD, 'w-[200px]')}
+                />
+              </label>
+              {mode === 'planned' && (
+                <div className="grid gap-1.5">
+                  <NumberField
+                    id="plan-amount"
+                    label="Calories to move"
+                    unit="kcal"
+                    inputMode="numeric"
+                    value={amount}
+                    placeholder="600"
+                    onChange={setAmount}
+                  />
+                  <span className="text-small text-ink-2">Negative for a smaller day.</span>
                 </div>
               )}
             </div>
-          )}
 
-          <div>
-            <p className="text-sm text-slate-400">
-              {mode === 'planned'
-                ? 'Days to fund it from'
-                : 'Days to spread it across'}
-              <span className="ml-1 text-xs text-ink-faint">
-                ({selected.length} of up to {MAX_PLAN_DAYS})
-              </span>
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {candidates.map((day) => {
-                const taken = claimed.has(day)
-                const on = selected.includes(day)
-                return (
-                  <button
-                    key={day}
-                    onClick={() => toggle(day)}
-                    disabled={taken || busy}
-                    title={taken ? 'Already adjusted by another plan' : undefined}
-                    className={`rounded-lg border px-2.5 py-1 text-xs ${
-                      on
-                        ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
-                        : 'border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800'
-                    } disabled:cursor-not-allowed disabled:opacity-35`}
-                  >
-                    {short(day)}
-                  </button>
-                )
-              })}
+            {mode === 'compensating' && (
+              <div className="grid gap-1 text-small">
+                {surplusFailed ? (
+                  <p className="text-ink-2">Couldn’t work out how that day went. Try again.</p>
+                ) : surplus === null ? (
+                  <p className="text-ink-2">Checking that day…</p>
+                ) : surplus.meal_count === 0 ? (
+                  <p className="text-ink-2">
+                    Nothing is logged on {short(eventDate)}, so there is nothing to spread. An empty day is a day nobody
+                    recorded, not a day of eating nothing.
+                  </p>
+                ) : (
+                  <>
+                    <p>
+                      {Math.round(surplus.consumed_calories).toLocaleString()} kcal eaten against a{' '}
+                      {Math.round(surplus.reference_calories).toLocaleString()} kcal target:{' '}
+                      <b className="font-semibold">{signed(surplus.surplus_calories)} kcal</b>.
+                    </p>
+                    {/* Said plainly because it is a real limitation: this app
+                        stores one calorie goal, not a history of them, so a past
+                        day can only be measured against the target it has now. */}
+                    <p className="text-ink-2">Measured against that day’s target as it is now.</p>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <p className="text-small text-ink-2">
+                {mode === 'planned' ? 'Days to take it from' : 'Days to spread it across'} ({selected.length} of up to{' '}
+                {MAX_PLAN_DAYS})
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {candidates.map((day) => {
+                  const taken = claimed.has(day)
+                  return (
+                    <Chip
+                      key={day}
+                      pressed={selected.includes(day)}
+                      onClick={() => toggle(day)}
+                      disabled={taken || busy}
+                      title={taken ? 'Already moved by another plan' : undefined}
+                      className="disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      {short(day)}
+                    </Chip>
+                  )
+                })}
+              </div>
             </div>
-            <p className="mt-2 text-xs text-ink-faint">
-              Split evenly across the days you pick. The exact per-day targets
-              come back from the server, which is also what refuses a spread
-              that would take any day below your calorie floor.
-            </p>
-          </div>
 
-          {error && <p className="text-sm text-rose-400">{error}</p>}
+            {problem}
 
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={submit}
-              disabled={busy}
-              className="px-4 py-1.5"
-            >
-              {busy ? 'Saving…' : 'Save plan'}
-            </Button>
-            <button
-              onClick={close}
-              disabled={busy}
-              className="text-sm text-slate-400 hover:text-slate-200"
-            >
-              Cancel
-            </button>
-          </div>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={submit} disabled={busy}>
+                {busy ? 'Saving…' : 'Save plan'}
+              </Button>
+              <Button variant="ghost" onClick={close} disabled={busy}>
+                Cancel
+              </Button>
+            </div>
+          </Block>
         </div>
       )}
 
-      {mode === null && error && <p className="text-sm text-rose-400">{error}</p>}
-    </Card>
+      <Block label="Planned">
+        {loading ? (
+          <p className="text-small text-ink-2">Loading…</p>
+        ) : plans.length === 0 ? (
+          <p className="text-small text-ink-2">Nothing planned.</p>
+        ) : (
+          <ul className="grid divide-y divide-rule">
+            {plans.map((plan) => (
+              <li key={plan.event_date} className="grid gap-1.5 py-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold">
+                    {plan.kind === 'planned' ? `Bigger day on ${short(plan.event_date)}` : `Making up ${short(plan.event_date)}`}
+                  </span>
+                  {/* GET /api/plan only returns plans with a day still ahead,
+                      so this is always true today. Kept as a condition: the
+                      server refuses to cancel a fully-past plan with a 409, and
+                      a Cancel button that 409s is the failure that would appear
+                      if this list ever widened to finished plans. */}
+                  {plan.can_cancel && (
+                    <Button variant="ghost" onClick={() => cancel(plan.event_date)} disabled={busy}>
+                      Cancel plan
+                    </Button>
+                  )}
+                </div>
+                <ul className="grid gap-0.5 text-small text-ink-2">
+                  {plan.days.map((day) => (
+                    <li key={day.date} className="flex justify-between gap-3">
+                      <span>
+                        {short(day.date)}
+                        {day.date < today && ' · passed'}
+                      </span>
+                      <span className="tabular-nums">
+                        <b className="font-semibold text-ink">{Math.round(day.calorie_goal).toLocaleString()} kcal</b> (
+                        {signed(day.calorie_delta ?? 0)})
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Block>
+    </>
   )
 }

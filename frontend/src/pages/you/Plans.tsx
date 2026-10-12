@@ -3,6 +3,7 @@ import CaloriePlanSection from '../../components/settings/CaloriePlanSection'
 import SettingsScreen from '../../components/you/SettingsScreen'
 import { useSettingsScreen } from '../../components/you/screenContext'
 import { targetIsSet } from '../../lib/today'
+import Block from '@/ui/block'
 import { Button } from '@/ui/button'
 
 /** Calorie plans, pushed from You or from a day's numbers.
@@ -30,17 +31,15 @@ function Plans() {
   // is chosen.
   if (!targetIsSet(settings)) {
     return (
-      <div className="grid justify-items-start gap-3 py-3.5">
+      <Block>
         <p>Plans move your target between days, so they need a target first.</p>
-        <Button asChild>
-          <Link to="/setup">Set your target</Link>
-        </Button>
-      </div>
+        <div>
+          <Button asChild>
+            <Link to="/setup">Set my target</Link>
+          </Button>
+        </div>
+      </Block>
     )
   }
-  return (
-    <div className="py-3.5">
-      <CaloriePlanSection onRejected={onRejected} initialDate={planDate} initialKind={planKind} />
-    </div>
-  )
+  return <CaloriePlanSection onRejected={onRejected} initialDate={planDate} initialKind={planKind} />
 }
