@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { primaryButtonClass } from '../components/ui/Button'
+import { Button } from '@/ui/button'
 
 /** What an unmatched URL renders.
  *
@@ -16,23 +16,20 @@ export default function NotFound() {
   const { pathname } = useLocation()
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-bold">Page not found</h1>
-        <p className="text-sm text-slate-400">
-          Nothing lives at <code className="text-slate-300">{pathname}</code>.
+    <div className="grid justify-items-start gap-4 py-2">
+      <header className="grid gap-1">
+        <h1 className="text-[20px] leading-tight font-bold [font-stretch:105%]">Page not found</h1>
+        <p className="text-small text-ink-2">
+          Nothing lives at <code className="text-ink">{pathname}</code>.
         </p>
       </header>
-      <p className="text-sm text-slate-400">
+      <p className="text-small text-ink-2">
         If you followed a link from inside the app, that is a bug worth
         reporting. If you typed the address, check it for a typo.
       </p>
-      <Link
-        to="/"
-        className={`${primaryButtonClass} inline-block px-4 py-2`}
-      >
-        Back to the dashboard
-      </Link>
+      <Button asChild>
+        <Link to="/">Back to the dashboard</Link>
+      </Button>
     </div>
   )
 }
