@@ -405,8 +405,8 @@ Trackaholic
 │       │   ├── progress/        # Progress: daily burn and its meters, "Looking back"
 │       │   ├── log/             # the Log panel: its address (?log), start screen, saved and
 │       │   │                    #   recent meals, the estimate's stages and result, the AI tips
-│       │   ├── ui/              # the six older primitives (Modal, Card, TextInput, OptionChip,
-│       │   │                    #   Field, Button), replaced screen by screen in the redesign
+│       │   ├── ui/              # the four older primitives (Card, TextInput, Field, Button),
+│       │   │                    #   replaced screen by screen in the redesign
 │       │   ├── you/             # You's screens: SettingsScreen (one draft + Save bar + leave
 │       │   │                    #   guard per screen), ItemSheet, Your data, food duplicates
 │       │   ├── settings/        # the body and calorie-plan fields You's screens share
