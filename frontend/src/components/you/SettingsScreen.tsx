@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import ScreenBar from '../shell/ScreenBar'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
 import { useSettingsDraft } from '../../settings/useSettingsDraft'
-import { SettingsScreenContext } from './screenContext'
+import { SCREEN_FRAME, SettingsScreenContext } from './screenContext'
 import { AlertDialog } from '@/ui/alert-dialog'
 import { SaveBar } from '@/ui/save-bar'
 import { useToast } from '@/ui/toast'
@@ -29,7 +29,7 @@ export default function SettingsScreen({ title, children }: { title: string; chi
   }, [status])
 
   return (
-    <div className="mx-auto flex min-h-[calc(100dvh-var(--shell-bottom)-env(safe-area-inset-top)-3rem)] max-w-[760px] flex-col desk:min-h-[calc(100dvh-4rem)]">
+    <div className={SCREEN_FRAME}>
       <ScreenBar title={title} back="/you" backLabel="Back to You" />
       {draft ? (
         <SettingsScreenContext.Provider

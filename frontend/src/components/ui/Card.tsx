@@ -21,12 +21,6 @@ import type { ComponentPropsWithRef, ElementType } from 'react'
  * values as the `rounded-xl`/`slate-800`/`slate-900` they replace, which is why
  * this migration moves no pixels.
  *
- * `danger` and `error` are both red and are deliberately NOT merged. They are
- * two spellings the app already had -- a section that is dangerous to use
- * (Danger zone) versus a message saying something failed -- and folding them
- * together would move pixels in a phase whose whole claim is that it does not.
- * Worth revisiting on purpose, not as a side effect of a refactor.
- *
  * `className` is appended last so a call site can still win.
  *
  * ComponentPropsWithRef, not ...WithoutRef: ShareCodePanel scrolls its own card
@@ -35,7 +29,7 @@ import type { ComponentPropsWithRef, ElementType } from 'react'
  * spread with no forwardRef. */
 type CardTag = 'div' | 'section' | 'p' | 'form'
 
-export type CardTone = 'default' | 'sunken' | 'danger' | 'warn' | 'error' | 'brand'
+export type CardTone = 'default' | 'sunken' | 'warn' | 'error' | 'brand'
 export type CardPad = 'none' | 'sm' | 'md' | 'lg'
 
 // `satisfies` rather than a type annotation: it still checks that every variant
@@ -44,7 +38,6 @@ export type CardPad = 'none' | 'sm' | 'md' | 'lg'
 const toneClass = {
   default: 'border-line bg-surface',
   sunken: 'border-line bg-slate-950/40',
-  danger: 'border-rose-900/60 bg-surface',
   warn: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
   error: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
   brand: 'border-emerald-500/40 bg-emerald-500/5',

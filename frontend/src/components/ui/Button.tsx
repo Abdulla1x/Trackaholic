@@ -24,14 +24,12 @@ import type { ComponentPropsWithRef } from 'react'
  * They are one-offs, and the amendment's own rule for this phase is to
  * enumerate rather than sweep.
  *
- * danger keeps text-white deliberately. Phase 15 measured bg-rose-600 with
- * text-white at 4.70:1 and checked the obvious "fix": text-slate-950 drops it
- * to 4.29 and fails AA. */
-export type ButtonVariant = 'primary' | 'danger'
+ * The `danger` variant went with the old Danger zone: deleting the account is
+ * a plain-ink button on its own screen now (DESIGN.md: the No Red rule). */
+export type ButtonVariant = 'primary'
 
 const variantClass = {
   primary: 'bg-brand text-brand-ink hover:bg-emerald-400 disabled:opacity-60',
-  danger: 'bg-rose-600 text-white hover:bg-rose-500 disabled:opacity-60',
 } satisfies Record<ButtonVariant, string>
 
 const base = 'rounded-control text-sm font-semibold'
