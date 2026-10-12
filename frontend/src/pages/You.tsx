@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
+import { useAppearance } from '../appearance/AppearanceContext'
 import { useAuth } from '../auth/AuthContext'
 import TrackersSheet from '../components/today/TrackersSheet'
 import YourData from '../components/you/YourData'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import { activityName } from '../lib/activity'
+import { paletteName, type Appearance } from '../lib/appearance'
 import { localIsoDate } from '../lib/dates'
 import { livePairs, readDismissed } from '../lib/foodDuplicates'
 import { DEFAULT_WATER_QUICK_ADDS } from '../lib/limits'
@@ -88,6 +90,13 @@ function savedMealsDetail(meals: MealTemplate[] | null): string {
   return `${meals.length} saved ${meals.length === 1 ? 'meal' : 'meals'}`
 }
 
+const THEME_NAMES = { auto: 'Automatic', light: 'Light', dark: 'Dark' } as const
+
+/** "Automatic · Daylight": the theme, then the palette. */
+function appearanceDetail(appearance: Appearance): string {
+  return `${THEME_NAMES[appearance.theme]} · ${paletteName(appearance.palette)}`
+}
+
 function trackersDetail(settings: Settings): string | undefined {
   if (!settings.trackers) return undefined
   const names = ['Weigh-in', ...TRACKERS.filter((tracker) => settings.trackers?.includes(tracker.key)).map((tracker) => tracker.name)]
@@ -103,6 +112,7 @@ function trackersDetail(settings: Settings): string | undefined {
 export default function You() {
   const { settings, error } = useSettings()
   const { user, logout } = useAuth()
+  const { appearance } = useAppearance()
   const saveNow = useInstantSave()
   const [choosingTrackers, setChoosingTrackers] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -192,7 +202,7 @@ export default function You() {
             <RowLink
               to="/you/appearance"
               label="Appearance"
-              detail={settings.show_meal_times ? 'Meal times shown on Today' : 'Meal times hidden on Today'}
+              detail={appearanceDetail(appearance)}
             />
           </Group>
 

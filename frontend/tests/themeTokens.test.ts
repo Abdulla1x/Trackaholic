@@ -8,6 +8,8 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
+import { PALETTES as APP_PALETTES } from '../src/lib/appearance.ts'
+import { SWATCHES } from '../src/lib/palettes.ts'
 
 // Compiled to dist-tests/tests/, so the sources are two and three levels up.
 const css = readFileSync(new URL('../../src/theme.css', import.meta.url), 'utf8')
@@ -146,6 +148,29 @@ test('the Label style ignores the palette underneath it', () => {
     const base = compose('daylight', dark, true)
     for (const palette of PALETTES) {
       assert.deepEqual(compose(palette, dark, true), base, `label over ${palette} ${dark ? 'dark' : 'light'}`)
+    }
+  }
+})
+
+test("lib/palettes.ts's swatches match theme.css in every palette, light and dark", () => {
+  assert.deepEqual(Object.keys(SWATCHES), [...PALETTES], 'one swatch per palette, in display order')
+  assert.deepEqual(APP_PALETTES.map((p) => p.id), [...PALETTES], 'lib/appearance.ts lists the same palettes')
+  for (const palette of PALETTES) {
+    for (const dark of [false, true]) {
+      const tokens = compose(palette, dark, false)
+      const swatch = SWATCHES[palette][dark ? 'dark' : 'light']
+      assert.deepEqual(
+        swatch,
+        {
+          ground: tokens.ground,
+          rule: tokens.rule,
+          band: tokens.band,
+          bandInk: tokens['band-ink'],
+          action: tokens.action,
+          plan: tokens.plan,
+        },
+        `${palette} ${dark ? 'dark' : 'light'}`,
+      )
     }
   }
 })
