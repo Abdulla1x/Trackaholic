@@ -25,7 +25,17 @@ const CLOCK_TICK_MS = 60_000
  *  that used to sit on every page. With the reminder off, the card is simply
  *  there. It follows the day on show, and a weigh-in is editable here: the
  *  server keeps one per day, so saving again replaces it. */
-export default function WeighInCard({ day, today }: { day: string; today: string }) {
+export default function WeighInCard({
+  day,
+  today,
+  waitingForTarget = false,
+}: {
+  day: string
+  today: string
+  /** An automatic target stops updating without a weigh-in in the last 90
+   *  days (targets.WEIGHT_LOOKBACK_DAYS); the card says so. */
+  waitingForTarget?: boolean
+}) {
   const { settings, reload: reloadSettings } = useSettings()
   const unit = settings?.weight_unit ?? 'kg'
   const label = unitLabel(unit)
@@ -179,6 +189,11 @@ export default function WeighInCard({ day, today }: { day: string; today: string
       <p role="status" className="text-small text-ink-2 empty:hidden">
         {note}
       </p>
+      {waitingForTarget && (
+        <p className="text-small text-ink-2">
+          Your target is waiting for a weigh-in. It follows your weight, and the last one is over 90 days old.
+        </p>
+      )}
     </Tracker>
   )
 }
