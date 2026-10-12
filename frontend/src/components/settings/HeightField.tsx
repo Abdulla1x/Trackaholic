@@ -1,8 +1,6 @@
-import { num } from '../../lib/parse'
 import { cmToFtIn, ftInToCm } from '../../lib/units'
+import { SettingNumber } from '@/ui/number-field'
 import type { Settings as SettingsType } from '../../types'
-import TextInput from '../ui/TextInput'
-import Field from '../ui/Field'
 
 /** Height, in whichever unit the weight preference implies.
  *
@@ -22,21 +20,19 @@ export default function HeightField({
 }) {
   if (settings.weight_unit !== 'lb') {
     return (
-      <Field label="Height (cm)">
-        <TextInput
-          type="number"
-          value={settings.height_cm ?? ''}
-          onChange={(event) => update({ height_cm: num(event.target.value) })}
-          onBlur={onBlur}
-          className="w-full"
-        />
-      </Field>
+      <SettingNumber
+        id="body-height"
+        label="Height"
+        unit="cm"
+        inputMode="numeric"
+        value={settings.height_cm}
+        onValue={(value) => update({ height_cm: value })}
+        onBlur={onBlur}
+      />
     )
   }
 
-  const { feet, inches } = settings.height_cm
-    ? cmToFtIn(settings.height_cm)
-    : { feet: 0, inches: 0 }
+  const { feet, inches } = settings.height_cm ? cmToFtIn(settings.height_cm) : { feet: 0, inches: 0 }
   const set = (nextFeet: number | null, nextInches: number | null) => {
     // Both boxes empty means "not set", not "zero tall".
     if (nextFeet === null && nextInches === null) {
@@ -46,43 +42,33 @@ export default function HeightField({
     update({ height_cm: ftInToCm(nextFeet ?? 0, nextInches ?? 0) })
   }
 
+  // Stored in centimetres; shown in feet and inches because the weight unit
+  // is pounds.
   return (
-    <Field as="div" label="Height"
-      caption={
-        <>
-        Stored in centimetres; shown in feet and inches because your weight unit
-        is pounds.
-        </>
-      }
-    >
-      <div className="flex gap-2">
-        <label className="flex-1">
-          <TextInput
-            type="number"
-            aria-label="Height, feet"
-            placeholder="ft"
-            value={settings.height_cm ? feet : ''}
-            onChange={(event) =>
-              set(num(event.target.value), settings.height_cm ? inches : null)
-            }
-            onBlur={onBlur}
-            className="w-full"
-          />
-        </label>
-        <label className="flex-1">
-          <TextInput
-            type="number"
-            aria-label="Height, inches"
-            placeholder="in"
-            value={settings.height_cm ? inches : ''}
-            onChange={(event) =>
-              set(settings.height_cm ? feet : null, num(event.target.value))
-            }
-            onBlur={onBlur}
-            className="w-full"
-          />
-        </label>
+    <fieldset className="grid min-w-0 gap-1.5">
+      <legend className="mb-1.5 text-small text-ink-2">Height</legend>
+      <div className="flex gap-3">
+        <SettingNumber
+          id="body-height-ft"
+          label="Feet"
+          unit="ft"
+          inputMode="numeric"
+          value={settings.height_cm ? feet : null}
+          onValue={(value) => set(value, settings.height_cm ? inches : null)}
+          onBlur={onBlur}
+          className="[&_input]:w-[72px]"
+        />
+        <SettingNumber
+          id="body-height-in"
+          label="Inches"
+          unit="in"
+          inputMode="numeric"
+          value={settings.height_cm ? inches : null}
+          onValue={(value) => set(settings.height_cm ? feet : null, value)}
+          onBlur={onBlur}
+          className="[&_input]:w-[72px]"
+        />
       </div>
-    </Field>
+    </fieldset>
   )
 }
