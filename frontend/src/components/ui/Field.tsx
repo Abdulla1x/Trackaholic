@@ -13,28 +13,21 @@ import type { ReactNode } from 'react'
  * DOM everywhere for no accessibility gain -- a wrapping label is already the
  * stronger association, because it cannot go stale.
  *
- * Both variants below have exactly one caller each and are still worth props,
- * because the alternative is a className that loses:
+ * One variant has exactly one caller and is still worth a prop, because the
+ * alternative is a wrapper written out by hand that loses the triple:
  *
  *   `as="div"`  HeightField's feet-and-inches pair. Two inputs cannot share one
  *               label, so the wrapper has to be a div -- but it is the same
  *               triple, with the same label and the same caption.
- *   `size="xs"` FoodLibrarySection's inline edit row. A `text-xs` passed through
- *               className would not reliably win: two font-size utilities
- *               resolve by stylesheet order, not by class attribute order.
+ *
+ * (A `size="xs"` variant went with its one caller, the old food library row.)
  *
  * No prop spread and no ref: not one of the 21 call sites passes anything else.
  * `key` is React's own and never reaches a component as a prop. */
-const textSize = {
-  sm: 'text-sm',
-  xs: 'text-xs',
-} satisfies Record<'sm' | 'xs', string>
-
 export default function Field({
   as,
   label,
   caption,
-  size = 'sm',
   className = '',
   children,
 }: {
@@ -42,13 +35,12 @@ export default function Field({
   label: ReactNode
   /** Rendered under the control. Omit it and no element is emitted. */
   caption?: ReactNode
-  size?: 'sm' | 'xs'
   className?: string
   children: ReactNode
 }) {
   const Tag = as ?? 'label'
   return (
-    <Tag className={['block', textSize[size], className].filter(Boolean).join(' ')}>
+    <Tag className={['block text-sm', className].filter(Boolean).join(' ')}>
       <span className="mb-1 block text-ink-muted">{label}</span>
       {children}
       {caption !== undefined && (
