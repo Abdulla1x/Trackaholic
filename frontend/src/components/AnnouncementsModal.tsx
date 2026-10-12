@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { parseIsoDate } from '../lib/dates'
 import {
   hasEverSeenAnnouncements,
   markAnnouncementsSeen,
   seenAnnouncementIds,
 } from '../lib/dismissals'
 import type { Announcement } from '../types'
-import AnnouncementBody from './AnnouncementBody'
-import Modal from './ui/Modal'
-import Button from './ui/Button'
+import { NoteList } from './AnnouncementBody'
+import { Button } from '@/ui/button'
+import Sheet from '@/ui/sheet'
 import { CONTACT_EMAIL } from '../lib/contact'
-
 
 // Rolling cap, and it has to stay rolling: every session that ships adds a note,
 // so an uncapped modal only ever grows. Measured before capping -- a fresh
@@ -26,7 +24,10 @@ type View =
 /** "What's new", shown once per release note per device.
  *
  * Dismissal is per-id rather than a single "last seen" marker so that adding an
- * older-dated note, or shipping two at once, can't silently skip one. */
+ * older-dated note, or shipping two at once, can't silently skip one.
+ *
+ * Drawn as the one-time popup (DESIGN.md: Sheets and the one-time popup): a
+ * bottom sheet on phones, a 440px dialog in the middle on desktop. */
 export default function AnnouncementsModal({
   items,
   hold = false,
@@ -73,8 +74,6 @@ export default function AnnouncementsModal({
     })
   }, [items, hold, onShownChange])
 
-  if (view.kind === 'hidden') return null
-
   const close = () => {
     // Every unseen id, not only the ones displayed. Marking just the shown three
     // is exactly what turns a cap into a dismiss-three-reload-repeat gauntlet.
@@ -84,57 +83,35 @@ export default function AnnouncementsModal({
     onShownChange?.(false)
   }
 
+  const open = view.kind === 'notes'
+  const shown = open ? view.shown : []
+  const remaining = open ? view.remaining : 0
+
   return (
-    <Modal label="What's new" onClose={close} panelClassName="max-h-[85vh] overflow-y-auto">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">
-          <span aria-hidden="true">✨</span>{' '}
-          What’s new
-        </h2>
-        <button onClick={close} aria-label="Close" className="text-ink-faint hover:text-slate-300">
-          ✕
-        </button>
-      </div>
-
-      <ul className="space-y-4">
-        {view.shown.map((item) => (
-          <li key={item.id} className="rounded-control border border-line bg-slate-800/40 p-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-sm font-semibold text-emerald-300">{item.title}</h3>
-              <time dateTime={item.date} className="shrink-0 text-[11px] text-ink-faint">
-                {parseIsoDate(item.date).toLocaleDateString(undefined, {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                })}
-              </time>
-            </div>
-            <AnnouncementBody text={item.body} />
-          </li>
-        ))}
-      </ul>
-      {view.remaining > 0 && (
-        <p className="mt-3 text-center text-xs text-ink-faint">
-          and {view.remaining} older {view.remaining === 1 ? 'note' : 'notes'} in{' '}
-          <Link to="/whats-new" className="text-emerald-400 underline hover:text-emerald-300">
-            What’s new
-          </Link>
+    <Sheet open={open} onOpenChange={(next) => !next && close()} title="What’s new" desk="center">
+      <div className="grid gap-4 py-2">
+        <NoteList heading="h3" items={shown} />
+        {remaining > 0 && (
+          <p className="text-center text-small text-ink-2">
+            and {remaining} older {remaining === 1 ? 'note' : 'notes'} in{' '}
+            <Link to="/whats-new" onClick={close} className={LINK}>
+              What’s new
+            </Link>
+          </p>
+        )}
+        <Button onClick={close} className="w-full">
+          Got it
+        </Button>
+        <p className="text-center text-small text-ink-2">
+          Found a bug or want something?{' '}
+          <a href={`mailto:${CONTACT_EMAIL}`} className={LINK}>
+            {CONTACT_EMAIL}
+          </a>
         </p>
-      )}
-
-      <Button
-        onClick={close}
-        className="mt-5 w-full px-5 py-2"
-      >
-        Got it
-      </Button>
-
-      <p className="mt-3 text-center text-xs text-ink-faint">
-        Found a bug or want something?{' '}
-        <a href={`mailto:${CONTACT_EMAIL}`} className="text-emerald-400 underline hover:text-emerald-300">
-          {CONTACT_EMAIL}
-        </a>
-      </p>
-    </Modal>
+      </div>
+    </Sheet>
   )
 }
+
+const LINK =
+  'font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'

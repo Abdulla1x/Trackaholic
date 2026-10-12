@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import AnnouncementBody from '../components/AnnouncementBody'
+import { NoteList } from '../components/AnnouncementBody'
+import ScreenBar from '../components/shell/ScreenBar'
 import { useAnnouncements } from '../hooks/useAnnouncements'
-import { parseIsoDate } from '../lib/dates'
+import Block from '@/ui/block'
 
 // useAnnouncements returns null both while the fetch is in flight and when it
 // failed -- it fails silently by design, because everywhere else the notes are
@@ -27,40 +28,25 @@ export default function WhatsNew() {
   const items = announcements?.items ?? []
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">What’s new</h1>
-        <p className="mt-1 text-sm text-ink-faint">
+    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+      <ScreenBar title="What’s new" back="/you" backLabel="Back to You" />
+      <Block>
+        <p className="text-small text-ink-2">
           Every release note, newest first. The pop-up only ever shows the newest few, so this
           is where the rest live.
         </p>
-      </header>
-
-      {announcements === null ? (
-        <p className="text-sm text-ink-faint">
-          {gaveUp ? 'Could not load the release notes just now. Try again later.' : 'Loading…'}
-        </p>
-      ) : items.length === 0 ? (
-        <p className="text-sm text-ink-faint">No release notes yet.</p>
-      ) : (
-        <ul className="space-y-4">
-          {items.map((item) => (
-            <li key={item.id} className="rounded-card border border-line bg-surface p-5">
-              <div className="flex items-baseline justify-between gap-3">
-                <h2 className="text-sm font-semibold text-emerald-300">{item.title}</h2>
-                <time dateTime={item.date} className="shrink-0 text-[11px] text-ink-faint">
-                  {parseIsoDate(item.date).toLocaleDateString(undefined, {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                </time>
-              </div>
-              <AnnouncementBody text={item.body} />
-            </li>
-          ))}
-        </ul>
-      )}
+      </Block>
+      <Block>
+        {announcements === null ? (
+          <p className="text-small text-ink-2">
+            {gaveUp ? 'Could not load the release notes just now. Try again later.' : 'Loading…'}
+          </p>
+        ) : items.length === 0 ? (
+          <p className="text-small text-ink-2">No release notes yet.</p>
+        ) : (
+          <NoteList heading="h2" items={items} />
+        )}
+      </Block>
     </div>
   )
 }
