@@ -12,11 +12,11 @@ export default function WarmupNotice() {
 
   if (state === 'ready') {
     return (
-      <p className="mt-4 text-center text-xs text-ink-faint">
+      <p className="mt-4 text-center text-small text-ink-2">
         {/* Deliberately not "logging in": four logged-out pages share this
             component now, and only one of them is a login. A wording prop would
             reopen exactly the drift this component exists to prevent. */}
-        <span className="text-emerald-500">●</span> Server is awake — this should
+        <span aria-hidden="true" className="text-fact">●</span> Server is awake — this should
         be quick.
       </p>
     )
@@ -36,8 +36,8 @@ export default function WarmupNotice() {
     // instead of picking one. Neither this component nor the user can tell
     // them apart, and pretending otherwise is what sent people away.
     return (
-      <p className="mt-4 text-center text-xs text-ink-faint">
-        <span className="text-amber-500">●</span> The server isn&apos;t
+      <p className="mt-4 text-center text-small text-ink-2">
+        <span aria-hidden="true" className="text-ink">●</span> The server isn&apos;t
         answering. From here an outage and a free instance that will not wake
         look identical, so this is not something to fix on your end — try
         submitting anyway, or come back in a few minutes.
