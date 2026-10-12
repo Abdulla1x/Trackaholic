@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import TrackersSheet from '../components/today/TrackersSheet'
+import YourData from '../components/you/YourData'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import { activityName } from '../lib/activity'
 import { localIsoDate } from '../lib/dates'
@@ -191,6 +192,10 @@ export default function You() {
               label="Appearance"
               detail={settings.show_meal_times ? 'Meal times shown on Today' : 'Meal times hidden on Today'}
             />
+          </Group>
+
+          <Group label="Your data">
+            <YourData />
           </Group>
 
           <Group label="Account">
