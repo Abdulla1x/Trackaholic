@@ -13,17 +13,16 @@ import {
 } from 'recharts'
 import { api } from '../api/client'
 import {
+  activeDot,
   adminHues,
-  axisStroke,
-  axisTick,
   barRadius,
   chartMargin,
-  gridStroke,
+  chartRule,
+  chartTick,
+  chartTooltip,
+  chartTooltipLabel,
   legendStyle,
   shortDate,
-  tooltipLabelStyle,
-  tooltipStyle,
-  activeDot,
 } from '../lib/chartTheme'
 import type {
   AdminStats,
@@ -31,7 +30,8 @@ import type {
   KeepWarmStatus,
   PingSource,
 } from '../types'
-import Card from '../components/ui/Card'
+import Block from '@/ui/block'
+import { Stat, StatGrid } from '@/ui/stat'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 
@@ -102,22 +102,22 @@ function verdictCopy(status: KeepWarmStatus): { dot: string; text: string } {
   switch (status.verdict) {
     case 'warm':
       return {
-        dot: 'text-emerald-500',
+        dot: 'text-fact',
         text: `Awake for longer than the ${spinDown} spin-down, with marked pings still arriving. The scheduler is landing.`,
       }
     case 'warming':
       return {
-        dot: 'text-amber-500',
+        dot: 'text-ink',
         text: `Awake, but not yet past the ${spinDown} spin-down, so this proves nothing either way. Reload in a few minutes.`,
       }
     case 'cold':
-      // Amber, not red, because this state has two causes and the panel cannot
+      // Ink, not an alarm, because this state has two causes and the panel cannot
       // see which: a deploy restarts the process too, and reporting a fresh
       // deploy as a broken scheduler would cry wolf after every single one.
       // Naming both is the honest version — and the second explanation is one
       // the operator can rule out instantly, which is what makes it useful.
       return {
-        dot: 'text-amber-500',
+        dot: 'text-ink',
         text: 'This process started moments ago. Either the server was asleep and opening this page is what woke it — in which case the pings are not landing, so check the cron-job.org job is enabled and its history is not all failures — or it has just been redeployed.',
       }
     case 'awaiting_marked_pings':
@@ -125,17 +125,17 @@ function verdictCopy(status: KeepWarmStatus): { dot: string; text: string } {
       // before anyone edits the cron-job.org URL. Calling that "the scheduler
       // stopped" would be a guaranteed false alarm on its own deploy.
       return {
-        dot: 'text-amber-500',
+        dot: 'text-ink',
         text: 'No ping carrying ?src=keepwarm has arrived since boot. If the cron-job.org job has not been pointed at that URL yet, that is why — until it is, only uptime here means anything.',
       }
     case 'pings_missing':
       return {
-        dot: 'text-rose-400',
+        dot: 'text-ink',
         text: `Marked pings were arriving and have not for ${spinDownMins} minutes. Something else is keeping this up — ordinary traffic, most likely — and it will sleep as soon as that stops.`,
       }
     case 'outside_window':
       return {
-        dot: 'text-ink-faint',
+        dot: 'text-ink-2',
         text: 'Outside the ping window, so sleeping is expected and a cold start here is the intended cost of the free plan.',
       }
   }
@@ -160,12 +160,12 @@ function Fact({
 }) {
   return (
     <div>
-      <dt className="text-xs text-slate-400">{label}</dt>
-      <dd className="mt-0.5 text-sm font-semibold" data-live={label}>
+      <dt className="text-small text-ink-2">{label}</dt>
+      <dd className="mt-0.5 font-semibold" data-live={label}>
         {value}
       </dd>
       {note !== undefined && (
-        <dd className="text-xs text-ink-faint" data-live={`${label} note`}>
+        <dd className="text-small text-ink-2" data-live={`${label} note`}>
           {note}
         </dd>
       )}
@@ -201,18 +201,17 @@ function KeepWarmCard({ status }: { status: KeepWarmStatus }) {
   // runs against an API that predates the field.
   const sources = status.ping_sources ?? []
   return (
-    <Card as="section">
-      <h2 className="text-sm font-semibold">Keep-warm</h2>
-      <p className="mb-3 text-xs text-slate-400">
+    <Block label="Keep-warm">
+      <p className="text-small text-ink-2">
         Whether the free instance is actually being kept awake. Held in
         the API process's memory, so every figure here resets when it
         sleeps — which is the point: a long uptime is itself the proof.
       </p>
-      <p className="text-sm">
-        <span className={verdict.dot}>●</span>{' '}
+      <p>
+        <span aria-hidden="true" className={verdict.dot}>●</span>{' '}
         <span data-live="verdict">{verdict.text}</span>
       </p>
-      <dl className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Fact
           label="Up"
           value={duration(status.uptime_seconds)}
@@ -246,14 +245,14 @@ function KeepWarmCard({ status }: { status: KeepWarmStatus }) {
         />
       </dl>
       {sources.length > 0 && (
-        <dl className="mt-4 space-y-1 text-xs">
+        <dl className="grid gap-1 text-small">
           {sources.map((row) => (
             <div key={row.source} className="flex items-baseline gap-2">
-              <dt className="text-ink-muted">
+              <dt className="text-ink">
                 <code>?src={row.source}</code>
               </dt>
               <dd
-                className="text-slate-400"
+                className="text-ink-2"
                 data-live={`${row.source} pings`}
               >
                 {lastPingLabel(row)}
@@ -262,9 +261,9 @@ function KeepWarmCard({ status }: { status: KeepWarmStatus }) {
           ))}
         </dl>
       )}
-      <p className="mt-3 text-xs text-ink-faint">
+      <p className="text-small text-ink-2">
         Only pings carrying a recognised{' '}
-        <code className="text-ink-muted">?src=</code> marker are counted above.
+        <code className="text-ink">?src=</code> marker are counted above.
         Render&apos;s own monitor hits the bare route roughly every four seconds
         and has done so{' '}
         <span data-live="total checks">
@@ -273,7 +272,7 @@ function KeepWarmCard({ status }: { status: KeepWarmStatus }) {
         times since boot — counting those as keep-warm pings is what made this
         panel&apos;s first version unable to detect anything at all.
       </p>
-      <p className="mt-2 text-xs text-ink-faint">
+      <p className="text-small text-ink-2">
         The window above is what this repository records; the schedules
         themselves live at cron-job.org and in the home machine&apos;s crontab,
         and those are the things to edit. Two pingers because one stopped being
@@ -282,7 +281,7 @@ function KeepWarmCard({ status }: { status: KeepWarmStatus }) {
         wakes the service. If one row above is counting and the other is not,
         that is the answer.
       </p>
-    </Card>
+    </Block>
   )
 }
 
@@ -306,15 +305,14 @@ function AILatencyCard({ stats }: { stats: AdminStats }) {
   // the entire admin page with the error boundary. Caught exactly that way.
   const kinds = Object.entries(stats.ai_latency_30d_by_kind ?? {})
   return (
-    <Card as="section">
-      <h2 className="text-sm font-semibold">AI latency</h2>
-      <p className="mb-3 text-xs text-slate-400">
+    <Block label="AI latency">
+      <p className="text-small text-ink-2">
         How long the provider took, over the last {stats.window_days} days.
         Median and 95th percentile, nearest-rank — every figure is a call that
         really happened, never an interpolation between two that did.
       </p>
       {kinds.length === 0 ? (
-        <p className="text-sm text-ink-muted" data-live="latency empty">
+        <p className="text-small text-ink-2" data-live="latency empty">
           No timed calls yet — every provider call from this deploy onward
           records one.
         </p>
@@ -335,7 +333,7 @@ function AILatencyCard({ stats }: { stats: AdminStats }) {
           />
         </dl>
       )}
-      <p className="mt-3 text-xs text-ink-faint">
+      <p className="text-small text-ink-2">
         These durations time the provider call and its retries, and nothing
         else. They cannot contain the free instance&apos;s cold start, which
         finishes before the request is handled, nor the upload, which arrives
@@ -343,7 +341,7 @@ function AILatencyCard({ stats }: { stats: AdminStats }) {
         difference is one of those two. The cold-server count is where the first
         of them shows up.
       </p>
-    </Card>
+    </Block>
   )
 }
 
@@ -378,9 +376,8 @@ function FunnelCard({ stats }: { stats: AdminStats }) {
   const d30Cohorts = retention?.d30_cohorts ?? 0
 
   return (
-    <Card as="section">
-      <h2 className="text-sm font-semibold">Funnel</h2>
-      <dl className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <Block label="Funnel">
+      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Fact label="Accounts" value={String(total)} />
         <Fact
           label="Logged a meal"
@@ -405,8 +402,8 @@ function FunnelCard({ stats }: { stats: AdminStats }) {
         />
       </dl>
 
-      <h3 className="mt-5 text-xs font-semibold text-slate-400">Retention</h3>
-      <dl className="mt-2 grid grid-cols-2 gap-4">
+      <h3 className="mt-3 text-field-label text-ink-2">Retention</h3>
+      <dl className="grid grid-cols-2 gap-4">
         <Fact
           label={`D${retention?.d7_window_days ?? 7}`}
           value={d7Cohorts === 0 ? 'Not measurable yet' : `${d7}%`}
@@ -426,7 +423,7 @@ function FunnelCard({ stats }: { stats: AdminStats }) {
           }
         />
       </dl>
-      <p className="mt-3 text-xs text-ink-faint">
+      <p className="text-small text-ink-2">
         Retention is the one figure on this page that is <em>not</em> derived
         from live rows. Everything else here recounts the accounts that exist
         right now, so deleting one rewrites the past — which would make
@@ -434,7 +431,7 @@ function FunnelCard({ stats }: { stats: AdminStats }) {
         daily snapshots instead, and a cohort still inside its window counts as
         nothing rather than as zero.
       </p>
-    </Card>
+    </Block>
   )
 }
 
@@ -452,9 +449,8 @@ function ReachCard({ stats }: { stats: AdminStats }) {
   const totalSignups = (hours?.by_hour ?? []).reduce((sum, n) => sum + n, 0)
 
   return (
-    <Card as="section">
-      <h2 className="text-sm font-semibold">Reach</h2>
-      <dl className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
+    <Block label="Reach">
+      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <Fact
           label="Signed up while asleep"
           value={`${outside} of ${totalSignups}`}
@@ -476,16 +472,16 @@ function ReachCard({ stats }: { stats: AdminStats }) {
         />
       </dl>
 
-      <h3 className="mt-5 text-xs font-semibold text-slate-400">
+      <h3 className="mt-3 text-field-label text-ink-2">
         Ever used, by account
       </h3>
       {adopted.length === 0 ? (
-        <p className="mt-2 text-xs text-ink-faint">No adoption data yet.</p>
+        <p className="text-small text-ink-2">No adoption data yet.</p>
       ) : (
-        <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
           {adopted.map(([feature, count]) => (
-            <li key={feature} className="flex justify-between text-xs">
-              <span className="text-slate-400">{feature.replace(/_/g, ' ')}</span>
+            <li key={feature} className="flex justify-between text-small">
+              <span className="text-ink-2">{feature.replace(/_/g, ' ')}</span>
               <span className="font-semibold" data-live={`adoption ${feature}`}>
                 {count}
               </span>
@@ -493,12 +489,12 @@ function ReachCard({ stats }: { stats: AdminStats }) {
           ))}
         </ul>
       )}
-      <p className="mt-3 text-xs text-ink-faint">
+      <p className="text-small text-ink-2">
         Distinct accounts that have <em>ever</em> used each feature, so one
         enthusiast cannot make a feature look adopted. Worth as much for what it
         says to remove as for what it says to build.
       </p>
-    </Card>
+    </Block>
   )
 }
 
@@ -555,47 +551,47 @@ export default function Admin() {
     : []
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">Admin</h1>
-        <p className="text-sm text-slate-400">
+    <div className="grid grid-cols-[minmax(0,1fr)]">
+      <header className="grid gap-1 border-b border-rule pb-3.5">
+        <h1 className="text-[20px] leading-tight font-bold [font-stretch:105%]">Admin</h1>
+        <p className="text-small text-ink-2">
           Usage metrics only — no meal, food or weight content is shown here or
           sent by the API.
         </p>
       </header>
 
       {error && (
-        <div className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+        <p className="mt-3.5 border-l-2 border-ink pl-3 text-small">
           {error}{' '}
-          <button onClick={load} className="underline hover:text-rose-200">
+          <button type="button" onClick={load} className="font-semibold text-action underline underline-offset-3">
             Retry
           </button>
-        </div>
+        </p>
       )}
 
       {loading && !stats && (
-        <p className="text-sm text-ink-faint">Loading…</p>
+        <p className="py-3.5 text-small text-ink-2">Loading…</p>
       )}
 
       {stats && (
         <>
-          <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {tiles.map((tile) => (
-              <Card pad="sm" key={tile.label}>
-                <p className="text-xs text-slate-400">{tile.label}</p>
-                <p className="mt-1 text-xl font-bold">{tile.value}</p>
-              </Card>
-            ))}
-          </section>
+          <Block>
+            <StatGrid>
+              {tiles.map((tile) => (
+                <Stat key={tile.label} label={tile.label}>
+                  {tile.value}
+                </Stat>
+              ))}
+            </StatGrid>
+          </Block>
 
           <FunnelCard stats={stats} />
           <ReachCard stats={stats} />
           {keepWarm && <KeepWarmCard status={keepWarm} />}
           <AILatencyCard stats={stats} />
 
-          <Card as="section">
-            <h2 className="text-sm font-semibold">Accounts per day</h2>
-            <p className="mb-3 text-xs text-slate-400">
+          <Block label="Accounts per day">
+            <p className="text-small text-ink-2">
               Last {stats.window_days} days · {plural(stats.signups_30d, 'signup')}{' '}
               · {plural(stats.active_30d, 'account')} active at least once
             </p>
@@ -612,17 +608,17 @@ export default function Admin() {
                 }))}
                 margin={chartMargin}
               >
-                <CartesianGrid stroke={gridStroke} vertical={false} />
+                <CartesianGrid stroke={chartRule} vertical={false} />
                 <XAxis
                   dataKey="date"
-                  tick={axisTick}
+                  tick={chartTick}
                   tickFormatter={shortDate}
-                  stroke={axisStroke}
+                  stroke={chartRule}
                 />
-                <YAxis tick={axisTick} stroke={axisStroke} allowDecimals={false} />
+                <YAxis tick={chartTick} stroke={chartRule} allowDecimals={false} />
                 <Tooltip
-                  contentStyle={tooltipStyle}
-                  labelStyle={tooltipLabelStyle}
+                  contentStyle={chartTooltip}
+                  labelStyle={chartTooltipLabel}
                 />
                 <Legend wrapperStyle={legendStyle} />
                 {/* Signups are discrete events, so they get bars; "active" is
@@ -648,11 +644,10 @@ export default function Admin() {
                 />
               </ComposedChart>
             </ResponsiveContainer>
-          </Card>
+          </Block>
 
-          <Card as="section">
-            <h2 className="text-sm font-semibold">Meals logged per day</h2>
-            <p className="mb-3 text-xs text-slate-400">
+          <Block label="Meals logged per day">
+            <p className="text-small text-ink-2">
               Counted on the day the meal was entered, not the day it was eaten.
             </p>
             {/* One series, so no legend — the heading names it. */}
@@ -661,17 +656,17 @@ export default function Admin() {
                 data={stats.activity}
                 margin={chartMargin}
               >
-                <CartesianGrid stroke={gridStroke} vertical={false} />
+                <CartesianGrid stroke={chartRule} vertical={false} />
                 <XAxis
                   dataKey="date"
-                  tick={axisTick}
+                  tick={chartTick}
                   tickFormatter={shortDate}
-                  stroke={axisStroke}
+                  stroke={chartRule}
                 />
-                <YAxis tick={axisTick} stroke={axisStroke} allowDecimals={false} />
+                <YAxis tick={chartTick} stroke={chartRule} allowDecimals={false} />
                 <Tooltip
-                  contentStyle={tooltipStyle}
-                  labelStyle={tooltipLabelStyle}
+                  contentStyle={chartTooltip}
+                  labelStyle={chartTooltipLabel}
                 />
                 <Bar
                   name="Meals"
@@ -682,14 +677,11 @@ export default function Admin() {
                 />
               </BarChart>
             </ResponsiveContainer>
-          </Card>
+          </Block>
 
-          <Card as="section">
-            <h2 className="mb-3 text-sm font-semibold">
-              Accounts <span className="text-ink-faint">({users.length})</span>
-            </h2>
+          <Block label="Accounts" value={users.length}>
             {users.length === 0 ? (
-              <p className="py-6 text-center text-sm text-ink-faint">
+              <p className="py-6 text-center text-small text-ink-2">
                 No accounts yet.
               </p>
             ) : (
@@ -699,8 +691,8 @@ export default function Admin() {
                 role="region"
                 aria-label="Accounts, scrollable"
               >
-                <table className="w-full text-left text-sm">
-                  <thead className="text-xs text-slate-400">
+                <table className="w-full text-left text-small">
+                  <thead className="text-small text-ink-2">
                     <tr>
                       <th scope="col" className="pb-2 pr-4 font-medium">Email</th>
                       <th scope="col" className="pb-2 pr-4 font-medium">Joined</th>
@@ -715,49 +707,29 @@ export default function Admin() {
                       {/* The daily trackers. Counts only, never contents — a
                           supplement name can disclose a prescription, and a
                           plan's date discloses a calendar, so these columns say
-                          how many and never which.
-
-                          ⚠ The visible word IS the accessible name, and that is
-                          the whole point of it. A cell's CONTENTS are its
-                          accessible name whenever they are non-empty, so when
-                          these were an emoji plus a `title` each announced as
-                          its emoji and the title was never read — which is why
-                          the title was removed and an sr-only span used
-                          instead. axe could not catch either version: an emoji
-                          is a non-empty name.
-
-                          The sr-only span is now redundant and gone: the label
-                          is on screen, so a sighted reader stops having to
-                          guess what 💊 counts, and a screen reader reads the
-                          same word rather than a parallel one that could drift
-                          out of step with it. The icon is aria-hidden so it is
-                          decoration on both sides. This fits because /admin is
-                          the one genuinely desktop-only route and now takes the
-                          width — see Layout.tsx. */}
+                          how many and never which. The word is the header and
+                          its accessible name; the emoji that sat beside it
+                          went with the slate colours. */}
                       <th scope="col" className="pb-2 pr-4 text-right font-medium">
-                        <span aria-hidden="true">💧</span>{' '}
-                        <span>Water</span>
+                        Water
                       </th>
                       <th scope="col" className="pb-2 pr-4 text-right font-medium">
-                        <span aria-hidden="true">👟</span>{' '}
-                        <span>Step days</span>
+                        Step days
                       </th>
                       <th scope="col" className="pb-2 pr-4 text-right font-medium">
-                        <span aria-hidden="true">💊</span>{' '}
-                        <span>Doses</span>
+                        Doses
                       </th>
                       <th scope="col" className="pb-2 pr-4 text-right font-medium">
-                        <span aria-hidden="true">📅</span>{' '}
-                        <span>Plan days</span>
+                        Plan days
                       </th>
                       <th scope="col" className="pb-2 text-right font-medium">AI</th>
                     </tr>
                   </thead>
                   <tbody>
                     {users.map((row) => (
-                      <tr key={row.id} className="border-t border-slate-800">
+                      <tr key={row.id} className="border-t border-rule">
                         <td className="py-2 pr-4">{row.email}</td>
-                        <td className="py-2 pr-4 text-slate-400">
+                        <td className="py-2 pr-4 text-ink-2">
                           {row.created_at.slice(0, 10)}
                         </td>
                         {/* Seen before active, deliberately: read left to
@@ -766,10 +738,10 @@ export default function Admin() {
                             logs — an onboarding failure. Neither is a bounce.
                             Until 2026-09-10 only the second column existed and
                             the two were indistinguishable. */}
-                        <td className="py-2 pr-4 text-slate-400">
+                        <td className="py-2 pr-4 text-ink-2">
                           {relativeDay(row.last_seen_at ?? null)}
                         </td>
-                        <td className="py-2 pr-4 text-slate-400">
+                        <td className="py-2 pr-4 text-ink-2">
                           {relativeDay(row.last_active_at)}
                         </td>
                         <td className="py-2 pr-4 text-right">{row.meals}</td>
@@ -792,7 +764,7 @@ export default function Admin() {
                 </table>
               </div>
             )}
-          </Card>
+          </Block>
 
           {/* ⚠️ Without this, the day after deploy reads as an alarm. Every
               account that existed before the column shipped has an empty
@@ -801,14 +773,14 @@ export default function Admin() {
               anything requires an authenticated request and that is what sets
               it. The cells fill themselves in as people return. Saying so is
               cheaper than the fifteen minutes spent wondering. */}
-          <p className="text-xs text-ink-faint">
+          <p className="pt-3.5 text-small text-ink-2">
             "Last seen" only starts recording from the deploy that added it, so
             an account that has not visited since then shows{' '}
             <span className="font-medium">Never</span> even where "Last active"
             does not. It fills itself in on that account's next visit.
           </p>
 
-          <p className="text-xs text-ink-faint">
+          <p className="pt-2 text-small text-ink-2">
             AI calls today: {stats.ai_calls_today} of{' '}
             {stats.ai_global_daily_limit} ({aiShare}% of the global cap).
             {Object.entries(stats.ai_calls_30d_by_kind).length > 0 && (
