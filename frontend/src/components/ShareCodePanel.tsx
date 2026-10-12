@@ -28,8 +28,8 @@ export default function ShareCodePanel({
   const [copied, setCopied] = useState(false)
   const box = useRef<HTMLDivElement>(null)
 
-  // The triggers are a meal row on the dashboard or a saved-meal row in
-  // Settings -> Library, either of which can be well away from here. Without
+  // The triggers are a meal's screen or a saved meal's sheet on You, either
+  // of which can be well away from here. Without
   // this the panel opens off-screen and the tap reads as having done nothing.
   useEffect(() => {
     box.current?.scrollIntoView({ block: 'nearest' })

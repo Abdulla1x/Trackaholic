@@ -12,7 +12,7 @@
 //   from "typed something that is not a number". Both return null, but only
 //   after the blank case has been ruled out.
 //
-// The goal fields in Settings deliberately still use a bare Number(): they are
+// The goal fields on You deliberately still use a bare Number(): they are
 // NOT NULL columns with a real default, so there is no null to represent.
 export const num = (value: string) => {
   if (value.trim() === '') return null

@@ -377,8 +377,8 @@ export const api = {
       body: JSON.stringify({ code }),
     }),
 
-  // The whole library, unbounded and sorted by name -- what the Settings
-  // editor lists. searchFoods below is the autocomplete's query and caps at 10,
+  // The whole library, unbounded and sorted by name -- what the food library
+  // on You lists. searchFoods below is the autocomplete's query and caps at 10,
   // which is right for a dropdown and wrong for "show me everything I have".
   getFoods: () => request<Food[]>('/api/foods'),
   searchFoods: (q: string) =>
@@ -508,7 +508,7 @@ export const api = {
     })
   },
 
-  // The management list, paused ones included — the Settings editor is the
+  // The management list, paused ones included — the Supplements screen on You is the
   // only place a paused supplement can be brought back.
   getSupplements: () => request<Supplement[]>('/api/supplements'),
   createSupplement: (body: Omit<Supplement, 'id' | 'created_at'>) =>

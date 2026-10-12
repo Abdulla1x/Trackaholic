@@ -239,6 +239,7 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 
 ### Sheets and the one-time popup
 - **Sheet:** the Log panel's look and motion sized to its content: a bottom sheet up to 92% on phones, a 480px panel from the right on desktop. "Add or remove trackers" uses it: the weigh-in first, marked On, then each tracker with Add (secondary) or Remove (ghost), saved as pressed.
+- **Item sheet (You):** tapping a supplement, food or saved meal opens a sheet titled with its name: its fields and Save, then its other actions, which save straight away (Pause or Resume, Per 100 g, Share), with one line saying what they do, then Delete. "Add a supplement" or "Add a food" opens the same sheet empty, with no Delete. Delete asks in a dialog rendered **inside** the sheet, because a dialog outside the sheet's tree counts as a tap outside and closes the sheet under the question. Closing the sheet forgets what was typed. Chosen from a prototype over a pushed screen per item and over expanding the row in place: the list stays where it was underneath, and there is no third level to go back through.
 - **The new Trackaholic:** the same sheet as a 440px centred dialog on desktop, asked once of an account from before trackers were chosen, with its current cards ticked and Save / Keep as is. It waits until release notes are closed.
 
 ### Gauges and meters
@@ -277,6 +278,23 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - **Rows:** at least 52px tall, with a chevron when they open something. Hairline rules between rows.
 - **Meal rows:** time (13px, ink 2) · name and detail · kcal (row number), 56px minimum. The time is when the meal was **logged** (no time of eating is recorded), so it shows only beside a meal logged on the day it was eaten, and can be switched off; a list where no row has one carries no time column. Tapping one opens the meal screen (Edit, Log it again, Share as a code, Keep as a saved meal, Delete).
 
+### You
+- **One page of rows**, grouped from daily to rare under block labels: Goals and body · Trackers · Food · Appearance · Your data · Account · Help. The account's email sits under the title.
+- **A row's detail is its current value** ("2,500 ml a day, from your weight · +250 +500 +750", "Off", "48 foods · 1 possible duplicate"), so most visits end on the page. A row that opens a screen has a chevron. A row that acts on tap (Export meals, Import meals, Download all my data, Log out) has none.
+- **Units is answered on the page**: two radio chips, saved on tap.
+- **Each row opens its own screen** with its own address (/you/water, /you/password), in the Settings-type column: the back arrow to You, the title in the middle, the form in blocks, and the Save bar at the bottom when something waits.
+- **What an action did stays in its row**: an import's counts replace the Import row's detail ("Imported 12 meals. 2 were already here.") until you leave the page.
+
+### Save bar
+- **What waits for it:** typed numbers, and the choices on the same form (water's "From my weight" / "My own"). Switches and chips that stand alone save on tap, so the bar appearing is itself the sign that something is still waiting.
+- **Look:** pinned to the bottom of the screen just above the tab bar (the bottom of the column on desktop), field ground, a hairline along the top. "Unsaved changes" on the left, or the problem in its place, in ink; then Undo (ghost) and Save (primary), which reads "Saving…" while it works. A "Saved" toast follows.
+- **One draft per screen.** Leaving a screen with changes, by the back arrow, a tab or the phone's back button, asks "Leave without saving?" (Stay / Leave without saving). A reload gets the browser's own prompt. The draft holds only your edits, so a switch saved on the same screen never overwrites a number still being typed.
+- **Change password** uses the same bar and the same question over its three boxes. The new password is typed twice while password reset is off, because a typo would lock the account for good.
+
+### Switches
+- **Square, not a pill** (Shapes): 44 × 26 with a 5px radius and a 1.5px border, and a 17px square thumb 3px from every edge. Off: rule border on the field ground, ink-2 thumb. On: ink fill, ground-coloured thumb.
+- **The whole row is the target**: the label and an optional detail on the left, the switch on the right. It saves on tap, so it never raises the Save bar.
+
 ### Inputs
 - **Style:** field ground, 1.5px rule border, 5px radius, 44px tall. Number inputs use the condensed bold number face.
 - **Focus:** the border turns the action colour; keyboard focus also shows a 2px action-colour outline.
@@ -286,6 +304,8 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - **Side rail (desktop):** the wordmark, the Log button, then the tabs. The current tab has a 3px ink bar on its left and a filled icon.
 
 ### Delete and Undo
+- **Deleting an account is plain ink, not red** (the No Red Rule; the words carry the weight). Its own screen (/you/delete) shows the bold warning, then "Want a copy first? Download all my data", then the password box and a **secondary** "Delete my account" button, disabled until the box has something in it. The button asks once more in a dialog before anything is deleted.
+- **Every other delete asks in a dialog too** (a supplement, a food, a saved meal, from its sheet), with Cancel as the filled, safe choice and the delete as the ghost button. Log out asks the same way ("Log out? Your data stays on your account.").
 - Deleting a meal returns to Today and leaves a struck-through line in its place, with an **Undo** button and a thin bar along the bottom that drains over **10 seconds**. Then the line folds away and the deletion is final. Undo puts the meal back where it was.
 
 ### AI estimate (Log panel)
@@ -298,6 +318,7 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 
 ### Toasts
 - Ink ground, ground-coloured text, 8px radius, above the tab bar on phones and bottom-right on desktop. They last 5 seconds and have a close button. One optional action ("View").
+- **A toast is never the only place.** Anything you might need to read again (an import's counts, a step history's result, a failure) is also written on the screen where it happened. The toast only confirms.
 
 ### Skeletons
 - Track-coloured blocks with a slow shimmer, shown for at least 650 ms on first load of a data screen, standing where the content will land. No spinners in content. Under reduced motion the shimmer stops and the blocks simply sit there.
@@ -434,6 +455,8 @@ Wry, in small doses. Humour lives in quiet, good moments. Errors, going over a t
 | Over the calorie target (plain) | Over is fine. The week evens out. Spread it across the next few days if you like. |
 | A save fails (plain) | That didn't save. Check your connection, then try again. |
 | Deleting an account (plain) | This deletes everything: meals, weigh-ins, foods. It can't be undone. |
+| Logging out (plain) | Log out? Your data stays on your account. |
+| Importing meals again (plain) | No new meals. 2 were already here. |
 
 ## Themes and palettes
 
