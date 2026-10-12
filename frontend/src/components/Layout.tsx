@@ -118,7 +118,7 @@ export default function Layout() {
           {coldStart && (
             <WakingNotice
               startedAt={waitStartedAt.current}
-              className="mb-4 rounded-control bg-surface px-3 py-2 text-center text-xs text-ink-muted"
+              className="mb-4 rounded-control bg-field px-3 py-2 text-center text-small text-ink-2"
             />
           )}
           {/* The page's entrance (DESIGN.md Motion): a pushed screen slides in

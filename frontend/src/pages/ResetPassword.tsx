@@ -2,13 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
-import StatusBanner from '../components/StatusBanner'
-import WarmupNotice from '../components/WarmupNotice'
-import { useAnnouncements } from '../hooks/useAnnouncements'
-import Card from '../components/ui/Card'
-import TextInput from '../components/ui/TextInput'
-import Field from '../components/ui/Field'
-import Button from '../components/ui/Button'
+import AuthFrame, { AUTH_LINK, AUTH_NOTE, AUTH_TITLE, AuthField } from '../components/auth/AuthFrame'
+import { Button } from '@/ui/button'
+import { FIELD } from '@/ui/field'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 export default function ResetPassword() {
@@ -26,7 +22,6 @@ export default function ResetPassword() {
   const [error, setError] = useState<string | null>(null)
   useLiveMessage(error)
   const [submitting, setSubmitting] = useState(false)
-  const announcements = useAnnouncements()
 
   useEffect(() => {
     // Take the token out of the address bar and the back-history entry. The
@@ -68,66 +63,52 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center justify-center gap-2">
-          <img src="/favicon.svg" alt="" className="size-8 rounded-[5px]" />
-          <h1 className="text-xl font-bold tracking-tight">Trackaholic</h1>
-        </div>
-        <StatusBanner banner={announcements?.banner ?? null} />
-        {token ? (
-          <Card as="form" pad="lg" className="space-y-4" onSubmit={handleSubmit}>
-            <h2 className="text-lg font-semibold">Choose a new password</h2>
-            <Field label="New password" caption="At least 8 characters.">
-              <TextInput size="md"
-                type="password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full"
-              />
-            </Field>
-            <Field label="Confirm password">
-              <TextInput size="md"
-                type="password"
-                required
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className="w-full"
-              />
-            </Field>
-            {error && <p className="text-sm text-rose-400">{error}</p>}
-            <Button
-              type="submit"
-              disabled={submitting}
-              className="w-full px-5 py-2"
-            >
-              {submitting ? 'Saving…' : 'Set new password'}
-            </Button>
-          </Card>
-        ) : (
-          <Card pad="lg" className="space-y-3 text-sm">
-            <h2 className="text-lg font-semibold">That link is incomplete</h2>
-            <p className="text-slate-400">
-              This page needs the link from your reset email. Some mail apps cut
-              long links in half — try copying the whole thing, or request a new
-              one.
-            </p>
-            <p className="text-center">
-              <Link
-                to="/forgot-password"
-                className="text-emerald-400 underline hover:text-emerald-300"
-              >
-                Request a new link
-              </Link>
-            </p>
-          </Card>
-        )}
-        <WarmupNotice />
-      </div>
-    </div>
+    <AuthFrame>
+      {token ? (
+        <form className="grid gap-3.5" onSubmit={handleSubmit}>
+          <h1 className={AUTH_TITLE}>Choose a new password</h1>
+          <AuthField label="New password">
+            <input
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={FIELD}
+            />
+            <span className="text-small text-ink-2">At least 8 characters.</span>
+          </AuthField>
+          <AuthField label="Confirm password">
+            <input
+              type="password"
+              required
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className={FIELD}
+            />
+          </AuthField>
+          {error && <p className={AUTH_NOTE}>{error}</p>}
+          <Button type="submit" disabled={submitting} className="w-full">
+            {submitting ? 'Saving…' : 'Set new password'}
+          </Button>
+        </form>
+      ) : (
+        <section className="grid gap-3 text-small">
+          <h1 className={AUTH_TITLE}>That link is incomplete</h1>
+          <p className="text-ink-2">
+            This page needs the link from your reset email. Some mail apps cut
+            long links in half — try copying the whole thing, or request a new
+            one.
+          </p>
+          <p className="text-center">
+            <Link to="/forgot-password" className={AUTH_LINK}>
+              Request a new link
+            </Link>
+          </p>
+        </section>
+      )}
+    </AuthFrame>
   )
 }

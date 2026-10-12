@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import Card from './ui/Card'
+import { Button } from '@/ui/button'
 
 /** The last thing between a thrown render error and a blank white page.
  *
@@ -51,30 +51,29 @@ export default class ErrorBoundary extends Component<Props, State> {
  * would land on React Router's built-in developer page instead of this one. */
 export function CrashScreen({ error }: { error: unknown }) {
   const message = (error instanceof Error && error.message) || String(error)
+  // bg-ground and text-ink: this can render outside everything else, so it
+  // sets its own colours rather than trusting the page behind it.
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-slate-100">
-      <Card pad="lg" className="w-full max-w-md">
-        <h1 className="text-lg font-semibold">Something broke on this page</h1>
-        <p className="mt-3 text-sm text-slate-300">
+    <div className="grid min-h-dvh place-items-center bg-ground p-6 text-ink">
+      <section className="grid w-full max-w-md gap-3">
+        <h1 className="text-[20px] leading-tight font-bold [font-stretch:105%]">Something broke on this page</h1>
+        <p className="text-small">
           Not your data — that is safe on the server. This is the app failing
           to draw itself, and reloading usually clears it.
         </p>
-        <p className="mt-3 text-sm text-slate-300">
+        <p className="text-small">
           If it keeps happening, one known cause is a browser set to block
           site data. Allowing it for this site, or leaving private browsing,
           fixes that particular case.
         </p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-5 w-full rounded-lg bg-amber-500 px-4 py-2 font-semibold text-slate-950 hover:bg-amber-400"
-        >
+        <Button onClick={() => window.location.reload()} className="mt-2 w-full">
           Reload
-        </button>
+        </Button>
         {/* The message itself, not a friendly paraphrase: it is the only
             thing that makes a bug report actionable, and hiding it helps
             nobody who is already looking at a broken page. */}
-        <p className="mt-4 break-words text-xs text-slate-400">{message}</p>
-      </Card>
+        <p className="mt-1 break-words text-small text-ink-2">{message}</p>
+      </section>
     </div>
   )
 }
