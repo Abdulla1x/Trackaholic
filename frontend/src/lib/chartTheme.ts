@@ -57,8 +57,12 @@ export const chartTooltip = {
 }
 export const chartTooltipLabel = { color: chartInk2, marginBottom: 2 }
 
-/** Room for four-digit y labels at the left, nothing wasted elsewhere. */
-export const progressMargin = { top: 8, right: 4, bottom: 0, left: -8 }
+/** No negative left margin: Progress's y-axes size themselves to their
+ *  labels (`width="auto"`), so the labels start at the chart's own edge. A
+ *  margin that pushed them past it only looked right while nothing clipped
+ *  them; Label's boxed sections do, and its wider font lost the first digit
+ *  of "2,800". */
+export const progressMargin = { top: 8, right: 4, bottom: 0, left: 0 }
 
 /** The dot that appears under the cursor, ringed in the ground colour so it
  *  reads as raised rather than as an extra data point. */
