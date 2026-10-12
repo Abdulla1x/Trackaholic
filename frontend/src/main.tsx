@@ -8,6 +8,7 @@ import '@fontsource-variable/mona-sans/wdth.css'
 import '@fontsource-variable/libre-franklin/wght.css'
 import './index.css'
 import App from './App.tsx'
+import { AppearanceProvider } from './appearance/AppearanceContext'
 import { AuthProvider } from './auth/AuthContext'
 import ErrorBoundary from './components/ErrorBoundary'
 
@@ -31,9 +32,13 @@ createRoot(document.getElementById('root')!).render(
       {/* The router itself is created in App.tsx (a data router, for
           useBlocker). AuthProvider sits outside it: it uses no router hooks,
           and RequireAuth inside the tree does the redirecting. */}
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      {/* Outside AuthProvider too: the theme belongs to the device, and the
+          sign-in screens follow it as well. */}
+      <AppearanceProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </AppearanceProvider>
     </ErrorBoundary>
   </StrictMode>,
 )
