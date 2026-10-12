@@ -56,6 +56,15 @@
 //   SEED_DAYS     days of data to seed (default 14)
 //   SEED_TEMPLATES saved meals to seed  (default 8)
 //   SEED_FOODS    library foods to seed (default 8)
+//   THEME         auto | light | dark  (default: unset, so the app's own
+//                                       default, Automatic, which a headless
+//                                       browser resolves to light)
+//   PALETTE       daylight | ocean | teal | citrus | violet | berry | clay |
+//                 sand | ember        (default: unset, Daylight)
+//   STYLE         fields | label      (default: unset, Fields)
+//                 Any of the three is stored as this device's appearance
+//                 before each page loads, so public/theme-init.js paints it
+//                 from the first frame, exactly as a real choice would.
 
 import { readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -76,6 +85,27 @@ export const SEED_TEMPLATES = Number(process.env.SEED_TEMPLATES ?? 8)
 // compared. The fourth hole of this exact shape. Eight is more than
 // COLLAPSED_ROWS, so the rows and the control that expands them are both covered.
 export const SEED_FOODS = Number(process.env.SEED_FOODS ?? 8)
+
+/** The appearance to run in, as the app stores it, or null to leave the
+ *  device's storage empty. Values are passed through unchecked on purpose:
+ *  junk should load as the defaults, and a run can show that it does. */
+export const APPEARANCE =
+  process.env.THEME || process.env.PALETTE || process.env.STYLE
+    ? JSON.stringify({
+        theme: process.env.THEME ?? 'auto',
+        palette: process.env.PALETTE ?? 'daylight',
+        style: process.env.STYLE ?? 'fields',
+      })
+    : null
+
+/** A browser context with APPEARANCE stored before every load. */
+async function newContext(browser, viewport) {
+  const context = await browser.newContext({ viewport })
+  if (APPEARANCE) {
+    await context.addInitScript((value) => localStorage.setItem('trackaholic_appearance', value), APPEARANCE)
+  }
+  return context
+}
 
 /** The seeded library, as real foods rather than a counter.
  *
@@ -542,6 +572,7 @@ export async function visitRoutes(context, routes, onRoute) {
 export async function openSession({ log = console.log } = {}) {
   const { token, fresh } = await authenticate()
   log(`account ${EMAIL} (${fresh ? 'created' : 'existing'})`)
+  log(`appearance ${APPEARANCE ?? 'not stored (the app default)'}`)
   if (fresh) {
     await seed(token)
     log(
@@ -561,9 +592,9 @@ export async function openSession({ log = console.log } = {}) {
     browser,
     token,
     fresh,
-    anonymousContext: (viewport) => browser.newContext({ viewport }),
+    anonymousContext: (viewport) => newContext(browser, viewport),
     authedContext: async (viewport) => {
-      const context = await browser.newContext({ viewport })
+      const context = await newContext(browser, viewport)
       await context.addInitScript(
         ([sessionToken, ids]) => {
           localStorage.setItem('macros_token', sessionToken)
