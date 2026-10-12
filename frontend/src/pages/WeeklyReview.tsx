@@ -5,7 +5,7 @@ import { addDays, localIsoDate, shortDate } from '../lib/dates'
 import { checkFigure, checkLabel, checkStatus } from '../lib/review'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import type { ReviewCheck, WeeklyReview as Review } from '../types'
-import Block from '@/ui/block'
+import Block, { LABEL_BOX, LABEL_TITLE } from '@/ui/block'
 import { Button } from '@/ui/button'
 import Explainer from '@/ui/explainer'
 import { cn } from '@/lib/utils'
@@ -84,11 +84,11 @@ function Check({ check, turn }: { check: ReviewCheck; turn: number }) {
   const figure = checkFigure(check)
   return (
     <li
-      className="grid animate-rise gap-1 border-b border-rule py-3.5 [animation-delay:var(--turn)] motion-reduce:[animation-delay:0ms]"
+      className={`grid animate-rise gap-1 border-b border-rule py-3.5 [animation-delay:var(--turn)] motion-reduce:[animation-delay:0ms] ${LABEL_BOX}`}
       style={{ '--turn': `${turn * 80}ms` } as CSSProperties}
     >
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-field-label text-ink-2">{checkLabel(check)}</h2>
+        <h2 className={`text-field-label text-ink-2 ${LABEL_TITLE}`}>{checkLabel(check)}</h2>
         {status && (
           <span className={cn('text-small', check.status === 'on_track' ? 'font-semibold text-ink' : 'text-ink-2')}>
             {status}

@@ -89,7 +89,7 @@ export default function Layout() {
           reachable from the bottom of a long page. Phones get TabBar below
           instead; there is no top header at any width any more -- each page
           owns its title, and Log out lives in You (UA-8). */}
-      <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 flex-col gap-[18px] border-r border-rule px-4 py-[22px] desk:flex">
+      <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 flex-col gap-[18px] border-r border-rule px-4 py-[22px] desk:flex label:border-r-[5px] label:bg-label">
         {/* self-start so the gauge spans the name, as DESIGN.md's mark draws it,
             instead of stretching to the rail's width. */}
         <Wordmark className="mb-1.5 self-start" />

@@ -3,6 +3,7 @@ import type { GettingStartedView } from '../../lib/firstUse'
 import { Button } from '@/ui/button'
 import { DoneIcon } from '@/ui/icons'
 import { cn } from '@/lib/utils'
+import { LABEL_BOX, LABEL_TITLE, LABEL_VALUE } from '@/ui/block'
 
 const LINK =
   'font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'
@@ -60,9 +61,9 @@ export default function GettingStarted({
 
   if (view === 'row') {
     return (
-      <section aria-label="Getting started" className="flex min-h-14 items-center gap-3 border-b border-rule py-2">
-        <h2 className="flex-1 text-field-label text-ink-2">Getting started</h2>
-        <span className="text-field-label text-ink-2 tabular-nums">
+      <section aria-label="Getting started" className={`flex min-h-14 items-center gap-3 border-b border-rule py-2 ${LABEL_BOX}`}>
+        <h2 className={`flex-1 text-field-label text-ink-2 ${LABEL_TITLE}`}>Getting started</h2>
+        <span className={`text-field-label text-ink-2 tabular-nums ${LABEL_VALUE}`}>
           {doneCount} of {steps.length}
         </span>
         <Button variant="ghost" className="h-9 px-3" onClick={onShow}>
@@ -74,10 +75,10 @@ export default function GettingStarted({
 
   if (view === 'next') {
     return (
-      <section aria-label="Getting started" className="grid gap-2.5 border-b border-rule py-3.5 animate-rise">
+      <section aria-label="Getting started" className={`grid gap-2.5 border-b border-rule py-3.5 animate-rise ${LABEL_BOX}`}>
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-field-label text-ink-2">Getting started</h2>
-          <span className="text-field-label text-ink-2">Done</span>
+          <h2 className={`text-field-label text-ink-2 ${LABEL_TITLE}`}>Getting started</h2>
+          <span className={`text-field-label text-ink-2 ${LABEL_VALUE}`}>Done</span>
         </div>
         <p className="text-[17px] font-bold">That’s the basics.</p>
         <p className="text-small text-ink-2">
@@ -100,10 +101,10 @@ export default function GettingStarted({
   }
 
   return (
-    <section aria-label="Getting started" className="grid gap-2.5 border-b border-rule py-3.5">
+    <section aria-label="Getting started" className={`grid gap-2.5 border-b border-rule py-3.5 ${LABEL_BOX}`}>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-field-label text-ink-2">Getting started</h2>
-        <span className="text-field-label text-ink-2 tabular-nums">
+        <h2 className={`text-field-label text-ink-2 ${LABEL_TITLE}`}>Getting started</h2>
+        <span className={`text-field-label text-ink-2 tabular-nums ${LABEL_VALUE}`}>
           {doneCount} of {steps.length}
         </span>
       </div>
