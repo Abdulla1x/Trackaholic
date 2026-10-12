@@ -6,7 +6,7 @@ export const SECTION_HOME: Record<Section, string> = {
   today: '/',
   progress: '/progress',
   log: '/log',
-  you: '/settings',
+  you: '/you',
 }
 
 const under = (pathname: string, base: string) => pathname === base || pathname.startsWith(`${base}/`)
@@ -18,14 +18,14 @@ export function sectionFor(pathname: string): Section | null {
   if (pathname === '/' || under(pathname, '/day') || pathname === '/setup') return 'today'
   if (under(pathname, '/progress')) return 'progress'
   if (under(pathname, '/log')) return 'log'
-  if (under(pathname, '/settings') || under(pathname, '/whats-new') || under(pathname, '/how-it-works')) return 'you'
+  if (under(pathname, '/you') || under(pathname, '/whats-new') || under(pathname, '/how-it-works')) return 'you'
   return null
 }
 
 /** How far a screen sits below its tab (DESIGN.md: Screen push and back).
  *  Each tab's own page is 0. The day in detail and the Progress screens with
- *  a back arrow are 1, and a meal, pushed from the day, is 2. Settings' tabs
- *  are one screen with a sub-nav, so they are all 0. */
+ *  a back arrow are 1, a settings screen pushed from You is 1, and a meal,
+ *  pushed from the day, is 2. */
 export function screenDepth(pathname: string): number {
   if (/^\/day\/[^/]+\/meal\/[^/]+$/.test(pathname)) return 2
   if (/^\/day\/[^/]+$/.test(pathname)) return 1
@@ -33,15 +33,15 @@ export function screenDepth(pathname: string): number {
   if (pathname === '/how-it-works/target') return 2
   if (pathname === '/how-it-works') return 1
   if (pathname.startsWith('/progress/')) return 1
+  if (pathname.startsWith('/you/')) return 1
   return 0
 }
 
-/** What the page is keyed on, so a change of key replays its entrance. The
- *  whole path, except that every Settings tab shares one key: the tabs share a
- *  shell that holds the unsaved draft, and remounting it would throw the draft
- *  away. */
+/** What the page is keyed on, so a change of key replays its entrance: the
+ *  whole path. Every settings screen holds its own draft now, so none of them
+ *  needs to survive a change of address the way the old Settings tabs did. */
 export function routeKey(pathname: string): string {
-  return under(pathname, '/settings') ? '/settings' : pathname
+  return pathname
 }
 
 export type ScreenMotion = 'fade' | 'push' | 'back'

@@ -143,9 +143,9 @@ export const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-p
 // is reached the way a person reaches it: `/?meal` is Today with the first meal
 // row then opened by its expander, and audited as the meal screen it lands on.
 //
-// `/settings` is kept alongside its five panels on purpose: it is a redirect to
-// /settings/goals, and visiting it is what would catch the redirect quietly
-// breaking or landing somewhere else.
+// Two old Settings addresses are kept on purpose: they redirect to You and to
+// the planner on a day (query string kept), and visiting them is what would
+// catch a redirect quietly breaking or landing somewhere else.
 export const PRIVATE_ROUTES = [
   '/',
   // The Log panel's start screen over Today (2026-10-10): the AI box, saved
@@ -163,12 +163,21 @@ export const PRIVATE_ROUTES = [
   '/progress/days',
   '/progress/review',
   '/progress/accuracy',
+  // You (2026-10-12): the page of rows and every screen it pushes.
+  '/you',
+  '/you/targets',
+  '/you/plans',
+  '/you/body',
+  '/you/reminder',
+  '/you/water',
+  '/you/steps',
+  '/you/supplements',
+  '/you/library',
+  '/you/saved-meals',
+  '/you/account',
+  '/you/contact',
   '/settings',
-  '/settings/goals',
-  '/settings/body',
-  '/settings/trackers',
-  '/settings/food',
-  '/settings/account',
+  `/settings/goals?plan=${isoDaysAgo(1)}&kind=compensating`,
   '/whats-new',
   // First use (2026-10-11). Setup's first screen (the seeded account already
   // has a target, so this is someone changing it), and the two guide pages,
@@ -406,8 +415,8 @@ export async function seed(token) {
 // section inert, it makes it unwatched. Check what a default state hides before
 // trusting any coverage claim made from these runs.
 //
-// A route may name several, applied in order -- /settings/food stacks two capped
-// lists and an add form, and one selector cannot reach all three.
+// A route may name several, applied in order -- /you/library stacks a capped
+// list and an add form, and one selector cannot reach both.
 //
 // An entry is either a selector to CLICK, or { fill, text } to type into. The
 // typing form exists because the food autocomplete's dropdown cannot be clicked
@@ -453,11 +462,8 @@ export const EXPAND_ON = {
   // form this route exists to make findable. Matched on the plural nouns rather
   // than the full label, which carries a count that moves with SEED_FOODS.
   // "+ Add a food" is singular, so it cannot collide with "...foods".
-  '/settings/food': [
-    'button:has-text("foods")',
-    'button:has-text("meals")',
-    'button:has-text("Add a food")',
-  ],
+  '/you/library': ['button:has-text("foods")', 'button:has-text("Add a food")'],
+  '/you/saved-meals': ['button:has-text("meals")'],
 }
 
 /** Open a page, walk `routes`, and hand each settled route to `onRoute`.

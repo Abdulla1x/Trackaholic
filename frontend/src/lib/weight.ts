@@ -86,7 +86,7 @@ export function projectionCaption(
 
   switch (goal.status) {
     case 'no_goal':
-      return "Set a goal weight in Settings and we'll work out when you would reach it."
+      return "Set a goal weight in You → Body and goal weight and we'll work out when you would reach it."
     case 'reached':
       return goal.from_date === null
         ? 'You are there.'

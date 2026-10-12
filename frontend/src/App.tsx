@@ -15,6 +15,7 @@ import Layout from './components/Layout'
 import LogRedirect from './components/log/LogRedirect'
 import RequireAdmin from './components/RequireAdmin'
 import RequireAuth from './components/RequireAuth'
+import SettingsRedirect from './components/you/SettingsRedirect'
 import ForgotPassword from './pages/ForgotPassword'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
@@ -69,7 +70,7 @@ const page = (load: () => Promise<PageModule>) => async () => ({ Component: (awa
 /** A data router (createBrowserRouter) rather than <BrowserRouter> + <Routes>.
  *
  * The routes are unchanged; what the switch buys is useBlocker, which only
- * works under a data router. Settings uses it to ask before an in-app
+ * works under a data router. Settings screens use it to ask before an in-app
  * navigation drops an unsaved draft (beforeunload only ever covered a reload
  * or a closed tab). Built once at module scope, as the router expects: it
  * owns the history listener, and re-creating it per render would reset it.
@@ -128,30 +129,27 @@ const router = createBrowserRouter(
           <Route path="/analytics" element={<Navigate replace to="/progress" />} />
           <Route path="/weight" element={<Navigate replace to="/progress/weigh-ins" />} />
           <Route path="/review" element={<Navigate replace to="/progress/review" />} />
-          {/* Settings is a shell around five panels rather than one page. The
-              shell owns the draft and the Save bar; each panel is a real
-              address, so the dashboard's deep link into the calorie planner
-              lands somewhere specific and back/forward walk the sections.
-
-              Each panel is its own lazy piece now. This note used to forbid
-              that, because a tab asking for a piece a deploy had removed would
-              white-screen. Tabs the service worker controls are reloaded onto
-              the new version by autoUpdate; the rest (first visit, hard
-              refresh, worker blocked) reload once on that error instead
-              (RouteError + lib/staleChunk.ts). */}
-          <Route path="/settings" lazy={page(() => import('./pages/Settings'))}>
-            <Route index element={<Navigate to="/settings/goals" replace />} />
-            <Route path="goals" lazy={page(() => import('./pages/settings/GoalsPanel'))} />
-            <Route path="body" lazy={page(() => import('./pages/settings/BodyPanel'))} />
-            <Route path="trackers" lazy={page(() => import('./pages/settings/TrackersPanel'))} />
-            <Route path="food" lazy={page(() => import('./pages/settings/LibraryPanel'))} />
-            {/* Absent from the tab bar by design; see tabs.ts. */}
-            <Route path="account" lazy={page(() => import('./pages/settings/AccountPanel'))} />
-          </Route>
+          {/* You: every setting on one page of rows, each opening its own
+              screen with its own draft and Save bar (overhaul 3a). Each
+              screen is its own lazy piece; a piece a deploy removed reloads
+              once onto the new version (RouteError + lib/staleChunk.ts). */}
+          <Route path="/you" lazy={page(() => import('./pages/You'))} />
+          <Route path="/you/targets" lazy={page(() => import('./pages/you/Targets'))} />
+          <Route path="/you/plans" lazy={page(() => import('./pages/you/Plans'))} />
+          <Route path="/you/body" lazy={page(() => import('./pages/you/Body'))} />
+          <Route path="/you/reminder" lazy={page(() => import('./pages/you/Reminder'))} />
+          <Route path="/you/water" lazy={page(() => import('./pages/you/Water'))} />
+          <Route path="/you/steps" lazy={page(() => import('./pages/you/Steps'))} />
+          <Route path="/you/supplements" lazy={page(() => import('./pages/you/Supplements'))} />
+          <Route path="/you/library" lazy={page(() => import('./pages/you/Library'))} />
+          <Route path="/you/saved-meals" lazy={page(() => import('./pages/you/SavedMeals'))} />
+          <Route path="/you/account" lazy={page(() => import('./pages/you/Account'))} />
+          <Route path="/you/contact" lazy={page(() => import('./pages/you/Contact'))} />
+          {/* The old Settings addresses (see SettingsRedirect). */}
+          <Route path="/settings/*" element={<SettingsRedirect />} />
           {/* Not in nav, same posture as /admin: it is somewhere you go when a
               note points you there, not a fifth thing to choose between every
-              day. Reached from the What's new pop-up and from Settings ->
-              Account. */}
+              day. Reached from the What's new pop-up and from You. */}
           <Route path="/whats-new" lazy={page(() => import('./pages/WhatsNew'))} />
           {/* Deliberately absent from Layout's nav: only the operator uses it.
               This used to also cite the nav degrading to emoji-only below `sm`;

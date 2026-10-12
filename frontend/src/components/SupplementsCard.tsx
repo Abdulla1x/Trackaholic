@@ -138,7 +138,7 @@ export default function SupplementsCard({ date, chosen = false }: Props) {
       <Tracker icon={<SupplementsIcon size={22} />} title="Supplements" value={<span className="text-small text-ink-2">Nothing to tick yet</span>}>
         <p className="text-small text-ink-2">Add what you take and when, and it shows up here to tick off.</p>
         <Button asChild variant="secondary" className="justify-self-start">
-          <Link to="/settings/trackers">Set up supplements</Link>
+          <Link to="/you/supplements">Set up supplements</Link>
         </Button>
       </Tracker>
     )

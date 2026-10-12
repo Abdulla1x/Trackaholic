@@ -65,7 +65,7 @@ export default function HowItWorks() {
       <Section title="A guide, not a rule">
         <p>
           Your target comes from your answers in setup and follows your weight as it changes. Change it, or type your
-          own, in You → Goals.
+          own, in You → Daily targets.
         </p>
         <p>
           <Link to="/how-it-works/target" className={LINK}>
@@ -90,7 +90,7 @@ export default function HowItWorks() {
           </li>
           <li>
             <b className="text-ink">Steps history.</b> Import months of steps at once from a file with a date and a step
-            count for each day, in You → Trackers.
+            count for each day, in You → Steps.
           </li>
           <li>
             <b className="text-ink">The weekly review.</b> On Mondays, a short written summary of your week.
@@ -100,11 +100,11 @@ export default function HowItWorks() {
           </li>
           <li>
             <b className="text-ink">Trackers.</b> Water, steps and supplements: {CHANGE_TRACKERS}, at the bottom of
-            Today.
+            Today or in You.
           </li>
           <li>
-            <b className="text-ink">Units and a weigh-in reminder.</b> kg or lb, and a reminder on the Weigh-in card, in
-            You → Body.
+            <b className="text-ink">Units and a weigh-in reminder.</b> kg or lb on the You page, and a reminder on the
+            Weigh-in card in You → Weigh-in reminder.
           </li>
         </List>
       </Section>

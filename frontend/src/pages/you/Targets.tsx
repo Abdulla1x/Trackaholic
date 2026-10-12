@@ -1,8 +1,8 @@
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import BodyTargetsCard from '../../components/settings/BodyTargetsCard'
-import CaloriePlanSection from '../../components/settings/CaloriePlanSection'
 import { targetIsSet } from '../../lib/today'
-import { useSettingsPanel } from './panelContext'
+import SettingsScreen from '../../components/you/SettingsScreen'
+import { useSettingsScreen } from '../../components/you/screenContext'
 import Card from '../../components/ui/Card'
 import TextInput from '../../components/ui/TextInput'
 import OptionChip from '../../components/ui/OptionChip'
@@ -22,35 +22,26 @@ const goalFields: GoalField[] = [
   { key: 'fat_goal', label: 'Daily fat', unit: 'g' },
 ]
 
-/** What you are aiming at, and how to move it around.
+/** Daily targets, pushed from You: what you are aiming at.
  *
- * Tracked macros sits here rather than with the trackers because it decides
- * which of the four goal fields below it exist at all -- the two are one
- * decision made in two steps, and separating them puts a tab switch in the
- * middle of it.
- */
-export default function GoalsPanel() {
-  const { settings, update, guard, onRejected, targetsKey } = useSettingsPanel()
-  // The day being looked at when a planning link was followed, so
-  // the planner opens on it rather than on today. Absent when Settings is
-  // reached any other way, which is the ordinary case.
-  //
-  // A search param rather than router state, which is what carried it before
-  // the split. location.state does not survive a reload and cannot be shared or
-  // bookmarked, and this app has already shipped one bug from state outliving
-  // what it described (a shared-meal notice that stayed on screen over the next
-  // meal typed by hand). A param has neither failure mode.
-  const [search] = useSearchParams()
-  const planDate = search.get('plan') ?? undefined
-  // Which form the day screen's row asked for, if any.
-  const kind = search.get('kind')
-  const planKind = kind === 'planned' || kind === 'compensating' ? kind : undefined
+ * Tracked macros sits here because it decides which of the goal fields below
+ * it exist at all -- the two are one decision made in two steps. */
+export default function TargetsScreen() {
+  return (
+    <SettingsScreen title="Daily targets">
+      <TargetsForm />
+    </SettingsScreen>
+  )
+}
+
+function TargetsForm() {
+  const { settings, update, guard, targetsKey } = useSettingsScreen()
 
   const showGoal = (key: GoalField['key']) =>
     key === 'carbs_goal' ? settings.track_carbs : key === 'fat_goal' ? settings.track_fat : true
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 py-3.5">
       {/* Until a target is chosen, the goal fields below hold the signup
           placeholders; this says so and points at setup. Typing goals here
           and saving sets a target too. */}
@@ -173,11 +164,6 @@ export default function GoalsPanel() {
 
       <BodyTargetsCard reloadKey={targetsKey} unit={settings.weight_unit} />
 
-      {/* Plans move a target between days, so there is nothing to plan until
-          one is chosen. */}
-      {targetIsSet(settings) && (
-        <CaloriePlanSection onRejected={onRejected} initialDate={planDate} initialKind={planKind} />
-      )}
     </div>
   )
 }

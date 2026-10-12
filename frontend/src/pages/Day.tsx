@@ -58,7 +58,7 @@ export default function Day() {
   const eaten = dayTotals(meals ?? [])
   const balance = goals ? calorieBalance(eaten.calories, goals.calorie_goal) : null
   const caption = planCaption(plan?.date === day ? plan : null, planFailed)
-  const plansLink = (kind: 'planned' | 'compensating') => `/settings/goals?plan=${day}&kind=${kind}`
+  const plansLink = (kind: 'planned' | 'compensating') => `/you/plans?plan=${day}&kind=${kind}`
   // Before a target is chosen the day is what was eaten, with nothing to
   // measure it against, and calorie plans have no target to move around.
   const hasTarget = settings ? targetIsSet(settings) : true

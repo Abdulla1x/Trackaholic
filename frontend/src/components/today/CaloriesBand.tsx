@@ -186,7 +186,7 @@ export default function CaloriesBand({
               Over is fine. The week evens out.{' '}
               {/* Above the band's stretched link, so it is its own target. */}
               <Link
-                to={`/settings/goals?plan=${day}&kind=compensating`}
+                to={`/you/plans?plan=${day}&kind=compensating`}
                 className="relative z-10 font-semibold text-band-ink underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
               >
                 Spread it

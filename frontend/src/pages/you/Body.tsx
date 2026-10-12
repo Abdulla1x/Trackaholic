@@ -1,10 +1,10 @@
 import GoalWeightField from '../../components/settings/GoalWeightField'
 import HeightField from '../../components/settings/HeightField'
-import WeighInReminderSection from '../../components/settings/WeighInReminderSection'
 import { ACTIVITY_HINT, ACTIVITY_OPTIONS, ACTIVITY_QUESTION, activityLine } from '../../lib/activity'
 import { num } from '../../lib/parse'
 import type { ActivityLevel, Sex } from '../../types'
-import { useSettingsPanel } from './panelContext'
+import SettingsScreen from '../../components/you/SettingsScreen'
+import { useSettingsScreen } from '../../components/you/screenContext'
 import Card from '../../components/ui/Card'
 import TextInput from '../../components/ui/TextInput'
 import OptionChip from '../../components/ui/OptionChip'
@@ -15,22 +15,22 @@ const sexOptions: { value: Sex; label: string }[] = [
   { value: 'female', label: 'Female' },
 ]
 
-/** Who the calculations are about.
- *
- * Units shares this panel with the profile rather than sitting with the goals,
- * because it decides how the field directly above it is asked for: HeightField
- * renders centimetres or a feet/inches pair depending on the weight unit. Two
- * tabs apart, changing one silently reshapes the other.
- *
- * The weigh-in reminder is here for the same kind of reason rather than with
- * the three daily trackers: it is a setting about the Weight page, and Units
- * directly above it already is one.
- */
-export default function BodyPanel() {
-  const { settings, update, guard } = useSettingsPanel()
+/** Body and goal weight, pushed from You: who the calculations are about.
+ *  Units sits on the You page itself and saves on tap; HeightField follows it
+ *  (centimetres, or feet and inches). */
+export default function BodyScreen() {
+  return (
+    <SettingsScreen title="Body and goal weight">
+      <BodyForm />
+    </SettingsScreen>
+  )
+}
+
+function BodyForm() {
+  const { settings, update, guard } = useSettingsScreen()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 py-3.5">
       <Card as="section">
         <h2 className="mb-1 font-semibold">Body profile</h2>
         <p className="mb-4 text-sm text-slate-400">
@@ -140,39 +140,6 @@ export default function BodyPanel() {
         </div>
       </Card>
 
-      <Card as="section">
-        <h2 className="mb-3 font-semibold">Units</h2>
-        <p className="mb-4 text-sm text-slate-400">
-          How weights are shown on the Weight page. Entries are stored the same way
-          either way, so switching converts your history rather than rewriting it.
-        </p>
-        <div className="flex flex-wrap gap-4">
-          {(
-            [
-              { value: 'kg', label: 'Kilograms (kg)' },
-              { value: 'lb', label: 'Pounds (lb)' },
-            ] as const
-          ).map(({ value, label }) => (
-            <OptionChip key={value}>
-              <input
-                type="radio"
-                name="weight_unit"
-                value={value}
-                checked={settings.weight_unit === value}
-                onChange={() => update({ weight_unit: value })}
-                className="h-4 w-4 accent-emerald-500"
-              />
-              {label}
-            </OptionChip>
-          ))}
-        </div>
-      </Card>
-
-      <WeighInReminderSection
-        settings={settings}
-        update={update}
-        onBlur={guard('weigh_in_reminder_days')}
-      />
     </div>
   )
 }
