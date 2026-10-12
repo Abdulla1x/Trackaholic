@@ -88,14 +88,14 @@ export default function Layout() {
       {/* Desktop: the side rail (DESIGN.md, Layout). Sticky, so the nav stays
           reachable from the bottom of a long page. Phones get TabBar below
           instead; there is no top header at any width any more -- each page
-          owns its title, and Log out lives in Settings -> Account (UA-8). */}
+          owns its title, and Log out lives in You (UA-8). */}
       <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 flex-col gap-[18px] border-r border-rule px-4 py-[22px] desk:flex">
         {/* self-start so the gauge spans the name, as DESIGN.md's mark draws it,
             instead of stretching to the rail's width. */}
         <Wordmark className="mb-1.5 self-start" />
         <RailNav active={section} />
         {/* Who is signed in, where the old header said it. Truncated, with the
-            full address on hover; Settings -> Account states it in full. */}
+            full address on hover; the You page states it in full. */}
         <p className="mt-auto truncate text-small text-ink-2" title={user?.email}>
           {user?.email}
         </p>
@@ -107,7 +107,7 @@ export default function Layout() {
       {/* overflow-x-clip: a pushed screen starts 28px to the right, which
           must not show a sideways scrollbar for its 260ms. clip, not hidden,
           so main does not become a scroll container and sticky children
-          (Settings' Save bar) keep working. */}
+          (a settings screen's Save bar) keep working. */}
       <main
         id="main"
         tabIndex={-1}
@@ -123,9 +123,9 @@ export default function Layout() {
           )}
           {/* The page's entrance (DESIGN.md Motion): a pushed screen slides in
               from the right, coming back slides in from the left, and a tab
-              change crossfades. Keyed by routeKey, which gives every Settings
-              tab one key, so moving between them keeps the Settings shell and
-              its unsaved draft mounted. Plain CSS rather than Motion, so the
+              change crossfades. Keyed by routeKey (the whole path), so every
+              screen's entrance plays; each settings screen holds its own
+              draft and asks before it is left. Plain CSS rather than Motion, so the
               first screen never waits on Motion's features to download. */}
           <div key={routeKey(pathname)} className={ENTRANCE[entrance.motion]}>
             <Outlet />

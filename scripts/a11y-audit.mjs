@@ -104,7 +104,7 @@ const AXE_SOURCE = fileURLToPath(new URL('../node_modules/axe-core/axe.min.js', 
  *
  *  The result is mapped down INSIDE the browser. axe's raw output carries the
  *  full element handle and every check's data for every node, which is
- *  megabytes on a page like /settings/food and serialises slowly across the
+ *  megabytes on a page like /you/library and serialises slowly across the
  *  bridge for information nothing here reads. */
 async function runAxe(page) {
   await page.addScriptTag({ path: AXE_SOURCE })

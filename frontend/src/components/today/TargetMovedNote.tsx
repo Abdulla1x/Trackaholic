@@ -29,7 +29,7 @@ export default function TargetMovedNote({ move, onDismiss }: { move: TargetMove;
       <div className="flex flex-wrap gap-2">
         {move.kind === 'goal' && (
           <Button asChild variant="secondary">
-            <Link to="/settings/body">Set a new goal</Link>
+            <Link to="/you/body">Set a new goal</Link>
           </Button>
         )}
         <Button asChild variant="ghost">

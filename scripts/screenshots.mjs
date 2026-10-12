@@ -456,7 +456,7 @@ const SHOTS = [
   { key: 'weight', route: '/progress/weigh-ins' },
   { key: 'analytics', route: '/progress' },
   { key: 'review', route: '/progress/review' },
-  { key: 'settings', route: '/settings/goals' },
+  { key: 'settings', route: '/you' },
 ]
 
 

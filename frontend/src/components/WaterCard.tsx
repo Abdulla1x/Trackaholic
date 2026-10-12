@@ -170,7 +170,7 @@ function GoalCaption({ day }: { day: WaterDay }) {
   const { source, ml_per_kg, weight_kg } = day.goal_basis
 
   if (source === 'custom') {
-    return <>Goal set by you, in Settings.</>
+    return <>Goal set by you, in You → Water.</>
   }
   if (source === 'weight' && ml_per_kg != null && weight_kg != null) {
     return (

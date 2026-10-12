@@ -97,6 +97,12 @@ export function useSettingsDraft(blocks: (from: string, to: string) => boolean) 
     setEdits(({ [field]: _undone, ...rest }) => rest)
   }
 
+  /** Undo: throw the edits away and show the saved row again. */
+  const discard = useCallback(() => {
+    setEdits({})
+    setStatus('idle')
+  }, [])
+
   const save = async () => {
     if (!draft) return
     setStatus('saving')
@@ -126,5 +132,6 @@ export function useSettingsDraft(blocks: (from: string, to: string) => boolean) 
     update,
     guard,
     save,
+    discard,
   }
 }

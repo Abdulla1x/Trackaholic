@@ -158,7 +158,7 @@ function StepsCaption({ day }: { day: StepDay }) {
   if (day.goal === null) {
     return (
       <>
-        No step goal set — you can pick one in Settings. There is no sensible
+        No step goal set — you can pick one in You → Steps. There is no sensible
         way to work one out from your body, so this app will not invent it.
       </>
     )

@@ -69,8 +69,8 @@ export default function DailyBurnBlock({ targets, onRetry }: { targets: BodyTarg
       <Block label="Daily burn">
         <p className="text-small text-ink-2">
           Add your height, birth year and a weigh-in in{' '}
-          <Link to="/settings/body" className="font-semibold text-ink underline underline-offset-3">
-            Settings
+          <Link to="/you/body" className="font-semibold text-ink underline underline-offset-3">
+            You → Body and goal weight
           </Link>{' '}
           and it starts working this out.
         </p>

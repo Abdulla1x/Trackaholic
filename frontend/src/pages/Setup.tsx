@@ -734,7 +734,7 @@ function OwnNumbers({ a, patch }: { a: Answers; patch: (next: Partial<Answers>) 
       )}
       <Problem text={ownNumbersProblem(a)} />
       <Problem text={ownNumbersProblem(a) ? null : ownNumbersRemark(a)} warn />
-      <Hint>Typed targets stay as you set them. You can switch to working them out later in You → Goals.</Hint>
+      <Hint>Typed targets stay as you set them. You can switch to working them out later in You → Daily targets.</Hint>
       <Hint>Kidney disease, diabetes medication, a GLP-1 drug, or weight-loss surgery? Ask your doctor or dietitian for these numbers.</Hint>
       <TrackersPick a={a} patch={patch} />
       <ReminderPick a={a} patch={patch} />
