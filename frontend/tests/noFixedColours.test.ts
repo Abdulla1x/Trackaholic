@@ -43,10 +43,12 @@ test('none of the old fixed dark tokens', () => {
 })
 
 test('no hex colours in code', () => {
-  // theme.css is where the hexes live. The one in code paints the white under
-  // a photo before it is encoded as a JPEG, which has no transparency: pixels,
-  // not something on screen.
-  const allowed = new Set(['lib/photoDownscale.ts'])
+  // theme.css is where the hexes live. Two files in code may hold them:
+  // photoDownscale paints the white under a photo before it is encoded as a
+  // JPEG, which has no transparency (pixels, not something on screen); and
+  // palettes.ts mirrors theme.css for the Appearance swatches, which
+  // themeTokens.test.ts holds to theme.css value for value.
+  const allowed = new Set(['lib/photoDownscale.ts', 'lib/palettes.ts'])
   const code = sources.filter(({ path }) => /\.tsx?$/.test(path) && !allowed.has(path))
   assert.deepEqual(hits(/#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3}(?:[0-9a-fA-F]{2})?)?\b/g, code), [])
 })

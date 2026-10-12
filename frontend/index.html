@@ -1,14 +1,19 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- data-theme picks the colour theme (theme.css). Pinned to dark for now:
-         today's screens hard-code dark colours, so they can't follow a light
-         phone until the redesign rebuilds them. When they can, a small script
-         here will resolve "follow the phone" before first paint. -->
+    <!-- Sets data-theme, data-palette and data-style (theme.css) from this
+         device's choice before anything paints. First in <head>, and a file
+         because the CSP blocks inline scripts. Without it the page is
+         Daylight light. -->
+    <script src="/theme-init.js"></script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b0e0c" />
+    <!-- The browser bar's colour: Daylight's ground in each theme, right from
+         the first paint. The app sets both to the current ground once it is
+         running, so another palette or a fixed theme takes over then. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e4e7e1" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0e0c" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Trackaholic: calorie and macro tracker with AI meal logging</title>
     <meta
