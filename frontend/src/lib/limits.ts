@@ -198,7 +198,10 @@ export function validateFood(
     ['Protein', protein],
   ]
   for (const [label, value] of required) {
-    if (value === null || !Number.isFinite(value) || value < 0) {
+    // An empty box is told apart from a bad number: "has to be zero or more"
+    // under a box with nothing in it doesn't say what is wrong.
+    if (value === null) return `Fill in ${label.toLowerCase()}.`
+    if (!Number.isFinite(value) || value < 0) {
       return `${label} has to be zero or more.`
     }
   }
