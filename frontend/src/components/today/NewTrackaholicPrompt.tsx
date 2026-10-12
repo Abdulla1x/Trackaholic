@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import { localIsoDate } from '../../lib/dates'
 import { asksForTrackers, CHANGE_TRACKERS, legacyTrackers, TRACKERS, withTracker, type TrackerKey } from '../../lib/trackers'
@@ -70,7 +71,15 @@ export default function NewTrackaholicPrompt({ ready }: { ready: boolean }) {
       desk="center"
     >
       <div className="grid gap-3 py-2">
-        <p className="text-small text-ink-2">Three tabs now: Today, Progress and You, with Log in the middle.</p>
+        <p className="text-small text-ink-2">
+          Three tabs now: Today, Progress and You, with Log in the middle.{' '}
+          <Link
+            to="/how-it-works"
+            className="font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+          >
+            Where things moved: How Trackaholic works
+          </Link>
+        </p>
         <p>
           Today can show only the trackers you use. Untick any you don’t want. You can change it later with{' '}
           {CHANGE_TRACKERS}, at the bottom of Today.

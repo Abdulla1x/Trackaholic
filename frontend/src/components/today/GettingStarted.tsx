@@ -4,6 +4,9 @@ import { Button } from '@/ui/button'
 import { DoneIcon } from '@/ui/icons'
 import { cn } from '@/lib/utils'
 
+const LINK =
+  'font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'
+
 interface Step {
   title: string
   detail: string
@@ -85,6 +88,9 @@ export default function GettingStarted({
           <Button asChild>
             <Link to="/progress">See Progress</Link>
           </Button>
+          <Button asChild variant="secondary">
+            <Link to="/how-it-works">How Trackaholic works</Link>
+          </Button>
           <Button variant="ghost" onClick={onDone}>
             Done
           </Button>
@@ -129,11 +135,12 @@ export default function GettingStarted({
         ))}
       </ol>
       <p className="text-small text-ink-2">
-        <button
-          type="button"
-          onClick={onLater}
-          className="font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-        >
+        New to tracking?{' '}
+        <Link to="/how-it-works" className={LINK}>
+          How Trackaholic works
+        </Link>
+        {' · '}
+        <button type="button" onClick={onLater} className={LINK}>
           Not now
         </button>
       </p>

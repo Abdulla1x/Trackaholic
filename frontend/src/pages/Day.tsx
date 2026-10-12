@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import ScreenBar from '../components/shell/ScreenBar'
 import { addDays, localIsoDate } from '../lib/dates'
@@ -117,6 +117,15 @@ export default function Day() {
             </StatGrid>
             {!hasTarget && <p className="text-small text-ink-2">No target yet. Once you set one, this day is measured against it.</p>}
             {hasTarget && caption && <p className="text-small text-ink-2">{caption}</p>}
+            {hasTarget && (
+              <Link
+                to="/how-it-works/target"
+                state={{ from: `/day/${day}` }}
+                className="justify-self-start text-small text-ink-2 underline underline-offset-3 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+              >
+                How your target is worked out
+              </Link>
+            )}
             {/* The stat above stays exact ("Over 8"); the reassurance is for a
                 day past the on-target band, as on Today's band. */}
             {hasTarget && balance.over && !balance.onTarget && (
