@@ -249,7 +249,7 @@ function Supplements() {
                   value={time}
                   onChange={(event) => setTime(index, event.target.value)}
                   aria-label={`Time ${index + 1}`}
-                  className={cn(FIELD, 'w-[124px] rounded-r-none')}
+                  className={cn(FIELD, 'w-[140px] rounded-r-none')}
                 />
                 <button
                   type="button"
