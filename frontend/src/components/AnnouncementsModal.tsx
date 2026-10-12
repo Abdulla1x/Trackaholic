@@ -10,10 +10,8 @@ import type { Announcement } from '../types'
 import AnnouncementBody from './AnnouncementBody'
 import Modal from './ui/Modal'
 import Button from './ui/Button'
+import { CONTACT_EMAIL } from '../lib/contact'
 
-// A + alias, not the bare personal address: inbound mail stays filterable, and
-// the address is disposable once scrapers find it in this very public DOM.
-const CONTACT_EMAIL = 'm.abdulla992003+macros@gmail.com'
 
 // Rolling cap, and it has to stay rolling: every session that ships adds a note,
 // so an uncapped modal only ever grows. Measured before capping -- a fresh

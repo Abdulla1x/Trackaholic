@@ -175,6 +175,7 @@ export const PRIVATE_ROUTES = [
   '/you/library',
   '/you/saved-meals',
   '/you/account',
+  '/you/contact',
   '/settings',
   `/settings/goals?plan=${isoDaysAgo(1)}&kind=compensating`,
   '/whats-new',

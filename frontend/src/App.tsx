@@ -144,6 +144,7 @@ const router = createBrowserRouter(
           <Route path="/you/library" lazy={page(() => import('./pages/you/Library'))} />
           <Route path="/you/saved-meals" lazy={page(() => import('./pages/you/SavedMeals'))} />
           <Route path="/you/account" lazy={page(() => import('./pages/you/Account'))} />
+          <Route path="/you/contact" lazy={page(() => import('./pages/you/Contact'))} />
           {/* The old Settings addresses (see SettingsRedirect). */}
           <Route path="/settings/*" element={<SettingsRedirect />} />
           {/* Not in nav, same posture as /admin: it is somewhere you go when a

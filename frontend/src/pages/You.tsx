@@ -130,6 +130,12 @@ export default function You() {
             <RowLink to="/you/account" label="Account and data" detail="Password, export, import, delete" />
           </Group>
 
+          <Group label="Help">
+            <RowLink to="/how-it-works" label="How Trackaholic works" detail="And things you might have missed" />
+            <RowLink to="/whats-new" label="What’s new" detail="Release notes" />
+            <RowLink to="/you/contact" label="Contact" detail="Questions or feedback by email" />
+          </Group>
+
           <TrackersSheet open={choosingTrackers} onOpenChange={setChoosingTrackers} />
         </>
       )}
