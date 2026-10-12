@@ -92,9 +92,11 @@ function savedMealsDetail(meals: MealTemplate[] | null): string {
 
 const THEME_NAMES = { auto: 'Automatic', light: 'Light', dark: 'Dark' } as const
 
-/** "Automatic · Daylight": the theme, then the palette. */
+/** "Automatic · Daylight": the theme, then the palette, or "Dark · Label
+ *  style", since palettes don't apply to Label. */
 function appearanceDetail(appearance: Appearance): string {
-  return `${THEME_NAMES[appearance.theme]} · ${paletteName(appearance.palette)}`
+  const look = appearance.style === 'label' ? 'Label style' : paletteName(appearance.palette)
+  return `${THEME_NAMES[appearance.theme]} · ${look}`
 }
 
 function trackersDetail(settings: Settings): string | undefined {
