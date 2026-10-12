@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { TargetMove } from '../../lib/targetMoves'
 import { Button } from '@/ui/button'
+import { LABEL_BOX } from '@/ui/block'
 
 const n = (value: number) => Math.round(value).toLocaleString()
 
@@ -22,7 +23,7 @@ function sentence(move: TargetMove): string {
  *  automatic target (decided 2026-10-11, audit D6), until "Got it". */
 export default function TargetMovedNote({ move, onDismiss }: { move: TargetMove; onDismiss: () => void }) {
   return (
-    <section aria-label="Your target moved" className="grid gap-2.5 border-b border-rule py-3.5 animate-rise">
+    <section aria-label="Your target moved" className={`grid gap-2.5 border-b border-rule py-3.5 animate-rise ${LABEL_BOX}`}>
       <p className="text-small">
         <b>Your target moved.</b> {sentence(move)}
       </p>

@@ -19,7 +19,7 @@ export function SaveBar({
   onUndo: () => void
 }) {
   return (
-    <div className="sticky bottom-(--shell-bottom) z-20 -mx-4 mt-auto flex items-center gap-3 border-t border-rule bg-field px-4 py-2.5 desk:bottom-0 desk:mx-0 desk:px-7">
+    <div className="sticky bottom-(--shell-bottom) z-20 -mx-4 mt-auto flex items-center gap-3 border-t border-rule bg-field px-4 py-2.5 desk:bottom-0 desk:mx-0 desk:px-7 label:border-t-[5px] label:bg-label">
       <p className="min-w-0 flex-1 text-small font-semibold">{error || 'Unsaved changes'}</p>
       <Button variant="ghost" onClick={onUndo} disabled={saving}>
         Undo

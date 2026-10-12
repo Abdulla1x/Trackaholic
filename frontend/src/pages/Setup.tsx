@@ -47,6 +47,7 @@ import { NumberField } from '@/ui/number-field'
 import { NextIcon } from '@/ui/icons'
 import { useToast } from '@/ui/toast'
 import { cn } from '@/lib/utils'
+import { LABEL_BOX } from '@/ui/block'
 
 const TITLES: Record<Question, string> = {
   weight: 'Your weight today',
@@ -358,7 +359,7 @@ export default function Setup() {
     <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
       <ScreenBar title="Set your target" back="/" backLabel="Back to Today" />
       {qNumber > 0 && (
-        <div className="grid gap-2 border-b border-rule py-3.5">
+        <div className={`grid gap-2 border-b border-rule py-3.5 ${LABEL_BOX}`}>
           <span className="text-field-label text-ink-2">
             {qNumber} of {QUESTIONS.length}
           </span>

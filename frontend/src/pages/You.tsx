@@ -92,9 +92,11 @@ function savedMealsDetail(meals: MealTemplate[] | null): string {
 
 const THEME_NAMES = { auto: 'Automatic', light: 'Light', dark: 'Dark' } as const
 
-/** "Automatic · Daylight": the theme, then the palette. */
+/** "Automatic · Daylight": the theme, then the palette, or "Dark · Label
+ *  style", since palettes don't apply to Label. */
 function appearanceDetail(appearance: Appearance): string {
-  return `${THEME_NAMES[appearance.theme]} · ${paletteName(appearance.palette)}`
+  const look = appearance.style === 'label' ? 'Label style' : paletteName(appearance.palette)
+  return `${THEME_NAMES[appearance.theme]} · ${look}`
 }
 
 function trackersDetail(settings: Settings): string | undefined {
@@ -138,8 +140,8 @@ export default function You() {
 
   return (
     <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
-      <header className="border-b border-rule pb-1.5 text-center desk:text-left">
-        <h1 className="pt-2.5 text-title">You</h1>
+      <header className="border-b border-rule pb-1.5 text-center desk:text-left label:border-b-[5px]">
+        <h1 className="pt-2.5 text-title label:text-[18px] label:font-black label:tracking-[-0.01em]">You</h1>
         {user && <p className="truncate pb-1 text-small text-ink-2">{user.email}</p>}
       </header>
 

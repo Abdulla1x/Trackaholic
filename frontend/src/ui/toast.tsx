@@ -72,7 +72,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <m.div
               key={toast.id}
               role="status"
-              className="pointer-events-auto flex items-center gap-2.5 rounded-lg bg-ink py-2.5 pr-2.5 pl-3.5 text-ground"
+              className="pointer-events-auto flex items-center gap-2.5 rounded-lg bg-ink py-2.5 pr-2.5 pl-3.5 text-ground label:rounded-none label:text-label"
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0, transition: SPRING.toast }}
               exit={{ opacity: 0, y: 8, transition: { duration: DURATION.fast } }}

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { LABEL_BOX, LABEL_HEAD, LABEL_TITLE } from '@/ui/block'
 
 /** One tracker on Today (0a: one per row, full width): its icon and name,
  *  the day's figure at the right of the title, and its controls across the
@@ -22,10 +23,11 @@ export default function Tracker({
   children?: ReactNode
 }) {
   return (
-    <section aria-label={title} className="grid grid-cols-[minmax(0,1fr)] gap-2.5 border-b border-rule py-3.5">
-      <div className="flex min-h-11 items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-field-label text-ink-2">
-          <span aria-hidden="true" className="[&>svg]:size-[18px]">
+    <section aria-label={title} className={`grid grid-cols-[minmax(0,1fr)] gap-2.5 border-b border-rule py-3.5 ${LABEL_BOX}`}>
+      <div className={`flex min-h-11 items-center justify-between gap-3 ${LABEL_HEAD}`}>
+        <h2 className={`flex items-center gap-2 text-field-label text-ink-2 ${LABEL_TITLE}`}>
+          {/* Label drops the icon: the heading is the label's name. */}
+          <span aria-hidden="true" className="[&>svg]:size-[18px] label:hidden">
             {icon}
           </span>
           {title}

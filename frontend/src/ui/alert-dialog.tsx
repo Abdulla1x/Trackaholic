@@ -35,7 +35,7 @@ export function AlertDialog({
     <Radix.Root open={open}>
       <Radix.Portal>
         <Radix.Overlay className="fixed inset-0 z-50 bg-black/45" />
-        <Radix.Content onEscapeKeyDown={onCancel} className="fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-32px)] max-w-[360px] -translate-1/2 gap-3 rounded-[8px] border border-rule bg-ground p-[18px] text-ink">
+        <Radix.Content onEscapeKeyDown={onCancel} className="fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-32px)] max-w-[360px] -translate-1/2 gap-3 rounded-[8px] border border-rule bg-ground p-[18px] text-ink label:rounded-none label:border-2 label:bg-label">
           <Radix.Title className="text-[18px] font-bold">{title}</Radix.Title>
           <Radix.Description asChild>
             <div className="text-body text-ink-2">{children}</div>

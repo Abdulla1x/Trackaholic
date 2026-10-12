@@ -4,6 +4,13 @@
  * onto utilities. */
 @import "./theme.css";
 
+/* The Label style (DESIGN.md: Themes and palettes): `label:` applies a
+ * utility only while <html> has data-style="label". :where() adds no
+ * specificity, so `label:border-2` ties with the `border-[1.5px]` beside it
+ * and wins on order, because Tailwind writes variant utilities after plain
+ * ones. Each primitive carries its own label: utilities this way. */
+@custom-variant label (&:where([data-style="label"] *));
+
 /* The tokens that are not colours. The colours are all in theme.css, switched
  * by attributes on <html>, and mapped onto utilities by @theme inline below.
  * The old fixed dark tokens (surface, raised, line, ink-muted, ink-faint,
@@ -13,6 +20,11 @@
 @theme {
   /* Radius for anything you tap or type in (DESIGN.md: Shapes). */
   --radius-control: 5px;         /* DESIGN.md (was 0.5rem, rounded-lg) */
+  /* In this block, not @theme inline, so the utilities read var(): the Label
+   * style squares every corner by setting these to 0 (below). */
+  --radius-tag: 3px;
+  --radius-log: 7px;
+  --radius-sheet: 14px;
 
   /* The only indeterminate animation in the app, used while the AI model is
    * working and there is genuinely nothing to count. Registered here rather
@@ -291,10 +303,6 @@
   /* The nutrition-label face: the wordmark and the Label style only. */
   --font-label: "Libre Franklin Variable", "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
 
-  --radius-tag: 3px;
-  --radius-log: 7px;
-  --radius-sheet: 14px;
-
   /* DESIGN.md Motion tokens, for CSS transitions; Motion code reads lib/motion.ts. */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -363,6 +371,17 @@
   :focus-visible {
     outline: 2px solid var(--color-action);
     outline-offset: 2px;
+  }
+
+  /* The Label style's two global changes: Libre Franklin everywhere, and no
+   * rounded corners anywhere. Everything else is a label: utility on the
+   * primitive it changes. */
+  :root[data-style="label"] {
+    font-family: var(--font-label);
+    --radius-control: 0px;
+    --radius-tag: 0px;
+    --radius-log: 0px;
+    --radius-sheet: 0px;
   }
 }
 

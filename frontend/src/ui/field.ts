@@ -2,4 +2,4 @@
  *  5px radius, 44px tall. Focus turns the border the action colour; keyboard
  *  focus adds the 2px action outline. */
 export const FIELD =
-  'min-h-11 w-full rounded-control border-[1.5px] border-rule bg-field px-3 text-body text-ink placeholder:text-ink-2 focus:border-action focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'
+  'min-h-11 w-full rounded-control border-[1.5px] border-rule bg-field px-3 text-body text-ink placeholder:text-ink-2 focus:border-action focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action label:border-2 label:border-ink label:bg-label label:font-semibold'

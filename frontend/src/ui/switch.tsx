@@ -44,13 +44,13 @@ export function SwitchRow({
       <span
         aria-hidden="true"
         className={cn(
-          'relative h-[26px] w-11 shrink-0 rounded-control border-[1.5px] transition-colors duration-150 ease-out-expo',
+          'relative h-[26px] w-11 shrink-0 rounded-control border-[1.5px] transition-colors duration-150 ease-out-expo label:border-2',
           checked ? 'border-ink bg-ink' : 'border-rule bg-field',
         )}
       >
         <span
           className={cn(
-            'absolute top-[3px] left-[3px] size-[17px] rounded-[3px] transition-transform duration-150 ease-out-expo motion-reduce:transition-none',
+            'absolute top-[3px] left-[3px] size-[17px] rounded-[3px] transition-transform duration-150 ease-out-expo motion-reduce:transition-none label:top-[2.5px] label:left-[2.5px] label:rounded-none',
             checked ? 'translate-x-[18px] bg-ground' : 'bg-ink-2',
           )}
         />

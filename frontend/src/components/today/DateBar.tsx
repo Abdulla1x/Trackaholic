@@ -21,12 +21,12 @@ export default function DateBar({
 }) {
   const heading = dayHeading(day, today, addDays(today, -1))
   return (
-    <div className="flex items-center justify-between gap-2 border-b border-rule pb-1.5">
+    <div className="flex items-center justify-between gap-2 border-b border-rule pb-1.5 label:border-b-[5px]">
       <button type="button" className={STEP} onClick={() => onChange(addDays(day, -1))} aria-label="Previous day">
         <BackIcon size={22} />
       </button>
       <div className="relative min-w-0 rounded-control px-2 py-2 hover:bg-ink/5 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-action">
-        <h1 className="truncate text-title">{heading}</h1>
+        <h1 className="truncate text-title label:text-[18px] label:font-black label:tracking-[-0.01em]">{heading}</h1>
         <input
           type="date"
           value={day}

@@ -132,10 +132,11 @@ export function TabBar({ active }: { active: Section | null }) {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-rule bg-ground pb-[env(safe-area-inset-bottom)] desk:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-rule bg-ground pb-[env(safe-area-inset-bottom)] desk:hidden label:border-t-[5px] label:bg-label"
     >
       <div ref={row} className="relative grid h-16 grid-cols-[1fr_1fr_auto_1fr] items-center px-2">
-        <Marker box={box} axis="x" className="top-0 left-0 h-0.5" />
+        {/* Label underlines the current tab's name instead (TAB_CLASS). */}
+        <Marker box={box} axis="x" className="top-0 left-0 h-0.5 label:hidden" />
         {TABS.slice(0, 2).map((tab) => (
           <TabLink key={tab.section} {...tab} active={active === tab.section} className={TAB_CLASS} />
         ))}
@@ -152,7 +153,7 @@ export function TabBar({ active }: { active: Section | null }) {
 // it these links fall back to index.css's older emerald ring.
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'
 
-const TAB_CLASS = `flex min-h-[54px] flex-col items-center justify-center gap-0.5 text-[11.5px] tracking-[0.02em] [font-stretch:105%] transition-colors ${FOCUS}`
+const TAB_CLASS = `flex min-h-[54px] flex-col items-center justify-center gap-0.5 text-[11.5px] tracking-[0.02em] [font-stretch:105%] transition-colors ${FOCUS} label:aria-[current=page]:[&>span]:underline label:aria-[current=page]:[&>span]:decoration-[3px] label:aria-[current=page]:[&>span]:underline-offset-4`
 
 /** Desktop (900px and up): a 236px rail with the wordmark, the Log button and
  *  the tabs; the current tab has a 3px bar on its left that slides between
@@ -164,13 +165,14 @@ export function RailNav({ active }: { active: Section | null }) {
     <nav aria-label="Main" className="grid gap-[18px]">
       <LogAction place="rail" className="w-full" />
       <div ref={list} className="relative grid gap-0.5">
-        <Marker box={box} axis="y" className="top-0 left-0 w-[3px] py-2 [background-clip:content-box]" />
+        {/* Label inverts the current item instead. */}
+        <Marker box={box} axis="y" className="top-0 left-0 w-[3px] py-2 [background-clip:content-box] label:hidden" />
         {TABS.map((tab) => (
           <TabLink
             key={tab.section}
             {...tab}
             active={active === tab.section}
-            className={`flex min-h-[46px] items-center gap-3 px-3 text-[15px] tracking-[0.02em] [font-stretch:105%] transition-colors ${FOCUS}`}
+            className={`flex min-h-[46px] items-center gap-3 px-3 text-[15px] tracking-[0.02em] [font-stretch:105%] transition-colors ${FOCUS} label:aria-[current=page]:bg-ink label:aria-[current=page]:text-label`}
           />
         ))}
       </div>

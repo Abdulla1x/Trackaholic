@@ -19,7 +19,8 @@ export function Chip({ pressed, className, ...props }: ComponentProps<'button'> 
         'inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-control border-[1.5px] px-3 text-[13.5px] font-semibold whitespace-nowrap',
         'transition-[background-color,border-color,color] duration-150 ease-out-expo',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
-        pressed ? 'border-ink bg-ink text-ground' : 'border-rule text-ink hover:border-ink',
+        'label:border-2 label:font-bold',
+        pressed ? 'border-ink bg-ink text-ground label:text-label' : 'border-rule text-ink hover:border-ink',
         className,
       )}
       {...props}

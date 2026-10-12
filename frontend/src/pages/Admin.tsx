@@ -552,7 +552,7 @@ export default function Admin() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)]">
-      <header className="grid gap-1 border-b border-rule pb-3.5">
+      <header className="grid gap-1 border-b border-rule pb-3.5 label:border-b-[5px]">
         <h1 className="text-[20px] leading-tight font-bold [font-stretch:105%]">Admin</h1>
         <p className="text-small text-ink-2">
           Usage metrics only — no meal, food or weight content is shown here or

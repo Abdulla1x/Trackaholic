@@ -55,7 +55,7 @@ import { useUnlockMoment } from '../hooks/useUnlockMoment'
 import type { AnalyticsSummary, BodyTargets, Settings, WeightTrend } from '../types'
 import DailyBurnBlock from '../components/progress/DailyBurnBlock'
 import LookingBackBlock from '../components/progress/LookingBackBlock'
-import Block from '@/ui/block'
+import Block, { LABEL_BOX } from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import Gauge from '@/ui/gauge'
 import { RowLink } from '@/ui/row'
@@ -150,11 +150,11 @@ export default function Progress() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] desk:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] desk:gap-x-10">
-      <header className="border-b border-rule pb-1.5 desk:col-span-2">
-        <h1 className="py-2.5 text-center text-title desk:text-left">Progress</h1>
+      <header className="border-b border-rule pb-1.5 desk:col-span-2 label:border-b-[5px]">
+        <h1 className="py-2.5 text-center text-title desk:text-left label:text-[18px] label:font-black label:tracking-[-0.01em]">Progress</h1>
       </header>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-2 border-b border-rule py-3.5 desk:col-span-2">
+      <div className={`grid grid-cols-[minmax(0,1fr)] gap-2 border-b border-rule py-3.5 desk:col-span-2 ${LABEL_BOX}`}>
         <RangeControl value={range.key} onChange={chooseRange} />
         <p className="text-small text-ink-2">
           The range changes the charts and averages. Trend weight, this week’s change and the goal date always use your
@@ -227,7 +227,7 @@ function RangeControl({ value, onChange }: { value: RangeKey; onChange: (key: Ra
 
 function SkeletonBlock({ short = false }: { short?: boolean }) {
   return (
-    <div className="grid gap-2.5 border-b border-rule py-3.5">
+    <div className={`grid gap-2.5 border-b border-rule py-3.5 ${LABEL_BOX}`}>
       <Skeleton className="h-3 w-1/4" />
       <Skeleton className="h-9 w-3/5" />
       <Skeleton className={short ? 'h-[72px]' : 'h-[200px]'} />
