@@ -99,7 +99,7 @@ export default function LogPanel() {
               }}
             >
               <m.div
-                className="fixed inset-x-0 bottom-0 z-50 flex h-[92dvh] flex-col rounded-t-sheet border-t border-rule bg-ground text-ink focus:outline-none desk:inset-y-0 desk:right-0 desk:left-auto desk:h-full desk:w-[480px] desk:rounded-none desk:border-t-0 desk:border-l"
+                className="fixed inset-x-0 bottom-0 z-50 flex h-[92dvh] flex-col rounded-t-sheet border-t border-rule bg-ground text-ink focus:outline-none desk:inset-y-0 desk:right-0 desk:left-auto desk:h-full desk:w-[480px] desk:rounded-none desk:border-t-0 desk:border-l label:border-t-[5px] label:desk:border-t-0 label:desk:border-l-[5px]"
                 // Rises from the bottom on phones, slides from the right on
                 // desktop; a spring in, an ease-in out (DESIGN.md Motion). Under
                 // reduced motion MotionConfig keeps only the fade.
@@ -112,7 +112,7 @@ export default function LogPanel() {
                 }
               >
                 <div aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-rule desk:hidden" />
-                <header className="flex min-h-[54px] shrink-0 items-center gap-1.5 border-b border-rule px-2">
+                <header className="flex min-h-[54px] shrink-0 items-center gap-1.5 border-b border-rule px-2 label:border-b-[5px] label:bg-label">
                   {canGoBack ? (
                     <button type="button" onClick={back} aria-label="Back" className={ICON_BUTTON}>
                       <BackIcon size={22} aria-hidden />

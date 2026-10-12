@@ -150,8 +150,8 @@ export default function Progress() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] desk:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] desk:gap-x-10">
-      <header className="border-b border-rule pb-1.5 desk:col-span-2">
-        <h1 className="py-2.5 text-center text-title desk:text-left">Progress</h1>
+      <header className="border-b border-rule pb-1.5 desk:col-span-2 label:border-b-[5px]">
+        <h1 className="py-2.5 text-center text-title desk:text-left label:text-[18px] label:font-black label:tracking-[-0.01em]">Progress</h1>
       </header>
 
       <div className={`grid grid-cols-[minmax(0,1fr)] gap-2 border-b border-rule py-3.5 desk:col-span-2 ${LABEL_BOX}`}>

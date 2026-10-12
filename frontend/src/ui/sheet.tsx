@@ -80,7 +80,7 @@ export default function Sheet({
                 className={cn(
                   'fixed z-50 flex flex-col bg-ground text-ink focus:outline-none',
                   side
-                    ? 'inset-y-0 right-0 h-full w-[480px] border-l border-rule'
+                    ? 'inset-y-0 right-0 h-full w-[480px] border-l border-rule label:border-l-[5px]'
                     : center
                       ? // Centred by margins, not translate: Motion owns `transform` here.
                       'inset-0 m-auto h-fit max-h-[90dvh] w-[440px] rounded-[10px] border border-rule label:rounded-none label:border-2'
