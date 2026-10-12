@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useBlocker, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import AlertDialog from '../components/AlertDialog'
 import Modal from '../components/ui/Modal'
-import { validateSettingsField } from '../lib/limits'
-import { useSettings } from '../settings/SettingsContext'
-import type { Settings as SettingsType } from '../types'
+import { useSettingsDraft } from '../settings/useSettingsDraft'
 import type { SettingsPanel } from './settings/panelContext'
 import { SETTINGS_TABS, settingsTabFor } from './settings/tabs'
 import Button from '../components/ui/Button'
@@ -27,134 +24,29 @@ import { useLiveMessage } from '../hooks/useLiveMessage'
  * The draft lives here, above the router outlet, so switching tabs cannot lose
  * an unsaved edit -- only leaving /settings can.
  */
-/** Does the working copy differ from the row the server has?
- *
- * Deliberately not `JSON.stringify(a) !== JSON.stringify(b)`. That is correct
- * only while key order stays stable, which it does today purely because the
- * draft is always built by spreading the saved row -- a rule that holds by
- * luck, and this codebase has been bitten before by a comment asserting an
- * invariant its own contents did not enforce. Walking the keys costs nothing
- * and needs no such assumption. `water_quick_adds` is the only array on the
- * row, hence the element-wise arm.
- */
-function settingsDiffer(a: SettingsType, b: SettingsType): boolean {
-  return (Object.keys(a) as (keyof SettingsType)[]).some((key) => {
-    const left = a[key]
-    const right = b[key]
-    if (Array.isArray(left) && Array.isArray(right)) {
-      return (
-        left.length !== right.length ||
-        left.some((value, index) => value !== right[index])
-      )
-    }
-    return left !== right
-  })
-}
-
 export default function Settings() {
-  const { settings: saved, error: loadError, updateSettings } = useSettings()
+  // The draft, the leave guard and the out-of-range refusal live in
+  // useSettingsDraft. Moving between Settings tabs is NOT blocked -- the draft
+  // lives in this shell, above the tab outlet, so it survives that -- only
+  // leaving /settings is.
+  const { loadError, draft, dirty, status, error, rejected, setRejected, targetsKey, blocker, update, guard, save } =
+    useSettingsDraft((from, to) => from.startsWith('/settings') && !to.startsWith('/settings'))
   // Not one of this component's own messages -- it comes from the shared
   // settings fetch and REPLACES the whole page below. Announced anyway,
   // because the page transitions from "Loading…" to it without any other
   // signal, and someone waiting is told nothing at all otherwise.
   useLiveMessage(loadError)
-  // A local working copy, so edits are not published to the rest of the app
-  // until Save. Editing the shared object directly would make the dashboard
-  // rings follow every keystroke in the goal fields, including half-typed
-  // numbers on the way to the real one.
-  const [draft, setDraft] = useState<SettingsType | null>(null)
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
-  const [error, setError] = useState('')
   useLiveMessage(error)
   // The Save bar's ✓ has no text a screen reader can reach, and 'saved' on
   // its own does not say what was saved. The error branch sets `error`, which
   // the line above announces, so this covers only the success transition.
   useLiveMessage(status === 'saved' ? 'Settings saved' : '')
-  // Bumped after every successful save, so the targets card refetches. The
-  // numbers it shows are derived from the row that was just written, and a
-  // stale card beside a fresh form is how you end up trusting the wrong one.
-  const [targetsKey, setTargetsKey] = useState(0)
-  // The refusal message for a value that has just been rejected and undone.
-  const [rejected, setRejected] = useState<string | null>(null)
   const tab = settingsTabFor(useLocation().pathname)
-
-  useEffect(() => {
-    if (saved) setDraft(saved)
-  }, [saved])
-
-  // Computed before the early return below, because the two effects that
-  // depend on it are hooks and cannot sit after a conditional return.
-  const dirty = draft !== null && saved !== null && settingsDiffer(draft, saved)
-
-  // Covers a reload, a closed tab and a followed external link: the browser's
-  // own "Leave site?" prompt, which is all a page is allowed to show there.
-  useEffect(() => {
-    if (!dirty) return
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [dirty])
-
-  // Covers in-app navigation, which beforeunload never sees: tapping a nav tab
-  // or a link while the draft is dirty used to drop it without a word. Moving
-  // between Settings tabs is NOT blocked -- the draft lives in this shell,
-  // above the tab outlet, so it survives that -- only leaving /settings is.
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      dirty &&
-      currentLocation.pathname.startsWith('/settings') &&
-      !nextLocation.pathname.startsWith('/settings'),
-  )
-
-  // "Saved ✓" is an acknowledgement, not a state to sit in. Without this the
-  // bar would stay on screen after every save until the next keystroke, which
-  // is a permanent strip of chrome reporting something that already happened.
-  useEffect(() => {
-    if (status !== 'saved') return
-    const timer = setTimeout(() => setStatus('idle'), 2_500)
-    return () => clearTimeout(timer)
-  }, [status])
 
   if (!draft) {
     return <p className="text-slate-400">{loadError || 'Loading…'}</p>
   }
   const settings = draft
-
-  const update = (patch: Partial<SettingsType>) => {
-    setDraft({ ...settings, ...patch })
-    setStatus('idle')
-  }
-
-  /** Refuse an out-of-range value the moment the user leaves the field.
-   *
-   * On blur rather than on change: validating every keystroke would reject
-   * "7" on the way to typing "0.7". On blur the user has finished, and the
-   * answer arrives while they are still looking at the field they typed it
-   * into — not several fields later, attached to a failed Save.
-   *
-   * The value is *undone*, not merely flagged. Leaving a number the server is
-   * certain to refuse sitting in the box looks accepted, and it would fail
-   * again on the next save for a reason the user has by then forgotten. */
-  const guard = (field: keyof SettingsType) => () => {
-    const problem = validateSettingsField(field, settings[field] as number | null)
-    if (!problem) return
-    setRejected(problem)
-    update({ [field]: saved ? saved[field] : null })
-  }
-
-  const save = async () => {
-    setStatus('saving')
-    try {
-      // Through the context, so the dashboard rings and the Weight page's unit
-      // pick up the change immediately instead of on their next remount.
-      setDraft(await updateSettings(settings))
-      setTargetsKey((key) => key + 1)
-      setStatus('saved')
-    } catch (err) {
-      setStatus('error')
-      setError(err instanceof Error ? err.message : 'Save failed')
-    }
-  }
 
   const context: SettingsPanel = {
     settings,
