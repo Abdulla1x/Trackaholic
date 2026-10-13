@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { api } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import ScreenBar from '../../components/shell/ScreenBar'
 import { SCREEN_FRAME } from '../../components/you/screenContext'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
-import { saveToDevice } from '../../lib/saveToDevice'
+import { downloadExport } from '../../lib/downloadExport'
 import { AlertDialog } from '@/ui/alert-dialog'
 import Block from '@/ui/block'
 import { Button } from '@/ui/button'
@@ -23,15 +22,11 @@ export default function DeleteScreen() {
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   useLiveMessage(error)
-  // The file, when the share sheet refused it because the tap was too long
-  // ago (lib/saveFile.ts): the next tap hands it over without a second wait.
-  const [ready, setReady] = useState<File | null>(null)
 
   const download = async () => {
     setError('')
     try {
-      const file = ready ?? (await api.exportAll())
-      setReady((await saveToDevice(file)) === 'needs-tap' ? file : null)
+      await downloadExport('all')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The download failed. Try again.')
     }
@@ -62,7 +57,7 @@ export default function DeleteScreen() {
             onClick={download}
             className="font-semibold text-ink underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
           >
-            {ready ? 'Your file is ready. Save it' : 'Download all my data'}
+            Download all my data
           </button>
         </p>
         <label className="grid min-w-0 gap-1.5">

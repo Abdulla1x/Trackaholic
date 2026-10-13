@@ -587,21 +587,15 @@ export const api = {
       body: JSON.stringify({ meal_id: mealId }),
     }),
 
-  // A plain <a href> can't carry the Authorization header, so the exports are
-  // fetched with auth and come back as files; lib/saveFile.ts hands them over.
-  exportMeals: async (): Promise<File> => {
-    const token = getToken()
-    const response = await fetch(`${API_BASE}/api/data/export`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+  // A download is a link the browser follows itself, which can't carry the
+  // Authorization header, so the server first signs a one-minute link to the
+  // file (backend app/routers/data.py). lib/downloadExport.ts follows it.
+  exportLink: async (kind: 'meals' | 'all'): Promise<string> => {
+    const { url } = await request<{ url: string }>('/api/data/export/ticket', {
+      method: 'POST',
+      body: JSON.stringify({ kind }),
     })
-    if (!response.ok) throw new ApiError(`Export failed (${response.status})`, response.status)
-    return new File([await response.blob()], 'macros_backup.csv', { type: 'text/csv' })
-  },
-  exportAll: async (): Promise<File> => {
-    const data = await request<unknown>('/api/data/export/all')
-    return new File([JSON.stringify(data, null, 2)], 'macros_full_export.json', {
-      type: 'application/json',
-    })
+    return `${API_BASE}${url}`
   },
   importCsv: (file: File) => {
     const form = new FormData()
