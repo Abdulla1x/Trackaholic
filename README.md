@@ -31,7 +31,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **Layered AI quotas**: 12 analyses + 16 voice notes + 3 review summaries per user per day, under a **global ceiling** of 40 calls/day across every account — sized for Gemini's free tier of 20 requests a day per model, and checked against the heaviest real user's busiest days. The per-user caps stop one person using up the shared quota, the global one stops mass signups draining it (or running up a bill on a paid key). All of them are env-tunable
 - **What the AI sees**: your photos, voice note and description are sent to Google Gemini to estimate the meal, and the app says so under the Estimate button. Photos are shrunk on your phone first, which also strips their location data, and only the text of the estimate is kept: the photo and audio are discarded. On Gemini's free tier, Google may use what it is sent to improve its products
 - **What you search for is not logged**: the food searches send what you type as a URL parameter, and both the server's access log and its outgoing-request log blank that value before writing the line. The app's own log lines count results and time them, never the text
-- **Own your data**: export or import your meals as CSV (duplicates are skipped and dates normalized) and download everything as JSON, from **You → Your data**; the import's counts stay on the row afterwards. Change your password (it signs every other device out; the new one is typed twice, because a forgotten password can't be reset yet) or permanently delete your account from **You → Account**. Deleting is a plain ink button, not a red one; it offers the full download first, and asks once more
+- **Own your data**: export or import your meals as CSV (duplicates are skipped and dates normalized) and download everything as JSON, from **You → Your data**; the import's counts stay on the row afterwards. Each download is a one-minute link the browser fetches itself, because a file made inside the page goes nowhere in an app installed on a phone. Change your password (it signs every other device out; the new one is typed twice, because a forgotten password can't be reset yet) or permanently delete your account from **You → Account**. Deleting is a plain ink button, not a red one; it offers the full download first, and asks once more
 - **Password reset by email — built, deployed, and switched off.** The endpoints, the single-use link (hashed at rest, valid an hour, revoking every session when used) and 38 tests are all here and running in production. They answer **503 to every address**, because no email provider is configured — three free providers were tried and all three refused a domainless free account, which is the profile their fraud screening targets. Until one is wired up **a forgotten password means a lost account**, and the signup page says so rather than letting you find out later. Nothing about the feature needs a deploy to switch on; it activates on credentials alone
 
 ### 🧭 Getting around
@@ -42,12 +42,13 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **Light or dark, nine colours, or a nutrition label**, chosen in You → Appearance. Automatic follows the phone's dark mode. Nine palettes change the ground, the buttons and the colour of the calories band. The **Label** style turns every screen black and white, as on a food packet: boxed sections with heavy rules, square controls, and Today's calories as a nutrition label. The choice belongs to the device, not the account, and a small script in `<head>` applies it before the first frame, so a dark phone never flashes white
 
 ### 👋 First use
-- **No invented target.** Every account starts with a 2,000 kcal placeholder, so until you choose a target the calories show what you ate and "Not set yet" instead: no gauge, no "left", no target line in Progress, no Monday review card
+- **No invented target.** Every account starts with a 2,000 kcal placeholder, so until you choose a target the calories show what you ate and "Not set yet" instead: no gauge, no "left", no target line in Progress, no weekly review card
 - **Getting started, not a tour**: two steps on Today, set your daily target and log your first meal. "Not now" shrinks it to one row. Once both are done it turns into a short "what's next" (Progress fills in as you log) until you dismiss it. A brand-new account meets **no popup at all**: release notes are marked seen silently on a phone's first visit and held until a target is set
 - **Setup, one question per screen**: weight (it counts as your first weigh-in, in kg or lb depending on your phone's region), height, date of birth, sex, activity in workouts a week, your goal and pace, and a few skippable extras (goal weight, carbs and fat, trackers, a weigh-in reminder). Every typo is caught on its own question; the phone's back gesture steps back a question; a reload keeps your answers. The pace choices grey out above the fastest it will plan for you, with the reason
 - **The target comes live from the server's own calculation**, so the number previewed is the number saved, and any limit that changed your pace is named with the numbers. Or skip the questions with **I have my own numbers**, which refuses macros that cannot fit in the calories. Saving plays a short moment: the number counts up and the gauge draws in
 - **How your target is worked out**, with your own numbers: resting burn × activity = daily burn, minus your pace = target, and protein as grams per kilo, each with its source. Plus an optional **How Trackaholic works** page: logging well, reading Today, what unlocks, things people miss, and when to ask a doctor instead
 - **You choose your trackers.** Only the weigh-in is always on; water, steps and supplements are picked in setup or with **Add or remove trackers** at the bottom of Today. Accounts from before the choice keep their cards and are asked once, in "The new Trackaholic"
+- **Three one-line tips, each beside a feature that is easy to miss**, and only when it would help: copying a meal you have logged at least twice before ("You've logged this 2 times before.") offers **Keep as a saved meal**; the Steps card, for an account that has never logged a step, offers to import a Samsung Health history; and the AI box, once you have typed a note and have saved foods, asks "Logging something you've saved?" with **Use my saved foods**. Each has a ✕, and once closed or used it stays away on that device
 
 ### 📊 Today
 - **Calories first.** The top of the page is one big number, the calories left (or over) against the day's target, with a 20-segment gauge closed by a target tick, and Eaten and Protein in fixed fields beneath. Carbs and fat join them only if you track them, and are never mentioned otherwise. Changed digits roll into place and new segments light one by one, so a save shows what it moved; under reduced motion the numbers simply change
@@ -64,7 +65,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **Steps tracker**, typed in by hand or imported from a `date,steps` CSV — no phone or watch sync is possible in a web app, and the UI says so rather than implying one. Set a goal or don't; with none set the card shows the count alone
 - **Supplement tracker** — a list with a dose and the times of day you take it, ticked off from Today; chosen but empty, the card says how to set it up. Reminders are in-app only, deliberately: push on Android needs Google Play Services and scheduled local notifications need a browser API nobody shipped, so the card says a dose is due while you have it open and never pretends it will reach your phone. Pausing keeps the history; deleting does not
 - Every tracker is one full-width row with a segmented meter against its goal; supplements show "2 of 3" instead, since doses are not a goal. Changes are drawn the same way everywhere: the changed digits roll, and new segments light in a bright sweep that settles to ink, so a tap on +250 ml is seen as well as counted
-- **The weekly review comes up on Mondays**, as a card above the trackers with one sentence from the review's own checks ("7 of 7 days logged. Nothing to fix this week. Carry on.") and the way in. On other days it is under Progress
+- **The weekly review comes up once a week**, as a card above the trackers with one sentence from the review's own checks ("7 of 7 days logged. Nothing to fix this week. Carry on.") and the way in. It covers the last full Monday-to-Sunday week and stays until you close it or open the review, then stays away on that device until the next week. The review itself is always under Progress
 - **Calorie planning** — move calories between days without moving the week. Plan a bigger day and fund it from the days around it, or spread a day that already ran over across the days ahead (and the mirror when bulking and under). Three things are deliberate: it is **not a debt** — measured expenditure already absorbs one large day as a slightly slower week, so this only decides where it lands; **nothing prompts you** — it waits one tap behind the calories, in the day in detail, whether the day went well or badly, because an app that asks after every overshoot is a different kind of app; and **you pick the days**, with the server only refusing a spread that would take one below a safe calorie floor, naming the day rather than quietly shaving less than you asked. Protein never moves — carbohydrate and fat absorb the difference
 
 ### 🤖 AI meal analysis
@@ -133,10 +134,19 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - Let the app **keep those goals in step with your weight**: with auto-targets
   on, the daily goals are recalculated on every weigh-in instead of staying
   wherever you first set them
+- **Keep calories automatic, set protein yourself.** On You → Daily targets,
+  protein is "Keep or build muscle", "Just the scale" or **My own number**. A
+  typed number leaves the worked-out calories alone, so the room for it comes
+  out of **fat first**, down to its minimum of 0.5 g per kilo, and only then out
+  of carbs, which fuel training. Fat's line says which it is ("A quarter of the
+  day", "Less, to make room for protein", "At its minimum"). A number that
+  cannot fit is refused with the most that would; if a later weigh-in lowers
+  the calories below it, the screen says "Your protein no longer fits" until
+  you lower it
 - **Every setting is on one page, You**, in groups from daily to rare: Goals and body, Trackers, Food, Appearance, Your data, Account, Help. Each row shows what it is set to underneath ("2,500 ml a day, from your weight · +250 +500 +750", "48 foods · 1 possible duplicate"), so most visits end there without opening anything. A row opens its own screen with its own address, and a supplement, food or saved meal opens in a sheet (from the bottom on a phone, from the side on a desktop) with its fields, its other actions and Delete. **Log out** asks first. The old `/settings/…` addresses still lead to the right screen
 
 ### 🗓️ Weekly review
-- **Everything the app already knew, added up in one place**, opened from Progress (and from Today on Mondays): how much you logged, calories and protein against target, whether your weight is moving the way you asked, where your daily burn figure came from, water, steps, and one line on estimate accuracy
+- **Everything the app already knew, added up in one place**, opened from Progress (and from its card on Today): how much you logged, calories and protein against target, whether your weight is moving the way you asked, where your daily burn figure came from, water, steps, and one line on estimate accuracy
 - **Every sentence is arithmetic, not opinion.** Each section shows the number, what it is compared with, and how many days it was worked out from — and where there isn't enough to answer, it says what is missing instead of guessing
 - **Today is left out on purpose.** The week ends yesterday, because averaging in a day that still has dinner to come makes every week look better than it was
 - **Not every section is about the same seven days, and each one says which.** The weight rate is fitted over four weeks, not one, because a seven-day weight slope is mostly water. Calling that "this week" would have been a tidier page and a less honest one
@@ -742,7 +752,7 @@ only on the caller's data, except these public ones: `/api/health`,
 | Method | Endpoint | Description |
 |---|---|---|
 | GET/POST | `/api/meals` | List (optionally by `?date=`) / create meals |
-| GET | `/api/meals/recent` | The most recent meal under each distinct name, for re-logging. `?demote_date=` sorts names already logged on that day to the end |
+| GET | `/api/meals/recent` | The most recent meal under each distinct name, for re-logging, with how many times each name was logged. `?demote_date=` sorts names already logged on that day to the end |
 | PUT/DELETE | `/api/meals/{id}` | Edit or delete a meal |
 | GET/POST | `/api/meal-templates` | List saved meals / save one (upsert by name) |
 | DELETE | `/api/meal-templates/{id}` | Delete a saved meal template |
@@ -776,7 +786,7 @@ only on the caller's data, except these public ones: `/api/health`,
 | DELETE | `/api/weights/{id}` | Delete a weigh-in |
 | GET/POST | `/api/water` | One day's water (entries, total, derived goal) / log a drink |
 | DELETE | `/api/water/{id}` | Remove one water entry (what the card's undo calls) |
-| GET/POST/DELETE | `/api/steps` | One day's steps (count, goal, walking estimate) / save it / clear it |
+| GET/POST/DELETE | `/api/steps` | One day's steps (count, goal, walking estimate, whether the account has ever logged any) / save it / clear it |
 | POST | `/api/data/import/steps` | Import a step history from a two-column `date,steps` CSV; days already logged are kept |
 | GET | `/api/supplements/day` | One day's doses: every scheduled slot and whether it was ticked |
 | POST/DELETE | `/api/supplements/log` | Tick / un-tick one dose; both idempotent, both return the updated day |
