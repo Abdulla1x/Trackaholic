@@ -18,7 +18,7 @@ today. Steps are recorded and shown. They are an input to nothing.
 from datetime import date as date_type
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from ..auth.deps import get_current_user
@@ -65,12 +65,19 @@ def _day(db: Session, user_id: int, day: date_type) -> StepDay:
         weight = _latest_trend_weight(db, user_id)
         weight_kg = weight[0] if weight is not None else None
 
+    # Any day at all, not just this one. A day with its own row answers it for
+    # free, so only an untouched day costs the extra query.
+    ever_logged = row is not None or bool(
+        db.scalar(select(exists().where(StepRow.user_id == user_id)))
+    )
+
     return StepDay(
         date=day,
         steps=steps,
         # Not `steps > 0`: zero is a legal count, so a logged zero has to stay
         # distinguishable from a day nobody has touched.
         logged=row is not None,
+        ever_logged=ever_logged,
         goal=goal,
         burn_kcal=steps_burn(steps, weight_kg),
         burn_weight_kg=weight_kg if steps > 0 else None,

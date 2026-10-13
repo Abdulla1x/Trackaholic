@@ -252,6 +252,42 @@ def test_recent_stops_at_the_scan_window(client):
     assert names == ["Breakfast"]
 
 
+def test_recent_counts_each_name_across_case(client):
+    """`count` is how often the name was logged, the meal on offer included.
+
+    It feeds the copy form's saved-meal tip, so it has to treat names the way
+    the deduplication does: "Breakfast" and " breakfast" are one meal. Demoting
+    a name moves it, and must not change its count.
+    """
+    client.post("/api/meals", json=_sample(date="2026-07-01", name="Breakfast"))
+    client.post("/api/meals", json=_sample(date="2026-07-02", name=" breakfast"))
+    client.post("/api/meals", json=_sample(date="2026-07-03", name="BREAKFAST"))
+    client.post("/api/meals", json=_sample(date="2026-07-03", name="Tea"))
+
+    counts = {m["name"].strip().lower(): m["count"] for m in client.get("/api/meals/recent").json()}
+    assert counts == {"breakfast": 3, "tea": 1}
+
+    demoted = client.get("/api/meals/recent", params={"demote_date": "2026-07-02"}).json()
+    assert [(m["name"], m["count"]) for m in demoted] == [("Tea", 1), ("BREAKFAST", 3)]
+
+
+def test_recent_counts_only_inside_the_scan_window(client):
+    """A name logged on both sides of RECENT_SCAN_ROWS counts only the scanned logs.
+
+    The count may run low, never high, so the saved-meal tip can show later
+    than it might but never claims more logs than there were. The deduplication
+    stops early, which is why the count is taken over the whole window: here
+    "Porridge" is the last row scanned, after "Breakfast" was already kept.
+    """
+    client.post("/api/meals", json=_sample(date="2026-06-01", name="Porridge"))
+    client.post("/api/meals", json=_sample(date="2026-06-02", name="Porridge"))
+    for _ in range(RECENT_SCAN_ROWS - 1):
+        client.post("/api/meals", json=_sample(date="2026-07-01", name="Breakfast"))
+
+    counts = {m["name"]: m["count"] for m in client.get("/api/meals/recent").json()}
+    assert counts == {"Breakfast": RECENT_SCAN_ROWS - 1, "Porridge": 1}
+
+
 def test_recent_demotes_names_already_logged_on_the_viewed_day(client):
     """The card offers what you have NOT got round to logging, first.
 

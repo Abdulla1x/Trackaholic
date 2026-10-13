@@ -4,6 +4,9 @@ import FoodAutocomplete from '../components/FoodAutocomplete'
 import MealAnalyzer from '../components/MealAnalyzer'
 import { useAnalysis } from '../analysis/AnalysisContext'
 import { useLogPanel } from '../components/log/useLogPanel'
+import { api } from '../api/client'
+import { dismissedSavedMeals, dismissSavedMeal } from '../lib/dismissals'
+import { offerSavedMeal } from '../lib/hints'
 import { announceMealsChanged } from '../lib/mealEvents'
 import { useToast } from '../ui/toast'
 import { localIsoDate, parseIsoDate } from '../lib/dates'
@@ -29,10 +32,12 @@ import type {
   Meal,
   MealAnalysisResponse,
   MealTemplate,
+  RecentMeal,
   SharedMeal,
 } from '../types'
 import { Button } from '@/ui/button'
 import { FIELD } from '@/ui/field'
+import Hint from '@/ui/hint'
 import { DeleteIcon, KeepIcon, LogIcon } from '@/ui/icons'
 import DayChips from '../components/log/DayChips'
 import { useLiveMessage } from '../hooks/useLiveMessage'
@@ -115,7 +120,7 @@ export default function LogMeal() {
   // two travel TOGETHER: the meal says what to log and `?date=` says when, and
   // the meal's own date is deliberately ignored. Copying Tuesday's dinner is
   // logging dinner today, not editing Tuesday.
-  const copyMeal = (location.state as { copyMeal?: Meal } | null)?.copyMeal ?? null
+  const copyMeal = (location.state as { copyMeal?: RecentMeal } | null)?.copyMeal ?? null
   // Arrived from "Search a food" after an estimate failed.
   const focusFoodSearch = (location.state as { focusFoodSearch?: boolean } | null)?.focusFoodSearch === true
   // Set when a meal code was pasted below. The decoded meal and the code that
@@ -141,6 +146,10 @@ export default function LogMeal() {
   useLiveMessage(message?.text)
   const [saving, setSaving] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
+  // The saved-meal tip on the copy form: from the third log of a name that
+  // isn't a saved meal yet (lib/hints). Saved meals are fetched only when the
+  // count already qualifies, so most copies cost no extra request.
+  const [savedMealTip, setSavedMealTip] = useState(false)
   const [analysisId, setAnalysisId] = useState<number | null>(null)
   // The AI estimate lives in AnalysisProvider, not here, so it outlasts this
   // page; reset() clears it once its meal is saved.
@@ -334,28 +343,60 @@ export default function LogMeal() {
     }
   }
 
+  useEffect(() => {
+    setSavedMealTip(false)
+    const count = copyMeal?.count
+    if (!copyMeal || count === undefined || count < 2) return
+    let live = true
+    api
+      .getMealTemplates()
+      .then((templates) => {
+        if (!live) return
+        setSavedMealTip(
+          offerSavedMeal({
+            count,
+            name: copyMeal.name,
+            savedNames: templates.map((saved) => saved.name),
+            dismissedNames: dismissedSavedMeals(),
+          }),
+        )
+      })
+      // A tip, not content: if the saved meals can't be read, it stays away.
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [copyMeal])
+
+  const closeSavedMealTip = () => {
+    if (copyMeal) dismissSavedMeal(copyMeal.name)
+    setSavedMealTip(false)
+  }
+
   // Fires on its own rather than riding along with the meal save, so a meal can
   // be templated without being logged — and so it also works while editing an
   // existing meal, where there is no create to ride on.
-  const saveAsTemplate = async () => {
+  // Resolves to whether the meal was saved, so the copy form's tip can go
+  // away on success and stay on an error.
+  const saveAsTemplate = async (): Promise<boolean> => {
     const name = mealName.trim()
     if (!name) {
       setMessage({ kind: 'error', text: 'Name the meal before keeping it as a saved meal.' })
-      return
+      return false
     }
     if (validRows.length === 0) {
       setMessage({
         kind: 'error',
         text: 'Add at least one complete ingredient before keeping it as a saved meal.',
       })
-      return
+      return false
     }
     if (validRows.length > MAX_TEMPLATE_ITEMS) {
       setMessage({
         kind: 'error',
         text: `A saved meal can hold at most ${MAX_TEMPLATE_ITEMS} ingredients.`,
       })
-      return
+      return false
     }
     setSavingTemplate(true)
     setMessage(null)
@@ -369,11 +410,13 @@ export default function LogMeal() {
           ? `Kept "${name}" as a saved meal.`
           : `Replaced your saved meal "${name}".`,
       })
+      return true
     } catch (error) {
       setMessage({
         kind: 'error',
         text: error instanceof Error ? error.message : 'Saving the meal failed.',
       })
+      return false
     } finally {
       setSavingTemplate(false)
     }
@@ -423,6 +466,23 @@ export default function LogMeal() {
           </b>{' '}
           log. Saving adds a new meal on the day below; the one you copied stays where it is.
         </p>
+      )}
+
+      {savedMealTip && copyMeal?.count !== undefined && (
+        <Hint
+          action={{
+            label: 'Keep as a saved meal',
+            onClick: () => {
+              // Same guard as the footer button: the save is an unlocked
+              // upsert, so a second tap mid-flight would collide.
+              if (savingTemplate || saving) return
+              void saveAsTemplate().then((saved) => saved && closeSavedMealTip())
+            },
+          }}
+          onClose={closeSavedMealTip}
+        >
+          You’ve logged this {copyMeal.count} times before.
+        </Hint>
       )}
 
       {/* Only when editing: a new meal starts from the AI box on the panel's
@@ -549,7 +609,7 @@ export default function LogMeal() {
               insert, and collide on the unique index. */}
           <Button
             variant="secondary"
-            onClick={saveAsTemplate}
+            onClick={() => void saveAsTemplate().then((saved) => saved && setSavedMealTip(false))}
             disabled={savingTemplate || saving}
             title="Save these ingredients to re-log in one tap"
           >

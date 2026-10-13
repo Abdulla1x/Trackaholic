@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { dismissHint, isHintDismissed } from '../lib/dismissals'
 import { MAX_STEPS_PER_DAY } from '../lib/limits'
 import type { StepDay } from '../types'
 import DailyTrackerCard from './DailyTrackerCard'
 import Tracker from './today/Tracker'
 import { Button } from '@/ui/button'
 import { FIELD } from '@/ui/field'
+import Hint from '@/ui/hint'
 import { cn } from '@/lib/utils'
 import { StepsIcon } from '@/ui/icons'
 import { useLiveMessage } from '../hooks/useLiveMessage'
@@ -21,6 +23,11 @@ export default function StepsCard({ date }: Props) {
   const [error, setError] = useState<string | null>(null)
   useLiveMessage(error)
   const [busy, setBusy] = useState(false)
+  const [hintClosed, setHintClosed] = useState(() => isHintDismissed('steps'))
+  const closeHint = () => {
+    dismissHint('steps')
+    setHintClosed(true)
+  }
 
   const load = useCallback(() => {
     api
@@ -104,6 +111,18 @@ export default function StepsCard({ date }: Props) {
       unit="steps"
       error={error}
       explanation={<StepsCaption day={day} />}
+      hint={
+        // Only for an account with no step count on any day: someone with a
+        // history elsewhere can bring it in instead of starting from today.
+        // Samsung is named because its export is the one the importer takes
+        // as it comes (the others need converting first).
+        day.ever_logged === false &&
+        !hintClosed && (
+          <Hint action={{ label: 'Import my steps', to: '/you/steps', onClick: closeHint }} onClose={closeHint}>
+            Use Samsung Health? Bring in your step history from its export.
+          </Hint>
+        )
+      }
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-stretch">

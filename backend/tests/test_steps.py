@@ -98,6 +98,24 @@ def test_days_are_scoped_to_their_date(client):
     assert client.get("/api/steps").json()["steps"] == 7000
 
 
+def test_ever_logged_looks_past_the_viewed_day(client, client_b):
+    """`ever_logged` is about the account, so the import tip can rely on it.
+
+    False until any day has a count, true on every day after that -- including
+    days with nothing on them -- and false again once the only count is
+    cleared. Another account's steps never count.
+    """
+    assert client.get("/api/steps").json()["ever_logged"] is False
+
+    save(client, 4000, days_ago(4))
+    assert client.get("/api/steps").json()["ever_logged"] is True
+    assert client.get("/api/steps", params={"date": days_ago(4)}).json()["ever_logged"] is True
+    assert client_b.get("/api/steps").json()["ever_logged"] is False
+
+    assert client.delete("/api/steps", params={"date": days_ago(4)}).status_code == 204
+    assert client.get("/api/steps").json()["ever_logged"] is False
+
+
 def test_clearing_a_day_that_was_never_logged_is_404(client):
     assert client.delete("/api/steps", params={"date": days_ago(5)}).status_code == 404
 

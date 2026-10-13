@@ -179,6 +179,9 @@ export interface StepDay {
   date: string
   steps: number
   logged: boolean
+  /** Any day on the account has a count, not just this one. Optional because
+   *  the API only started sending it with the import tip: absent, no tip. */
+  ever_logged?: boolean
   goal: number | null
   burn_kcal: number | null
   burn_weight_kg: number | null
@@ -387,6 +390,11 @@ export interface Meal {
    *  server kept this. Server-set, so omitted below too. */
   created_at: string | null
 }
+
+/** A "recently logged" meal. `count` is how often its name was logged within
+ *  the server's scan window, this one included. Optional because the API
+ *  only started sending it with the saved-meal tip: no count, no tip. */
+export type RecentMeal = Meal & { count?: number }
 
 export type MealCreate = Omit<Meal, 'id' | 'updated_at' | 'created_at'>
 

@@ -4,7 +4,7 @@ import { api } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { daysBetween, localIsoDate, parseIsoDate } from '../../lib/dates'
 import { byRecentUse, rememberTemplate } from '../../lib/recentTemplates'
-import type { Meal, MealTemplate } from '../../types'
+import type { MealTemplate, RecentMeal } from '../../types'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
 import { FIELD } from '@/ui/field'
 import { SearchIcon } from '@/ui/icons'
@@ -101,7 +101,7 @@ export default function MealShortcuts() {
   const date = logDate(search) ?? today
 
   const [templates, setTemplates] = useState<MealTemplate[]>([])
-  const [recent, setRecent] = useState<Meal[]>([])
+  const [recent, setRecent] = useState<RecentMeal[]>([])
   const [query, setQuery] = useState('')
   const [allSaved, setAllSaved] = useState(false)
   const [recentShown, setRecentShown] = useState(VISIBLE)

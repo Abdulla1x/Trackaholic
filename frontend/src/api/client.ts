@@ -22,6 +22,7 @@ import type {
   MealTemplateCreate,
   MessageResponse,
   OFFProduct,
+  RecentMeal,
   ReferenceFood,
   PlanDay,
   Settings,
@@ -343,7 +344,7 @@ export const api = {
     if (limit) query.set('limit', String(limit))
     if (demoteDate) query.set('demote_date', demoteDate)
     const suffix = query.toString()
-    return request<Meal[]>(`/api/meals/recent${suffix ? `?${suffix}` : ''}`)
+    return request<RecentMeal[]>(`/api/meals/recent${suffix ? `?${suffix}` : ''}`)
   },
   createMeal: (meal: MealCreate) =>
     request<Meal>('/api/meals', { method: 'POST', body: JSON.stringify(meal) }),

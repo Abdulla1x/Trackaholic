@@ -88,3 +88,39 @@ export function reviewHidden(weekEnd: string): boolean {
 export function hideReview(weekEnd: string) {
   writeLocal(REVIEW_KEY, weekEnd)
 }
+
+// The one-line tips (ui/hint): each is hidden on this device for good once it
+// is closed or its link is used. A failed read shows the tip again, which is
+// the harmless direction.
+export type HintKey = 'steps' | 'saved_foods'
+
+const hintKey = (hint: HintKey) => `trackaholic_hint_${hint}`
+
+export function isHintDismissed(hint: HintKey): boolean {
+  return readLocal(hintKey(hint)) !== null
+}
+
+export function dismissHint(hint: HintKey) {
+  writeLocal(hintKey(hint), '1')
+}
+
+// The saved-meal tip is about one meal, so closing it for "Porridge" must not
+// close it for "Chicken rice". Names are kept trimmed and lower-cased, matching
+// how the server treats a meal's name as one name across case.
+const SAVED_MEAL_HINT_KEY = 'trackaholic_hint_saved_meal'
+
+export function dismissedSavedMeals(): string[] {
+  const raw = readLocal(SAVED_MEAL_HINT_KEY)
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((name) => typeof name === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export function dismissSavedMeal(name: string) {
+  const merged = new Set([...dismissedSavedMeals(), name.trim().toLowerCase()])
+  writeLocal(SAVED_MEAL_HINT_KEY, JSON.stringify([...merged]))
+}

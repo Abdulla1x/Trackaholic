@@ -40,6 +40,9 @@ interface Props {
    *  wall of text). */
   explanation?: ReactNode
   actions?: ReactNode
+  /** A one-line tip under the controls (ui/hint). Its own slot because
+   *  `caption` is a paragraph, and a tip carries a link and a button. */
+  hint?: ReactNode
   error?: string | null
 }
 
@@ -54,6 +57,7 @@ export default function DailyTrackerCard({
   caption,
   explanation,
   actions,
+  hint,
   error,
 }: Props) {
   const hasGoal = goal !== null && goal > 0
@@ -100,6 +104,7 @@ export default function DailyTrackerCard({
         </p>
       )}
 
+      {hint}
       {caption && <p className="text-small text-ink-2">{caption}</p>}
       {explanation && <Explainer>{explanation}</Explainer>}
     </Tracker>
