@@ -15,7 +15,7 @@ import SupplementsCard from '../components/SupplementsCard'
 import WaterCard from '../components/WaterCard'
 import { localIsoDate } from '../lib/dates'
 import { gettingStartedView, readMemory, type GettingStartedMemory } from '../lib/firstUse'
-import { isReviewDay } from '../lib/review'
+import { lastWeekEnd } from '../lib/review'
 import { readSeen, seenTarget, targetMove, type SeenTarget, type TargetMove } from '../lib/targetMoves'
 import { accountKey, readLocal, writeLocal } from '../lib/storage'
 import { useAuth } from '../auth/AuthContext'
@@ -395,11 +395,14 @@ export default function Today() {
           through time, and a tracker that ignored them would be the only part
           of this screen showing a different day from the rest. */}
       <div className="grid content-start grid-cols-[minmax(0,1fr)]">
-        {/* Above the trackers on review day only (Mondays, decided 2026-10-10),
-            and only while looking at today. Not before a target is chosen:
-            a review of a week against a target nobody picked has nothing
-            honest to say. */}
-        {isToday && isReviewDay(realToday) && settings && targetIsSet(settings) && <ReviewCard today={realToday} />}
+        {/* Above the trackers, from the first open of the week, until closed
+            or opened (decided 2026-10-13 from a prototype), and only while
+            looking at today. Keyed by the week, so a new week starts a fresh
+            card. Not before a target is chosen: a review of a week against a
+            target nobody picked has nothing honest to say. */}
+        {isToday && settings && targetIsSet(settings) && (
+          <ReviewCard key={lastWeekEnd(realToday)} end={lastWeekEnd(realToday)} />
+        )}
         {/* First: the one tracker every account has, and the one with a
             reminder. */}
         <WeighInCard day={viewedDate} today={realToday} waitingForTarget={followsWeight && waitingForWeighIn} />
