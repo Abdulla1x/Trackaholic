@@ -360,8 +360,8 @@ function Library() {
           {/* All four macros always show, even for someone not tracking carbs
               or fat: a food's carbs are a property of the food, already stored,
               and visible the day tracking is switched on. */}
-          Per serving. Leave carbs or fat empty if you don’t know them; empty isn’t zero.
-          {current && current.source !== 'user' && ` These numbers are from ${SOURCE_NAME[current.source]}; change one and it becomes yours.`}
+          Per serving. Empty carbs or fat means “not known”, not zero.
+          {current && current.source !== 'user' && ` From ${SOURCE_NAME[current.source]} until you change a number.`}
         </p>
       </ItemSheet>
     </>

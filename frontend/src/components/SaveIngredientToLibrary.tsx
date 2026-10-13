@@ -5,6 +5,7 @@ import { findByName, foodFromAnalyzedItem } from '../lib/libraryMatch'
 import { num } from '../lib/parse'
 import type { AnalyzedItem, Food } from '../types'
 import { Button } from '@/ui/button'
+import Explainer from '@/ui/explainer'
 import { FIELD } from '@/ui/field'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
@@ -186,10 +187,12 @@ export default function SaveIngredientToLibrary({
       </div>
 
       <p className="text-small text-ink-2">
-        Stored <b className="text-ink">per 100 g</b>, scaled from the {Math.round(item.portion_grams)} g
-        this estimate assumed, so it works at any weight next time. Blank carbs or fat means “not
-        recorded”, which is not the same as zero.
+        Stored <b className="text-ink">per 100 g</b>, so it works at any weight next time.
       </p>
+      <Explainer>
+        Scaled from the {Math.round(item.portion_grams)} g this estimate assumed. Blank carbs or fat means “not
+        recorded”, which isn’t zero.
+      </Explainer>
 
       {/* Ink and words, never a warning colour (DESIGN.md, the No Red Rule). */}
       {replaces && (

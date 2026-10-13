@@ -111,14 +111,12 @@ function Body({ data }: { data: Calibration }) {
           </p>
           <Explainer>
             <p>
-              Counted only from meals saved straight after an estimate, so the real figure may be a little higher;
-              editing a meal later is not reflected. Using your own saved numbers for a food counts as a correction
-              too, so some of these measure your library disagreeing with the estimate rather than you.
+              Counted only from meals saved straight after an estimate; later edits aren’t included. Using a saved
+              food’s numbers counts as a correction, so some figures measure your library rather than you.
             </p>
             <p className="mt-1.5">
-              How much you tell the app changes what this measures: weighed portions and a voice note narrow the
-              range a lot, so these figures describe the app on the way you log, not on a bare photo.{' '}
-              {data.analyses.toLocaleString()} estimates have been run in all.
+              Weighed portions and voice notes narrow the range, so this describes the app the way you log.{' '}
+              {data.analyses.toLocaleString()} estimates run in all.
             </p>
           </Explainer>
         </Block>

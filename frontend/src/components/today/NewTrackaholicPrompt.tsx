@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import { localIsoDate } from '../../lib/dates'
-import { asksForTrackers, CHANGE_TRACKERS, legacyTrackers, TRACKERS, withTracker, type TrackerKey } from '../../lib/trackers'
+import { asksForTrackers, legacyTrackers, TRACKERS, withTracker, type TrackerKey } from '../../lib/trackers'
 import { useSettings } from '../../settings/SettingsContext'
 import { Button } from '@/ui/button'
 import Sheet from '@/ui/sheet'
@@ -86,8 +86,7 @@ export default function NewTrackaholicPrompt({ ready }: { ready: boolean }) {
           <MakeItYoursLink />
         </div>
         <p>
-          Today can show only the trackers you use. Untick any you don’t want. You can change it later with{' '}
-          {CHANGE_TRACKERS}, at the bottom of Today.
+          Untick any trackers you don’t want on Today. You can change it later at the bottom of Today.
         </p>
         <ul className="divide-y divide-rule">
           {TRACKERS.map(({ key, name, description }) => (

@@ -85,9 +85,14 @@ export default function DailyBurnBlock({ targets, onRetry }: { targets: BodyTarg
   ]
   return (
     <Block label="Daily burn" value="Not measured yet">
-      <p className="text-small text-ink-2">
-        Measured from your own weigh-ins and meals over the last four weeks, once there are enough of them.
-      </p>
+      {targets.tdee !== null && (
+        <p className="text-small text-ink-2">
+          Until it’s measured, your target uses an estimate from your profile: {n(targets.tdee)} kcal a day.
+        </p>
+      )}
+      <Explainer label="How is it measured?">
+        From your own weigh-ins and meals over the last four weeks, once the three bars fill.
+      </Explainer>
       <ul className="grid gap-3">
         {meters.map((meter) => (
           <li key={meter.label} className="grid gap-1.5">
@@ -102,11 +107,6 @@ export default function DailyBurnBlock({ targets, onRetry }: { targets: BodyTarg
         ))}
       </ul>
       {basis.unavailable_reason && <p className="text-small">{basis.unavailable_reason}</p>}
-      {targets.tdee !== null && (
-        <p className="text-small text-ink-2">
-          Until then your target uses an estimate from your profile: {n(targets.tdee)} kcal a day.
-        </p>
-      )}
     </Block>
   )
 }

@@ -153,13 +153,13 @@ function InWords({ end }: { end: string }) {
             <p key={index}>{paragraph}</p>
           ))}
           <p className="text-small text-ink-2">
-            Written by the AI from the figures above. The numbers are the ones on this page; the wording is not.
+            Worded by the AI; the numbers are the ones above.
           </p>
         </>
       ) : (
         <>
           <p className="text-small text-ink-2">
-            The AI can read the figures above back as a couple of paragraphs. It adds no numbers and no advice.
+            The AI can put the figures above into a couple of paragraphs, with no new numbers or advice.
           </p>
           <div>
             <Button onClick={write} disabled={writing}>

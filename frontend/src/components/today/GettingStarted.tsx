@@ -83,8 +83,8 @@ export default function GettingStarted({
         </div>
         <p className="text-[17px] font-bold">That’s the basics.</p>
         <p className="text-small text-ink-2">
-          Progress fills in as you log. Seven weigh-ins draw your trend line; a full week of logging brings your first
-          weekly review.
+          Progress fills in as you log: seven weigh-ins draw your trend line, and your first logged day starts a weekly
+          review.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button asChild>

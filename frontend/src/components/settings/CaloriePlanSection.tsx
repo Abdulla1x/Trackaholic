@@ -257,13 +257,10 @@ export default function CaloriePlanSection({
             shows up as a slightly slower week whether or not you plan it. */}
         <Explainer>
           <div className="grid gap-1.5">
+            <p>Nothing here is a debt: a plan only decides where a big day lands.</p>
             <p>
-              Nothing here is a debt. One big day already shows up as a slightly slower week on its own; a plan only
-              decides where it lands.
-            </p>
-            <p>
-              The calories are split evenly across the days you pick. Protein never moves; carbs and fat take the
-              difference. No day goes below your calorie floor, and the server says which day if one would.
+              Calories are split evenly across the days you pick; protein never moves, carbs and fat take the
+              difference. No day goes below your calorie floor.
             </p>
             <p>Plans apply straight away, without a Save bar.</p>
           </div>
@@ -325,8 +322,7 @@ export default function CaloriePlanSection({
                   <p className="text-ink-2">Checking that day…</p>
                 ) : surplus.meal_count === 0 ? (
                   <p className="text-ink-2">
-                    Nothing is logged on {short(eventDate)}, so there is nothing to spread. An empty day is a day nobody
-                    recorded, not a day of eating nothing.
+                    Nothing is logged on {short(eventDate)}, so there’s nothing to spread.
                   </p>
                 ) : (
                   <>

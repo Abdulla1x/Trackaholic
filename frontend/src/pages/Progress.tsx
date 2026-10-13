@@ -57,6 +57,7 @@ import DailyBurnBlock from '../components/progress/DailyBurnBlock'
 import LookingBackBlock from '../components/progress/LookingBackBlock'
 import Block, { LABEL_BOX } from '@/ui/block'
 import { Chip } from '@/ui/chip'
+import Explainer from '@/ui/explainer'
 import Gauge from '@/ui/gauge'
 import { RowLink } from '@/ui/row'
 import Skeleton from '@/ui/skeleton'
@@ -156,10 +157,10 @@ export default function Progress() {
 
       <div className={`grid grid-cols-[minmax(0,1fr)] gap-2 border-b border-rule py-3.5 desk:col-span-2 ${LABEL_BOX}`}>
         <RangeControl value={range.key} onChange={chooseRange} />
-        <p className="text-small text-ink-2">
-          The range changes the charts and averages. Trend weight, this week’s change and the goal date always use your
-          latest weigh-ins.
-        </p>
+        <p className="text-small text-ink-2">The range changes the charts and averages.</p>
+        <Explainer label="What doesn’t change?">
+          Trend weight, this week’s change and the goal date always use your latest weigh-ins.
+        </Explainer>
       </div>
 
       {firstLoad ? (
@@ -578,7 +579,7 @@ function NutritionBlock({
           Target {n(target)} {series.unit}
         </PlanKey>
       )}
-      <p className="text-small text-ink-2">Today is left out until it’s over.</p>
+      {food.logged_days > 0 && <p className="text-small text-ink-2">Today is left out until it’s over.</p>}
       <RowLink
         to={`/progress/days?range=${range.key}`}
         label="Daily totals"

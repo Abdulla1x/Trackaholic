@@ -48,6 +48,7 @@ import { NextIcon } from '@/ui/icons'
 import { useToast } from '@/ui/toast'
 import { cn } from '@/lib/utils'
 import { LABEL_BOX } from '@/ui/block'
+import Explainer from '@/ui/explainer'
 
 const TITLES: Record<Question, string> = {
   weight: 'Your weight today',
@@ -807,8 +808,13 @@ function TargetSummary({
         <span className="text-small text-ink-2">
           Protein: anywhere from {Math.round(preview.protein_low_g)} to {Math.round(preview.protein_high_g)} g a day is fine for
           your goal.
-          {ref < w - 0.5 && ` It’s worked out from ${Math.round(ref)} kg, the weight at a BMI of 30 for your height, because body fat needs no protein.`}
         </span>
+      )}
+      {preview.protein_low_g != null && preview.protein_high_g != null && ref < w - 0.5 && (
+        <Explainer label={`Why ${Math.round(ref)} kg?`}>
+          It’s worked out from {Math.round(ref)} kg, the weight at a BMI of 30 for your height, because body fat needs no
+          protein.
+        </Explainer>
       )}
       <span className="text-small text-ink-2">
         {pace} You burn about {Math.round(preview.tdee ?? 0).toLocaleString()} kcal a day, by the formula; after about two weeks it

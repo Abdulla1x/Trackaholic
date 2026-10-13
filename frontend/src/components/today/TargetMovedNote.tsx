@@ -5,17 +5,14 @@ import { LABEL_BOX } from '@/ui/block'
 
 const n = (value: number) => Math.round(value).toLocaleString()
 
-function sentence(move: TargetMove): string {
-  const moved = `Your target moved from ${n(move.from)} to ${n(move.to)} kcal.`
+function reason(move: TargetMove): string {
   switch (move.kind) {
     case 'measured':
-      return `Your burn is now measured from your weigh-ins and meals: ${n(move.measured)} kcal a day, not the ${n(move.estimated)} the formula estimated. ${moved}`
+      return `Your burn is now measured from your meals and weigh-ins: ${n(move.measured)} kcal a day, not the formula’s ${n(move.estimated)}.`
     case 'goal':
-      return `You’ve reached your goal weight, so your target now keeps you there. ${moved}`
+      return 'You’ve reached your goal weight, so it now keeps you there.'
     case 'limit':
-      return move.reason
-        ? `${move.reason} ${moved}`
-        : `The limit that was holding your target back no longer applies. ${moved}`
+      return move.reason ?? 'The limit holding it back no longer applies.'
   }
 }
 
@@ -25,7 +22,10 @@ export default function TargetMovedNote({ move, onDismiss }: { move: TargetMove;
   return (
     <section aria-label="Your target moved" className={`grid gap-2.5 border-b border-rule py-3.5 animate-rise ${LABEL_BOX}`}>
       <p className="text-small">
-        <b>Your target moved.</b> {sentence(move)}
+        <b>
+          Your target moved from {n(move.from)} to {n(move.to)} kcal.
+        </b>{' '}
+        {reason(move)}
       </p>
       <div className="flex flex-wrap gap-2">
         {move.kind === 'goal' && (

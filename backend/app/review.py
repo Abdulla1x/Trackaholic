@@ -219,16 +219,16 @@ def logging_check(days: Sequence[DayIntake], window_end: date_type) -> ReviewChe
 
     detail = (
         f"You logged meals on {logged} of the {REVIEW_WINDOW_DAYS} days ending "
-        f"{_day_label(window_end)}."
+        f"{_day_label(window_end)}"
     )
     if logged < LOGGING_DENSE_DAYS:
         # Said once, here, rather than repeated as a caveat on every figure
         # below -- each of those already names its own denominator.
         detail += (
-            f" Everything below is averaged over "
-            f"{'that day' if logged == 1 else 'those days'}, so it describes "
-            f"{'it' if logged == 1 else 'them'} rather than the whole week."
+            ", so everything below describes "
+            f"{'that day' if logged == 1 else 'those days'}, not the whole week"
         )
+    detail += "."
     return ReviewCheck(
         key="logging",
         status=ON_TRACK if logged >= LOGGING_DENSE_DAYS else OFF_TRACK,
@@ -479,7 +479,7 @@ def weight_check(
             f"Your trend weight is {_rate_phrase(rate_kg)}; you asked to "
             f"{_goal_phrase(goal_rate_kg)}. Fitted over "
             f"{_plural(weigh_ins, 'weigh-in')} across the last {window_days} days, "
-            f"not just this week — a seven-day slope is mostly day-to-day noise."
+            "because one week on its own is mostly noise."
         ),
     )
 
@@ -502,12 +502,12 @@ def targets_check(facts: TargetsFacts) -> ReviewCheck:
             unit="kcal",
             sample_days=0,
             detail="",
-            # Deliberately does not name the absent fields. The Settings card
+            # Deliberately does not name the absent fields. The Body screen
             # already names each one precisely, and a second copy of that list
             # is a second thing to fall out of step with the profile.
             unavailable_reason=(
                 "Your body profile is incomplete, so your daily burn cannot be "
-                "worked out yet. Settings → Body says which part is missing."
+                "worked out yet. You → Body and goal weight says which part is missing."
             ),
         )
 
@@ -612,8 +612,7 @@ def calibration_check(summary: CalibrationSummary | None) -> ReviewCheck | None:
         detail=(
             f"On the {_plural(macro.corrected, 'estimate')} you corrected, you "
             f"typically moved the calorie figure "
-            f"{'up' if moved >= 0 else 'down'} {round(abs(moved))}%. Saving an "
-            f"estimate unchanged measures nothing, so only corrections count here."
+            f"{'up' if moved >= 0 else 'down'} {round(abs(moved))}%."
         ),
     )
 

@@ -158,17 +158,17 @@ function StepsCaption({ day }: { day: StepDay }) {
   if (day.goal === null) {
     return (
       <>
-        No step goal set — you can pick one in You → Steps. There is no sensible
-        way to work one out from your body, so this app will not invent it.
+        No step goal set; pick one in You → Steps. The app won’t invent one from
+        your body.
       </>
     )
   }
   if (day.burn_kcal != null && day.burn_weight_kg != null) {
     return (
       <>
-        Roughly {Math.round(day.burn_kcal).toLocaleString()} kcal of walking, at{' '}
-        {day.burn_weight_kg.toFixed(1)} kg. A rule of thumb, and it does not
-        change your calorie target — a measured daily burn already counts it.
+        Roughly {Math.round(day.burn_kcal).toLocaleString()} kcal of walking at{' '}
+        {day.burn_weight_kg.toFixed(1)} kg, a rule of thumb. It doesn’t change
+        your target: a measured daily burn already counts it.
       </>
     )
   }

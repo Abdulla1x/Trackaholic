@@ -30,8 +30,8 @@ export default function HowItWorks() {
 
       <Section title="Log a meal">
         <p>
-          Tap Log. Describe what you ate with the grams, say it, or take a photo. The AI turns it into numbers, and you
-          check them before anything is saved.
+          Tap Log and describe what you ate with the grams, say it, or take a photo; you check the AI’s numbers before
+          anything is saved.
         </p>
         <List>
           <li>Grams beat guesses. “150 g chicken” is worth more than any photo, and a voice note counts.</li>
@@ -44,8 +44,7 @@ export default function HowItWorks() {
 
       <Section title="Read Today">
         <p>
-          The big number is what’s left of your daily target. Your meals sit under it, then the trackers you chose. Tap
-          the number for the day in detail.
+          The big number is what’s left of your daily target; tap it for the day in detail.
         </p>
         <p className="text-ink-2">Over is fine. The week evens out.</p>
       </Section>
@@ -57,15 +56,15 @@ export default function HowItWorks() {
             Ten weigh-ins over at least two weeks, with most of those days logged, and the app measures what you actually
             burn instead of estimating it.
           </li>
-          <li>A full week of logging brings a weekly review.</li>
+          <li>Your first logged day starts a weekly review.</li>
           <li>Ten AI estimates you’ve checked and corrected show how accurate the AI is for you.</li>
         </List>
       </Section>
 
       <Section title="A guide, not a rule">
         <p>
-          Your target comes from your answers in setup and follows your weight as it changes. Change it, type your own,
-          or type just your protein, in You → Daily targets.
+          Your target comes from your setup answers and follows your weight. In You → Daily targets you can change it,
+          type your own, or type just your protein.
         </p>
         <p>
           <Link to="/how-it-works/target" className={LINK}>
@@ -93,7 +92,8 @@ export default function HowItWorks() {
             count for each day, in You → Steps.
           </li>
           <li>
-            <b className="text-ink">The weekly review.</b> On Mondays, a short written summary of your week.
+            <b className="text-ink">The weekly review.</b> A short summary of last week, on Today until you close it and
+            in Progress any time.
           </li>
           <li>
             <b className="text-ink">AI accuracy.</b> How far the AI’s estimates were from what you saved, in Progress.
