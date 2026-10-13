@@ -93,3 +93,45 @@ def decode_token(token: str) -> tuple[int, datetime]:
     except (TypeError, ValueError):
         raise jwt.InvalidTokenError("Malformed subject or iat claim")
     return user_id, issued_at.replace(tzinfo=None)
+
+
+# A file download is a plain link the browser follows itself, so it cannot
+# carry the Authorization header; the export link carries this instead. It is
+# signed like a login but names its own audience, which PyJWT checks both
+# ways: a ticket is refused as a login (decode_token passes no audience) and a
+# login is refused as a ticket (it has none). A minute is long enough because
+# the app follows the link the moment it gets it; the link does land in the
+# server's request log, and by the time anyone reads that it has expired.
+EXPORT_AUDIENCE = "export"
+EXPORT_TICKET_LIFETIME = timedelta(minutes=1)
+
+
+def create_export_ticket(user_id: int, kind: str) -> str:
+    now = datetime.now(timezone.utc)
+    claims = {
+        "sub": str(user_id),
+        "aud": EXPORT_AUDIENCE,
+        "kind": kind,
+        "iat": now,
+        "exp": now + EXPORT_TICKET_LIFETIME,
+    }
+    return jwt.encode(claims, get_jwt_secret(), algorithm=ALGORITHM)
+
+
+def decode_export_ticket(ticket: str) -> tuple[int, str, datetime]:
+    """Returns (user id, kind, issued-at as naive UTC), or raises
+    jwt.InvalidTokenError."""
+    claims = jwt.decode(
+        ticket,
+        get_jwt_secret(),
+        algorithms=[ALGORITHM],
+        audience=EXPORT_AUDIENCE,
+        options={"require": ["exp", "sub", "iat", "aud"]},
+    )
+    try:
+        user_id = int(claims["sub"])
+        kind = str(claims["kind"])
+        issued_at = datetime.fromtimestamp(claims["iat"], tz=timezone.utc)
+    except (KeyError, TypeError, ValueError):
+        raise jwt.InvalidTokenError("Malformed export ticket")
+    return user_id, kind, issued_at.replace(tzinfo=None)
