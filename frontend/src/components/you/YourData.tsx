@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { api } from '../../api/client'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
+import { saveToDevice } from '../../lib/saveToDevice'
 import type { ImportResult } from '../../types'
 import { RowButton } from '@/ui/row'
 
@@ -43,6 +44,10 @@ export default function YourData() {
   const [latest, setLatest] = useState('')
   useLiveMessage(latest)
   const fileInput = useRef<HTMLInputElement>(null)
+  // An export the share sheet refused because the tap was too long ago (see
+  // lib/saveFile.ts). Held so the next tap hands it over at once, with no
+  // wait for the server in between to use the tap up again.
+  const [ready, setReady] = useState<Partial<Record<Job, File>>>({})
 
   const run = async (job: Job, work: () => Promise<string | undefined>) => {
     setBusy(job)
@@ -62,6 +67,14 @@ export default function YourData() {
     }
   }
 
+  const exportFile = (job: Job, make: () => Promise<File>) =>
+    run(job, async () => {
+      const file = ready[job] ?? (await make())
+      const result = await saveToDevice(file)
+      setReady((now) => ({ ...now, [job]: result === 'needs-tap' ? file : undefined }))
+      return result === 'needs-tap' ? 'Your file is ready. Tap again to save it.' : undefined
+    })
+
   const importFile = (file: File) =>
     run('import', async () => {
       try {
@@ -80,7 +93,7 @@ export default function YourData() {
         label="Export meals"
         detail={detail('export')}
         disabled={busy !== null}
-        onClick={() => run('export', async () => void (await api.downloadExport()))}
+        onClick={() => exportFile('export', api.exportMeals)}
       />
       <RowButton
         label="Import meals"
@@ -92,7 +105,7 @@ export default function YourData() {
         label="Download all my data"
         detail={detail('all')}
         disabled={busy !== null}
-        onClick={() => run('all', async () => void (await api.downloadExportAll()))}
+        onClick={() => exportFile('all', api.exportAll)}
       />
       <input
         ref={fileInput}

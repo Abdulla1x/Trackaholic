@@ -587,32 +587,21 @@ export const api = {
       body: JSON.stringify({ meal_id: mealId }),
     }),
 
-  // A plain <a href> can't carry the Authorization header, so the CSV export
-  // is fetched with auth and handed to the browser as a blob download.
-  downloadExport: async () => {
+  // A plain <a href> can't carry the Authorization header, so the exports are
+  // fetched with auth and come back as files; lib/saveFile.ts hands them over.
+  exportMeals: async (): Promise<File> => {
     const token = getToken()
     const response = await fetch(`${API_BASE}/api/data/export`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
     if (!response.ok) throw new ApiError(`Export failed (${response.status})`, response.status)
-    const url = URL.createObjectURL(await response.blob())
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'macros_backup.csv'
-    link.click()
-    URL.revokeObjectURL(url)
+    return new File([await response.blob()], 'macros_backup.csv', { type: 'text/csv' })
   },
-  downloadExportAll: async () => {
+  exportAll: async (): Promise<File> => {
     const data = await request<unknown>('/api/data/export/all')
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
+    return new File([JSON.stringify(data, null, 2)], 'macros_full_export.json', {
       type: 'application/json',
     })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'macros_full_export.json'
-    link.click()
-    URL.revokeObjectURL(url)
   },
   importCsv: (file: File) => {
     const form = new FormData()
