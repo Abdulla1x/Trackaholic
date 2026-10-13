@@ -373,9 +373,11 @@ Trackaholic
 │                                #   dom-snapshot.mjs (the refactor DOM-diff harness)
 ├── screenshots/                 # desktop/ and mobile/ captures used by this README
 ├── .github/workflows/           # ci.yml (the same six gates), backup.yml (daily export)
+├── .github/pull_request_template.md  # asks contributors to agree to CONTRIBUTING.md
 ├── legacy/                      # original Streamlit app (v1)
 ├── PRODUCT.md                   # what the product is, who it serves, and what it must keep true
 ├── DESIGN.md                    # the signed-off look for the UI revamp: colour tokens, palettes, type
+├── CONTRIBUTING.md              # how to contribute, and the licence terms for contributions
 ├── LICENSE                      # MIT
 └── render.yaml                  # Render blueprint — documentation of intent, NOT synced with
                                  #   the dashboard, which is the source of truth for every value
@@ -780,6 +782,14 @@ The generic foods in the search come from open national food-composition tables,
   model's estimates upward on every plate it changed. Covers the experiment design (run
   against the model's own run-to-run noise), why 1536 px shipped instead, and exactly what
   the numbers can and cannot claim.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: opening a pull
+request means agreeing to its licence terms. Your contribution is MIT-licensed, and I may also
+relicense it in the future.
 
 ---
 
