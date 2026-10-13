@@ -11,6 +11,11 @@ interface Props {
   max: number
   onAttach: (food: Food) => void
   onDetach: (foodId: number) => void
+  /** Optional control of whether the list is open, for a caller that opens it
+   *  from elsewhere (the AI box's saved-foods tip). Left out, the picker keeps
+   *  its own state. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 /**
@@ -34,8 +39,15 @@ export default function LibraryFoodPicker({
   max,
   onAttach,
   onDetach,
+  open: openProp,
+  onOpenChange,
 }: Props) {
-  const [open, setOpen] = useState(false)
+  const [openState, setOpenState] = useState(false)
+  const open = openProp ?? openState
+  const setOpen = (next: boolean) => {
+    setOpenState(next)
+    onOpenChange?.(next)
+  }
   const [filter, setFilter] = useState('')
 
   const full = attached.length >= max
@@ -57,7 +69,7 @@ export default function LibraryFoodPicker({
     <div className="grid gap-2">
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => setOpen(!open)}
         aria-expanded={open}
         className="flex min-h-11 items-center gap-2 justify-self-start rounded-control border-[1.5px] border-rule px-3 text-[14.5px] font-semibold hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
       >

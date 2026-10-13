@@ -10,7 +10,9 @@ import { Button, buttonVariants } from '@/ui/button'
 import { Chip } from '@/ui/chip'
 import Explainer from '@/ui/explainer'
 import { FIELD } from '@/ui/field'
+import Hint from '@/ui/hint'
 import { HIDDEN_EXTRAS, noteWithExtras, shouldAskAboutHidden } from '../lib/aiGuidance'
+import { dismissHint, isHintDismissed } from '../lib/dismissals'
 import { CloseIcon, EstimateIcon, PhotoIcon, VoiceIcon } from '@/ui/icons'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
@@ -67,6 +69,24 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
   const [extras, setExtras] = useState<string[]>([])
   const askId = useId()
   useLiveMessage(asking ? 'Photos miss oil and sauces. Anything hidden?' : null)
+  // The saved-foods tip: for a meal described in words, with nothing attached
+  // yet, from someone who has saved foods to attach. Photos are left out so
+  // the tip never sits beside the hidden-extras question. Closing it or using
+  // its link hides it for good on this device; it never blocks Estimate.
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [savedFoodsTipClosed, setSavedFoodsTipClosed] = useState(() => isHintDismissed('saved_foods'))
+  const closeSavedFoodsTip = () => {
+    dismissHint('saved_foods')
+    setSavedFoodsTipClosed(true)
+  }
+  const offerSavedFoods =
+    !savedFoodsTipClosed &&
+    !pickerOpen &&
+    library.length > 0 &&
+    note.trim() !== '' &&
+    files.length === 0 &&
+    attached.length === 0
+
   const send = (picks: string[]) => {
     setAsking(false)
     setExtras([])
@@ -148,6 +168,21 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
           className={`${FIELD} min-h-24 resize-y py-2.5`}
         />
       </label>
+
+      {offerSavedFoods && (
+        <Hint
+          action={{
+            label: 'Use my saved foods',
+            onClick: () => {
+              setPickerOpen(true)
+              closeSavedFoodsTip()
+            },
+          }}
+          onClose={closeSavedFoodsTip}
+        >
+          Logging something you’ve saved?
+        </Hint>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {/* The mic writes into the description above rather than sending the
@@ -237,6 +272,8 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
         max={MAX_ATTACHED_FOODS}
         onAttach={attach}
         onDetach={detach}
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
       />
 
       {asking ? (
