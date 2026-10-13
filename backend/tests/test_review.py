@@ -92,7 +92,7 @@ def test_the_weight_check_describes_its_own_window_and_not_the_week():
     assert check.sample_days == RATE_WINDOW_DAYS
     assert check.sample_days != REVIEW_WINDOW_DAYS
     assert f"last {RATE_WINDOW_DAYS} days" in check.detail
-    assert "not just this week" in check.detail
+    assert "one week on its own is mostly noise" in check.detail
 
 
 def test_every_check_reports_the_window_it_actually_used():
@@ -180,9 +180,10 @@ def test_logging_warns_that_the_averages_describe_the_days_not_the_week():
     dense = logging_check(days(LOGGING_DENSE_DAYS), WINDOW_END)
 
     assert sparse.status == OFF_TRACK
-    assert "rather than the whole week" in sparse.detail
+    assert "not the whole week" in sparse.detail
     assert dense.status == ON_TRACK
-    assert "rather than the whole week" not in dense.detail
+    assert "not the whole week" not in dense.detail
+    assert dense.detail.endswith(".") and sparse.detail.endswith(".")
 
 
 def test_a_week_with_nothing_logged_answers_rather_than_refuses():
@@ -327,12 +328,12 @@ def test_an_estimated_burn_carries_the_reason_it_is_not_measured():
 
 
 def test_targets_does_not_restate_the_missing_profile_fields():
-    """The Settings card already names each one; a second list would drift."""
+    """The Body screen already names each one; a second list would drift."""
     check = targets_check(COMPLETE_PROFILE._replace(missing=("height_cm", "sex")))
 
     assert check.status == UNKNOWN
     assert "height" not in check.unavailable_reason
-    assert "Settings" in check.unavailable_reason
+    assert "You → Body and goal weight" in check.unavailable_reason
 
 
 # --- trackers ------------------------------------------------------------------

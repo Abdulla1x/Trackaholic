@@ -138,8 +138,7 @@ export default function Day() {
       {hasTarget && (
         <Block label="Calorie plans">
           <p className="text-small text-ink-2">
-            Move calories between days: a bigger day paid for by the days around it, or a day that ran over spread
-            across the next few.
+            Move calories between days: plan a bigger day, or spread one that ran over.
           </p>
           <div className="divide-y divide-rule">
             <RowLink to={plansLink(day, 'planned', 'day')} label="Plan a bigger day" detail="Fund a dinner out from the days around it" />

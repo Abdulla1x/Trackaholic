@@ -8,6 +8,7 @@ import EstimateStages from './log/EstimateStages'
 import LibraryFoodPicker from './LibraryFoodPicker'
 import { Button, buttonVariants } from '@/ui/button'
 import { Chip } from '@/ui/chip'
+import Explainer from '@/ui/explainer'
 import { FIELD } from '@/ui/field'
 import { HIDDEN_EXTRAS, noteWithExtras, shouldAskAboutHidden } from '../lib/aiGuidance'
 import { CloseIcon, EstimateIcon, PhotoIcon, VoiceIcon } from '@/ui/icons'
@@ -295,9 +296,12 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
       {unchangedRerun && (
         <div role="status" className="grid gap-2 border-l-2 border-ink pl-3 text-small">
           <p>
-            Nothing has changed since this estimate: same note, photos and saved foods. Running it
-            again uses one of today's AI estimates and usually moves the numbers only a few percent.
+            Nothing has changed since this estimate, so running it again uses one of today’s AI
+            estimates.
           </p>
+          <Explainer label="Will it change much?">
+            Same note, photos and saved foods, so the numbers usually move only a few percent.
+          </Explainer>
           <div className="flex flex-wrap gap-2">
             {/* Same rule as the buttons above: a voice note still transcribing
                 is about to change the note, so running now would send it without. */}

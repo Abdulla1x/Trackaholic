@@ -31,12 +31,12 @@ export default function LookingBackBlock({ today }: { today: string }) {
     }
   }, [end])
 
-  // Until a week has anything to say, how much of one is logged, rather than
-  // a review of nothing (0a: "a full week for review").
+  // Until a week has anything to say, a plain "nothing yet" rather than a
+  // review of nothing. reviewLocked means zero logged days, so no count.
   const reviewDetail = !review
     ? 'The seven days before today'
     : reviewLocked(review)
-      ? `${review.logged_days} of 7 days logged. A full week of logging fills it in.`
+      ? 'Nothing logged in these seven days yet.'
       : `${shortDate(review.window_start)} to ${shortDate(review.window_end)}. ${reviewHeadline(review)}`
 
   return (

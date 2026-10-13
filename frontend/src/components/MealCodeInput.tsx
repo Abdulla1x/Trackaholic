@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { SharedMeal } from '../types'
 import { Button } from '@/ui/button'
+import Explainer from '@/ui/explainer'
 import { FIELD } from '@/ui/field'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
@@ -88,10 +89,10 @@ export default function MealCodeInput({
   return (
     <section className="grid gap-2">
       <h3 className="text-field-label text-ink-2">Paste a meal code</h3>
-      <p className="text-small text-ink-2">
-        Codes are long, so paste the whole thing. Nothing is sent to whoever gave it to you, and
-        they are not told you used it.
-      </p>
+      <p className="text-small text-ink-2">Paste the whole code.</p>
+      <Explainer label="Will they know?">
+        Nothing is sent to whoever gave it to you, and they aren’t told you used it.
+      </Explainer>
       <textarea
         ref={box}
         value={code}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/ui/button'
+import Explainer from '@/ui/explainer'
 import { CloseIcon } from '@/ui/icons'
 
 /** Shows a meal code and helps the user get it into a message.
@@ -65,10 +66,10 @@ export default function ShareCodePanel({
           <CloseIcon size={18} />
         </button>
       </div>
-      <p className="text-small text-ink-2">
-        Anyone with this code can load the meal into their own log: its name and numbers, nothing else. It is a copy,
-        not a link, so later edits to this meal don't travel with it.
-      </p>
+      <p className="text-small text-ink-2">Anyone with this code can load this meal’s name and numbers into their own log.</p>
+      <Explainer label="Will my edits reach them?">
+        No. It’s a copy, not a link, so later edits to this meal don’t travel with it.
+      </Explainer>
       <textarea
         readOnly
         value={code}

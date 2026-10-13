@@ -99,10 +99,9 @@ function Steps() {
         {result && <p className="text-small">{result}</p>}
         {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
         <Explainer label="What files work?">
-          A CSV with a date column and a steps column, one row per day; other columns are ignored. Samsung Health’s
-          export works as it comes. Other apps export different formats, so pick out those two columns first. Days you
-          already have are kept, never overwritten. There is no live sync: Health Connect and Apple Health only open
-          to apps installed from a store.
+          A CSV with a date column and a steps column, one row per day. Samsung Health’s export works as it comes; for
+          other apps, pick out those two columns first. Days you already have are kept. There’s no live sync: Health
+          Connect and Apple Health only open to apps from a store.
         </Explainer>
       </Block>
     </>

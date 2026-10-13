@@ -406,9 +406,8 @@ export default function LogMeal() {
           sets a notice apart from the form it is about. */}
       {fromCode && (
         <p className="border-l-2 border-ink pl-3 text-small">
-          These numbers came from whoever sent you the code. The app has not checked them and
-          cannot: they may have been weighed, estimated or guessed. Change anything that looks
-          wrong before you save; this is your copy now.
+          These numbers came from whoever sent the code, and the app hasn’t checked them. Change
+          anything that looks wrong before you save.
         </p>
       )}
 
