@@ -388,6 +388,11 @@ export interface Meal {
   created_at: string | null
 }
 
+/** A "recently logged" meal. `count` is how often its name was logged within
+ *  the server's scan window, this one included. Optional because the API
+ *  only started sending it with the saved-meal tip: no count, no tip. */
+export type RecentMeal = Meal & { count?: number }
+
 export type MealCreate = Omit<Meal, 'id' | 'updated_at' | 'created_at'>
 
 /** One ingredient row inside a saved template. */

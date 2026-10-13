@@ -140,6 +140,19 @@ class Meal(MealCreate):
         return value.replace(tzinfo=timezone.utc)
 
 
+class RecentMeal(Meal):
+    """A "recently logged" meal, with how often its name was logged.
+
+    `count` is the number of meals under this name (case-insensitive, like the
+    deduplication) within the rows GET /api/meals/recent scans, this one
+    included. Older logs past the scan window are not counted, so the number can
+    run low but never high: the copy form's "keep it as a saved meal" tip shows
+    later than it might, never for a meal logged less often than it says.
+    """
+
+    count: int
+
+
 # Bounds the size of MealTemplate.items_json. Named for the same reason
 # MAX_IMAGES is: the number is a policy choice, not a fact, and the comment is
 # where the reasoning lives. Thirty ingredients is far past any real meal.
