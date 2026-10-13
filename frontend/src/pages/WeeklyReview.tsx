@@ -1,8 +1,9 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import ScreenBar from '../components/shell/ScreenBar'
 import { addDays, localIsoDate, shortDate } from '../lib/dates'
-import { checkFigure, checkLabel, checkStatus } from '../lib/review'
+import { checkFigure, checkLabel, checkStatus, reviewEndFrom } from '../lib/review'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import type { ReviewCheck, WeeklyReview as Review } from '../types'
 import Block, { LABEL_BOX, LABEL_TITLE } from '@/ui/block'
@@ -11,16 +12,22 @@ import Explainer from '@/ui/explainer'
 import { cn } from '@/lib/utils'
 
 /** The weekly review, in Progress (0a: a periodic output, not a tab). The
- *  seven days before today: today is only half logged, and averaging a day
- *  that still has dinner to come would flatter every week.
+ *  seven days before today, or the week Today's card names in `?end=`. Never
+ *  today: it is only half logged, and averaging a day that still has dinner
+ *  to come would flatter every week.
  *
  *  Every number is worked out on the server from what was logged. The AI is
  *  only ever asked to put those numbers into words, on request. */
 export default function WeeklyReview() {
   // Yesterday by the BROWSER's clock, not the server's: no timezone is stored
   // for anyone and the server's today is UTC, so letting it choose would give
-  // the wrong week to everyone hours off UTC.
-  const end = addDays(localIsoDate(), -1)
+  // the wrong week to everyone hours off UTC. Today's review card passes
+  // `?end=` instead, the Sunday closing the week it summarised, so the page
+  // opens on that same Monday-to-Sunday week on any day of the next one.
+  const [searchParams] = useSearchParams()
+  const today = localIsoDate()
+  const end = reviewEndFrom(searchParams.get('end'), today)
+  const upToYesterday = end === addDays(today, -1)
   const [review, setReview] = useState<Review | null>(null)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
@@ -43,8 +50,14 @@ export default function WeeklyReview() {
       <ScreenBar title="Weekly review" back="/progress" backLabel="Back to Progress" />
 
       <p className="py-3 text-small text-ink-2">
-        {review ? `${shortDate(review.window_start)} to ${shortDate(review.window_end)}. ` : 'Your last seven full days. '}
-        Today is left out until it’s over.
+        {review
+          ? `${shortDate(review.window_start)} to ${shortDate(review.window_end)}. `
+          : upToYesterday
+            ? 'Your last seven full days. '
+            : `The week to ${shortDate(end)}. `}
+        {/* Only true of a week that runs up to yesterday: on a Wednesday, last
+            Mon-Sun from Today's card has nothing to say about today. */}
+        {upToYesterday && 'Today is left out until it’s over.'}
       </p>
 
       {failed ? (

@@ -1,11 +1,23 @@
 import type { ReviewCheck, WeeklyReview } from '../types.ts'
-import { parseIsoDate } from './dates.ts'
+import { addDays, localIsoDate, parseIsoDate } from './dates.ts'
 
 /** The review card's day (decided 2026-10-10: Monday, the first day after a
  *  full Monday-to-Sunday week). The review itself can be opened on any day;
  *  this only decides when Today brings it up. A setting for it is phase 3. */
 export function isReviewDay(today: string): boolean {
   return parseIsoDate(today).getDay() === 1
+}
+
+/** The week the review page shows, from its `?end=` parameter: a real date
+ *  no later than yesterday, which is how Today's card opens the same Mon-Sun
+ *  week it summarised. Anything else (none, junk, today, the future) falls
+ *  back to yesterday, the page's own "last seven full days". */
+export function reviewEndFrom(param: string | null, today: string): string {
+  const yesterday = addDays(today, -1)
+  if (param === null || !/^\d{4}-\d{2}-\d{2}$/.test(param)) return yesterday
+  // 2026-02-30 matches the pattern but rolls over to March: not a real date.
+  if (localIsoDate(parseIsoDate(param)) !== param) return yesterday
+  return param <= yesterday ? param : yesterday
 }
 
 /** One plain sentence for the card, from the review's own checks. Nothing to

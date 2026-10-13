@@ -1,7 +1,7 @@
 // Run with `npm test` (see photoSize.test.ts for how).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checkFigure, checkLabel, checkStatus, isReviewDay, reviewHeadline, reviewLocked } from '../src/lib/review.ts'
+import { checkFigure, checkLabel, checkStatus, isReviewDay, reviewEndFrom, reviewHeadline, reviewLocked } from '../src/lib/review.ts'
 import type { ReviewCheck, WeeklyReview } from '../src/types.ts'
 
 const check = (status: ReviewCheck['status']): ReviewCheck => ({
@@ -25,6 +25,17 @@ test('the card comes up on Mondays only', () => {
   assert.equal(isReviewDay('2026-10-12'), true)
   assert.equal(isReviewDay('2026-10-10'), false)
   assert.equal(isReviewDay('2026-10-11'), false)
+})
+
+test("the review page takes ?end= only for a real day before today", () => {
+  const today = '2026-10-14'
+  assert.equal(reviewEndFrom('2026-10-11', today), '2026-10-11')
+  assert.equal(reviewEndFrom('2026-10-13', today), '2026-10-13')
+  assert.equal(reviewEndFrom('2025-12-28', today), '2025-12-28')
+  // Everything else is yesterday, the page's own default.
+  for (const param of [null, '', 'junk', '2026-10-14', '2026-10-20', '2026-02-30', '2026-1-05', '2026-10-11x']) {
+    assert.equal(reviewEndFrom(param, today), '2026-10-13', String(param))
+  }
 })
 
 test('the headline counts what is off, and only judged checks', () => {
