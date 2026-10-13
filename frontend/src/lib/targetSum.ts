@@ -29,6 +29,9 @@ export interface TargetSum {
   proteinPerKg: number
   proteinFromKg: number
   protein: number
+  /** Protein you typed, while calories stay worked out; null when it's
+   *  worked out too. */
+  ownProtein: number | null
   proteinLow: number | null
   proteinHigh: number | null
 }
@@ -37,7 +40,7 @@ const KCAL_PER_KG = 7700
 
 /** The sum, or null when the server could not work one out (a missing
  *  profile answer, or the live API, which returns no limits). */
-export function targetSum(t: BodyTargets): TargetSum | null {
+export function targetSum(t: BodyTargets, ownProtein = false): TargetSum | null {
   if (t.bmr === null || t.tdee === null || t.target_calories === null || t.weight_kg === null) return null
   if (t.protein_g === null || t.protein_g_per_kg == null) return null
   const estimated = t.tdee_estimated ?? t.tdee
@@ -50,6 +53,7 @@ export function targetSum(t: BodyTargets): TargetSum | null {
   // Shown as target minus burn, so the sum on the page always adds up to the
   // target the server set, whatever the rounding on the way.
   const paceKcal = raised ? planned : target - burn
+  const proteinFromKg = Math.round((t.protein_reference_kg ?? t.weight_kg) * 10) / 10
   return {
     rest: Math.round(t.bmr),
     multiplier: Math.round((estimated / t.bmr) * 100) / 100,
@@ -63,8 +67,11 @@ export function targetSum(t: BodyTargets): TargetSum | null {
     floor: Math.round(floor),
     weightKg: t.weight_kg,
     proteinPerKg: t.protein_g_per_kg,
-    proteinFromKg: Math.round((t.protein_reference_kg ?? t.weight_kg) * 10) / 10,
-    protein: Math.round(t.protein_g),
+    proteinFromKg,
+    // With your own protein the server's protein_g is the typed number, so
+    // the sum shows what working it out gives, and the typed number beside it.
+    protein: ownProtein ? Math.round(t.protein_g_per_kg * proteinFromKg) : Math.round(t.protein_g),
+    ownProtein: ownProtein ? Math.round(t.protein_g) : null,
     proteinLow: t.protein_low_g == null ? null : Math.round(t.protein_low_g),
     proteinHigh: t.protein_high_g == null ? null : Math.round(t.protein_high_g),
   }

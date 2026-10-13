@@ -56,3 +56,10 @@ test('no sum without the numbers it needs', () => {
   assert.equal(targetSum({ ...preview, bmr: null }), null)
   assert.equal(targetSum({ ...preview, protein_g_per_kg: undefined }), null)
 })
+
+test('with your own protein the sum is still the worked-out one, and yours sits beside it', () => {
+  const sum = targetSum({ ...preview, protein_g: 200 }, true)!
+  assert.equal(sum.protein, 144)
+  assert.equal(sum.ownProtein, 200)
+  assert.equal(targetSum(preview)!.ownProtein, null)
+})

@@ -32,10 +32,14 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function targetsDetail(settings: Settings): string {
+function targetsDetail(settings: Settings, proteinFits: boolean): string {
   if (!targetIsSet(settings)) return 'Not set yet'
+  const kcal = `${n(settings.calorie_goal)} kcal`
+  if (settings.targets_auto && settings.protein_own) {
+    return `${kcal} · ${n(settings.protein_goal)} g protein (yours)${proteinFits ? '' : ' · doesn’t fit'}`
+  }
   const how = settings.targets_auto ? 'automatic' : 'your own numbers'
-  return `${n(settings.calorie_goal)} kcal · ${n(settings.protein_goal)} g protein · ${how}`
+  return `${kcal} · ${n(settings.protein_goal)} g protein · ${how}`
 }
 
 function bodyDetail(settings: Settings): string {
@@ -136,6 +140,17 @@ export default function You() {
       cancelled = true
     }
   }, [])
+  // Only typed protein can stop fitting, so only then is it asked.
+  const ownProtein = Boolean(settings?.targets_auto && settings.protein_own)
+  const [proteinFits, setProteinFits] = useState(true)
+  useEffect(() => {
+    if (!ownProtein) return
+    let cancelled = false
+    api.getBodyTargets().then((body) => !cancelled && setProteinFits(body.protein_fits ?? true), () => {})
+    return () => {
+      cancelled = true
+    }
+  }, [ownProtein, settings?.protein_goal, settings?.calorie_goal])
   useLiveMessage(error)
 
   return (
@@ -150,7 +165,7 @@ export default function You() {
       ) : (
         <>
           <Group label="Goals and body">
-            <RowLink to="/you/targets" label="Daily targets" detail={targetsDetail(settings)} />
+            <RowLink to="/you/targets" label="Daily targets" detail={targetsDetail(settings, proteinFits)} />
             <RowLink to="/you/plans" label="Calorie plans" detail="Plan a bigger day, or make one up" />
             <RowLink to="/you/body" label="Body and goal weight" detail={bodyDetail(settings)} />
             <div className="flex min-h-[52px] items-center justify-between gap-3 py-2">

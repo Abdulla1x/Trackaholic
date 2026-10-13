@@ -115,6 +115,10 @@ export interface Settings {
    *  target. null = not answered (1.8 g/kg, as before). Optional for the
    *  same reason as target_set. */
   protein_focus?: 'muscle' | 'scale' | null
+  /** Protein is the user's own protein_goal while calories stay worked out;
+   *  only means anything with targets_auto on. Optional: the live API on the
+   *  preview predates it, and a save without it leaves it alone. */
+  protein_own?: boolean
   /** Which trackers Today shows besides the weigh-in, which is always on.
    *  null = not chosen yet (an account from before the choice existed: it
    *  keeps the old cards and is asked once); [] = the weigh-in only. Absent
@@ -282,6 +286,22 @@ export interface BodyTargets {
   protein_low_g?: number | null
   protein_high_g?: number | null
   protein_reference_kg?: number | null
+  /** False when protein and the fat minimum alone need more than the
+   *  calories: carbs are 0 and the split overshoots. */
+  protein_fits?: boolean
+  /** What each answer to "What matters most?" would give. Optional: the live
+   *  API predates it. */
+  protein_by_focus?: Record<ProteinFocusKey, ProteinOption> | null
+}
+
+/** An answer to "What matters most?", with not answered as its own key. */
+export type ProteinFocusKey = 'muscle' | 'scale' | 'unanswered'
+
+/** One answer's protein: grams worked out and the range around it. */
+export interface ProteinOption {
+  g: number
+  low_g: number
+  high_g: number
 }
 
 /** Setup's answers, sent before anything is saved
