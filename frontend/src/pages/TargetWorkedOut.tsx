@@ -47,7 +47,9 @@ export default function TargetWorkedOut() {
   }, [arrival.preview])
 
   const targets = arrival.preview ?? saved
-  const sum = targets ? targetSum(targets) : null
+  const sum = targets
+    ? targetSum(targets, !arrival.preview && Boolean(settings?.targets_auto && settings.protein_own))
+    : null
   const unit = arrival.unit ?? settings?.weight_unit ?? 'kg'
   const typed = !arrival.preview && settings !== null && targetIsSet(settings) && !settings.targets_auto
 
@@ -128,6 +130,8 @@ function Steps({ sum, unit }: { sum: TargetSum; unit: WeightUnit }) {
         {sum.proteinFromKg < sum.weightKg - 0.5 &&
           ', from the weight at a BMI of 30 for your height, because body fat needs no protein'}
         .{sum.proteinLow !== null && sum.proteinHigh !== null && ` Anywhere from ${n(sum.proteinLow)} to ${n(sum.proteinHigh)} g a day is fine.`}
+        {sum.ownProtein !== null &&
+          ` You chose your own: ${n(sum.ownProtein)} g. Carbs and fat fill the rest, and protein above the worked-out amount comes out of fat first.`}
       </Step>
       <Block>
         <h2 className="text-[17px] font-bold">5. After about two weeks</h2>

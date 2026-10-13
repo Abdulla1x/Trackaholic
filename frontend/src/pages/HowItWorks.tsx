@@ -64,8 +64,8 @@ export default function HowItWorks() {
 
       <Section title="A guide, not a rule">
         <p>
-          Your target comes from your answers in setup and follows your weight as it changes. Change it, or type your
-          own, in You → Daily targets.
+          Your target comes from your answers in setup and follows your weight as it changes. Change it, type your own,
+          or type just your protein, in You → Daily targets.
         </p>
         <p>
           <Link to="/how-it-works/target" className={LINK}>
