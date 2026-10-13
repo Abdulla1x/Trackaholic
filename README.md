@@ -798,6 +798,8 @@ only on the caller's data, except these public ones: `/api/health`,
 | GET | `/api/data/export` | CSV backup of every meal |
 | POST | `/api/data/import` | Restore meals from CSV, with duplicate detection |
 | GET | `/api/data/export/all` | Full JSON export of everything the account owns |
+| POST | `/api/data/export/ticket` | A one-minute link to either export, for a phone to download without the login header |
+| GET | `/api/data/export/file` | Follows that link: the CSV or the JSON as a download. Expired, tampered or pre-password-change links get a plain-text refusal |
 | GET | `/api/announcements` | Committed release notes + the status banner (public) |
 | GET | `/api/health` | Liveness check (public). `?src=keepwarm` (cron-job.org) or `?src=homecron` (the home-machine cron) marks a request as a keep-warm ping |
 | GET | `/api/admin/stats` | Usage metrics, the funnel and frozen retention, behind the `ADMIN_EMAILS` allowlist |
