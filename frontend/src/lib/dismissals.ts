@@ -4,7 +4,7 @@
 // Safari's private mode raises — a failed dismissal should re-show a note, never
 // break the page.
 
-import { readLocal, writeLocal } from './storage'
+import { readLocal, writeLocal } from './storage.ts'
 
 const SEEN_KEY = 'macros_seen_announcements'
 const BANNER_KEY = 'macros_dismissed_banner'
@@ -73,4 +73,18 @@ export function areAiTipsDismissed(): boolean {
 
 export function dismissAiTips() {
   writeLocal(AI_TIPS_KEY, '1')
+}
+
+// Today's weekly review card: hidden on this device after its close button or
+// after the review is opened, until the next week. The key holds the end date
+// of the week that was hidden, so a new week has a different end and the card
+// comes back by itself, with nothing to clear.
+const REVIEW_KEY = 'trackaholic_review_hidden'
+
+export function reviewHidden(weekEnd: string): boolean {
+  return readLocal(REVIEW_KEY) === weekEnd
+}
+
+export function hideReview(weekEnd: string) {
+  writeLocal(REVIEW_KEY, weekEnd)
 }

@@ -1,7 +1,8 @@
 // Run with `npm test` (see photoSize.test.ts for how).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { checkFigure, checkLabel, checkStatus, isReviewDay, reviewEndFrom, reviewHeadline, reviewLocked } from '../src/lib/review.ts'
+import { hideReview, reviewHidden } from '../src/lib/dismissals.ts'
+import { checkFigure, checkLabel, checkStatus, lastWeekEnd, reviewEndFrom, reviewHeadline, reviewLocked } from '../src/lib/review.ts'
 import type { ReviewCheck, WeeklyReview } from '../src/types.ts'
 
 const check = (status: ReviewCheck['status']): ReviewCheck => ({
@@ -21,10 +22,21 @@ const review = (logged: number, statuses: ReviewCheck['status'][]): WeeklyReview
   checks: statuses.map(check),
 })
 
-test('the card comes up on Mondays only', () => {
-  assert.equal(isReviewDay('2026-10-12'), true)
-  assert.equal(isReviewDay('2026-10-10'), false)
-  assert.equal(isReviewDay('2026-10-11'), false)
+test('every day of a week reviews the Monday-to-Sunday week before it', () => {
+  // 2026-10-12 is a Monday. Monday to Saturday all point at the Sunday just
+  // gone; the Sunday is still in its own week, so it points a week back.
+  for (const today of ['2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17']) {
+    assert.equal(lastWeekEnd(today), '2026-10-11', today)
+  }
+  assert.equal(lastWeekEnd('2026-10-18'), '2026-10-11')
+  assert.equal(lastWeekEnd('2026-10-19'), '2026-10-18')
+})
+
+test('the reviewed week crosses month and year ends', () => {
+  assert.equal(lastWeekEnd('2026-10-01'), '2026-09-27')
+  assert.equal(lastWeekEnd('2026-11-02'), '2026-11-01')
+  assert.equal(lastWeekEnd('2026-11-01'), '2026-10-25')
+  assert.equal(lastWeekEnd('2027-01-01'), '2026-12-27')
 })
 
 test("the review page takes ?end= only for a real day before today", () => {
@@ -35,6 +47,35 @@ test("the review page takes ?end= only for a real day before today", () => {
   // Everything else is yesterday, the page's own default.
   for (const param of [null, '', 'junk', '2026-10-14', '2026-10-20', '2026-02-30', '2026-1-05', '2026-10-11x']) {
     assert.equal(reviewEndFrom(param, today), '2026-10-13', String(param))
+  }
+})
+
+test("hiding the card lasts for that week only, and storage that throws shows it", () => {
+  const store = new Map<string, string>()
+  const fake = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => void store.set(key, value),
+    removeItem: (key: string) => void store.delete(key),
+  }
+  Object.defineProperty(globalThis, 'localStorage', { value: fake, configurable: true })
+  try {
+    assert.equal(reviewHidden('2026-10-11'), false)
+    hideReview('2026-10-11')
+    assert.equal(reviewHidden('2026-10-11'), true)
+    // The next week has a different end, so its card is back.
+    assert.equal(reviewHidden('2026-10-18'), false)
+
+    const broken = () => {
+      throw new Error('SecurityError')
+    }
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: { getItem: broken, setItem: broken, removeItem: broken },
+      configurable: true,
+    })
+    hideReview('2026-10-11')
+    assert.equal(reviewHidden('2026-10-11'), false)
+  } finally {
+    Reflect.deleteProperty(globalThis, 'localStorage')
   }
 })
 

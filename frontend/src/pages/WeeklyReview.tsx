@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import ScreenBar from '../components/shell/ScreenBar'
 import { addDays, localIsoDate, shortDate } from '../lib/dates'
-import { checkFigure, checkLabel, checkStatus, reviewEndFrom } from '../lib/review'
+import { hideReview } from '../lib/dismissals'
+import { checkFigure, checkLabel, checkStatus, lastWeekEnd, reviewEndFrom } from '../lib/review'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import type { ReviewCheck, WeeklyReview as Review } from '../types'
 import Block, { LABEL_BOX, LABEL_TITLE } from '@/ui/block'
@@ -28,6 +29,12 @@ export default function WeeklyReview() {
   const today = localIsoDate()
   const end = reviewEndFrom(searchParams.get('end'), today)
   const upToYesterday = end === addDays(today, -1)
+
+  // Seeing last week's review here counts as seeing it on Today too, however
+  // it was reached, so Today's card stays away until the next week.
+  useEffect(() => {
+    if (end === lastWeekEnd(today)) hideReview(end)
+  }, [end, today])
   const [review, setReview] = useState<Review | null>(null)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
