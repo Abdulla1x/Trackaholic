@@ -4,11 +4,21 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..auth.deps import get_current_user
-from ..calculations import KCAL_PER_G_CARB, KCAL_PER_G_FAT, KCAL_PER_G_PROTEIN
+from ..calculations import (
+    KCAL_PER_G_CARB,
+    KCAL_PER_G_FAT,
+    KCAL_PER_G_PROTEIN,
+    max_protein_g,
+)
 from ..db import get_db
 from ..models import Setting, User
 from ..schemas import BodyTargets, Settings, TargetPreviewRequest
-from ..targets import apply_auto_targets, compute_targets, preview_targets
+from ..targets import (
+    TargetsResult,
+    apply_auto_targets,
+    compute_targets,
+    preview_targets,
+)
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -36,6 +46,7 @@ _PATCHED_FIELDS = (
     "weigh_in_reminder_days",
     "show_meal_times",
     "protein_focus",
+    "protein_own",
 )
 
 
@@ -152,6 +163,23 @@ def _refuse_goals_that_cannot_add_up(settings: Settings) -> None:
         )
 
 
+def _refuse_protein_that_does_not_fit(result: TargetsResult) -> None:
+    """Typed protein that, with fat at its minimum, needs more than the
+    worked-out calories. The caller decides when this applies."""
+    protein = result.protein_g
+    raise HTTPException(
+        status_code=422,
+        detail=(
+            f"Protein at {round(protein):,} g needs "
+            f"{round(protein * KCAL_PER_G_PROTEIN):,} kcal. With fat at its "
+            f"minimum, that's more than your {round(result.target_calories):,} "
+            f"kcal target. Lower it to "
+            f"{max_protein_g(result.target_calories, result.protein_reference_kg):,} "
+            f"g or less."
+        ),
+    )
+
+
 @router.put("", response_model=Settings)
 def update_settings(
     settings: Settings,
@@ -185,6 +213,16 @@ def update_settings(
     changed = any(getattr(row, name) != getattr(settings, name) for name in goals)
     if changed and not settings.targets_auto:
         _refuse_goals_that_cannot_add_up(settings)
+    # Typed protein is refused only by the save that sets it: a new number,
+    # "My own number" switched on, or automatic targets switched back on. One
+    # that stopped fitting after a weigh-in is kept and flagged instead
+    # (protein_fits), so saving something unrelated still works.
+    protein_set_now = (
+        row.protein_goal != settings.protein_goal
+        or ("protein_own" in settings.model_fields_set
+            and settings.protein_own and not row.protein_own)
+        or (settings.targets_auto and not row.targets_auto)
+    )
     # A changed goal is a chosen target. Compared before the assignment below,
     # because every PUT sends all four whether or not they moved.
     if changed:
@@ -221,6 +259,12 @@ def update_settings(
 
     # After the profile is in place, never before -- targets_auto and the
     # fields it reads are both assigned in the loop above.
-    apply_auto_targets(row, db)
+    result = apply_auto_targets(row, db)
+    if (
+        result is not None and row.protein_own and protein_set_now
+        and not result.protein_fits
+    ):
+        # Raised before the commit, so nothing above is saved.
+        _refuse_protein_that_does_not_fit(result)
     db.commit()
     return _settings_out(row)

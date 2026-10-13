@@ -145,6 +145,10 @@ class TargetsResult:
     # calories, so carbs are 0 and the split overshoots
     # (calculations.macro_targets). Mirrored on schemas.BodyTargets.
     protein_fits: bool = True
+    # What each answer to "What matters most?" would give, as {g, low_g,
+    # high_g}, keyed "muscle", "scale" and "unanswered". Mirrored on
+    # schemas.BodyTargets.
+    protein_by_focus: dict[str, dict[str, float]] | None = None
 
     @property
     def available(self) -> bool:
@@ -341,6 +345,17 @@ class _Plan:
             "protein_high_g": float(round(high * self.reference_kg)),
             "protein_reference_kg": round(self.reference_kg, 1),
             "protein_fits": self.macros["fits"],
+            "protein_by_focus": {
+                key: {
+                    "g": float(round(per_kg * self.reference_kg)),
+                    "low_g": float(round(low * self.reference_kg)),
+                    "high_g": float(round(high * self.reference_kg)),
+                }
+                for key, (per_kg, low, high) in (
+                    (focus or "unanswered", protein_g_per_kg(focus, self.target.applied_rate))
+                    for focus in ("muscle", "scale", None)
+                )
+            },
         }
 
 
@@ -351,13 +366,17 @@ def _plan_from_burn(
     sex: str,
     rate_kg_per_week: float,
     protein_focus: str | None,
+    own_protein_g: float | None = None,
 ) -> _Plan:
     target = target_calories(
         tdee, rate_kg_per_week, sex, weight_kg=weight_kg, height_cm=height_cm
     )
     reference_kg = protein_reference_weight(weight_kg, height_cm)
     per_kg = protein_g_per_kg(protein_focus, target.applied_rate)
-    macros = macro_targets(target.calories, reference_kg, protein_g_per_kg=per_kg[0])
+    macros = macro_targets(
+        target.calories, reference_kg, protein_g_per_kg=per_kg[0],
+        protein_g=own_protein_g,
+    )
     return _Plan(target=target, macros=macros, per_kg=per_kg, reference_kg=reference_kg)
 
 
@@ -432,8 +451,15 @@ def compute_targets(
     if goal_reached:
         rate = 0.0
 
+    # Typed protein counts only while the rest is worked out: with targets_auto
+    # off every goal is typed and this result is only for comparison.
+    own_protein = (
+        setting.protein_goal if setting.targets_auto and setting.protein_own
+        else None
+    )
     plan = _plan_from_burn(
-        tdee, weight_kg, setting.height_cm, setting.sex, rate, setting.protein_focus
+        tdee, weight_kg, setting.height_cm, setting.sex, rate,
+        setting.protein_focus, own_protein,
     )
     target = plan.target
 
@@ -506,24 +532,29 @@ def preview_targets(
 
 def apply_auto_targets(
     setting: Setting, db: Session, today: date_type | None = None
-) -> None:
+) -> TargetsResult | None:
     """Rewrite the four goal columns from the profile, if the user asked for it.
 
     A no-op unless `targets_auto` is on, and a no-op when the profile is
     incomplete: the flag stays set and starts working the moment the missing
     field is filled in, rather than being silently switched off behind the
-    user's back.
+    user's back. Returns what it wrote from, or None when it wrote nothing.
+
+    With `protein_own` on, protein is the user's and stays: compute_targets
+    reads it from `protein_goal` and splits carbs and fat around it. If it has
+    stopped fitting (a weigh-in lowered calories), it is still kept, with fat
+    at its minimum and carbs at the 1 g floor below; `protein_fits` says so.
 
     Deliberately does not commit. Both callers -- the settings PUT and the
     weigh-in upsert -- are already inside a transaction with more to write, and
     committing here would split one logical change across two.
     """
     if not setting.targets_auto:
-        return
+        return None
 
     result = compute_targets(db, setting, today=today)
     if not result.available:
-        return
+        return None
 
     setting.calorie_goal = max(result.target_calories, MIN_WRITTEN_GOAL)
     setting.protein_goal = max(result.protein_g, MIN_WRITTEN_GOAL)
@@ -532,3 +563,4 @@ def apply_auto_targets(
     # The formula has written real goals, so a target now exists. Setup's
     # save lands here, and so does a weigh-in that completes a profile.
     setting.target_set = True
+    return result

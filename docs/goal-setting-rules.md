@@ -53,14 +53,14 @@ mattering. Everything below is about getting the first two weeks right.
 | Protein, "just the scale" | 1.4 g/kg (1.2–1.6) | Leidy et al. 2015, *AJCN*: 1.2–1.6 |
 | Protein, not answered | 1.8 g/kg (1.6–2.2) | Unchanged from before; inside the ISSN's 1.4–2.0 and Iraki's range |
 | Weight used for protein | capped at BMI 30 | Weijs 2024, *Curr Opin Clin Nutr Metab Care*: "a maximum weight of BMI 30" |
-| Fat | 25% of calories, never below 0.5 g/kg | IOM AMDR 20–35%; Iraki 2019: 0.5–1.5 g/kg |
+| Fat | 25% of calories, never below 0.5 g/kg; gives way first to typed protein | IOM AMDR 20–35%; Iraki 2019: "Fat should be consumed in moderate amounts (0.5–1.5 g/kg/day)" |
 
 Each value carries its source in a comment beside the constant in
 [`calculations.py`](../backend/app/calculations.py), and the multipliers have
 a test that pins each one inside its measured band, so changing one means
 breaking the citation first.
 
-## Three decisions worth telling
+## Four decisions worth telling
 
 ### The activity multipliers were a convention, and too low
 
@@ -85,6 +85,50 @@ That rule was also mine, not from any paper. The published method is simpler:
 work protein out from body weight capped at the weight for BMI 30 (Weijs 2024),
 because fat mass needs no protein. The 200 kg person now gets 136 g for "just
 the scale" and 214 g for "keeping muscle"; a lean 100 kg lifter barely moves.
+
+### Your own protein, and why fat gives way first
+
+Since 2026-10-13 protein can be typed while calories stay worked out
+("What matters most to you?" → "My own number" on Daily targets). Carbs and
+fat still fill the rest, by one rule for every case:
+
+- protein above the worked-out amount comes out of **fat first**, down to its
+  0.5 g/kg minimum, before carbs lose a gram;
+- protein typed below it leaves fat at a quarter of calories, and carbs gain;
+- if carbs would still go below zero, protein doesn't fit. Save refuses it and
+  says the most that fits: everything but the fat minimum, as protein.
+
+Fat first because carbs are what fuel training, and someone typing more
+protein than suggested is usually training. My first version took the room
+from carbs and only touched fat at the very edge; on a prototype it left a
+lifter with almost no carbs at the protein they'd type. At 80 kg and
+1,800 kcal, with 176 g worked out for keeping muscle:
+
+| Typed protein | Carbs | Fat |
+|---|---|---|
+| 176 g (worked out) | 162 g | 50 g |
+| 200 g | 160 g | 40 g |
+| 250 g | 110 g | 40 g |
+| 300 g | 60 g | 40 g |
+| 360 g | 0 g | 40 g |
+| 361 g | refused: "Lower it to 360 g or less" | |
+
+No carb minimum is applied. The IOM's 130 g a day is an RDA for the brain's
+glucose, not a training figure, and I decided against adding it.
+
+Two details. The fat minimum comes from Iraki et al. 2019, a review of
+bodybuilders in the **off-season**, while the app also uses it while losing.
+And worked-out protein splits exactly as before: the old split already put fat
+at its minimum whenever it overshot, since overshooting with fat at a quarter
+needs over 3.4 g/kg of protein and the most the app works out is 2.6. That
+overshoot can still happen, rarely: a sedentary 76-year-old woman, 1.80 m and
+100 kg, losing 1 kg a week, lands on the 1,200 kcal floor with 214 g of protein
+and 49 g of fat already needing 1,292. The targets then carry
+`protein_fits: false`.
+
+If a weigh-in later lowers calories under a typed protein, it is kept rather
+than refused: fat sits at its minimum, carbs at zero, and Daily targets says it
+no longer fits.
 
 ### A faster ceiling was dropped because nothing supported it
 
@@ -129,6 +173,14 @@ judged new accounts against a 2,000 kcal target nobody had chosen.
 - **Migrations** 0020–0022 were round-tripped on SQLite and Postgres 18 with
   seeded accounts, including the backfill that tells an untouched account from
   one that chose a target.
+- **Your own protein** (2026-10-13): the worked example above as a test
+  table, plus one grid of 480 cases (calories × weight × every protein rate)
+  showing worked-out protein splits exactly as before, overshoots included.
+  The wiring tests cover the refusal and its wording, a weigh-in and its
+  delete keeping typed protein, protein that stops fitting being kept and
+  flagged while unrelated saves still work, and the weekly review and a
+  calorie-plan day reading the typed number. 1,001 → 1,498 backend tests; migration
+  0023 round-tripped on SQLite and Postgres 18.
 - Calorie banking holds a single planned day to the same floor as a permanent
   target, as its own docstring requires: one standard, not two.
 
@@ -139,7 +191,7 @@ judged new accounts against a 2,000 kcal target nobody had chosen.
   says so.
 - **BMI can't tell muscle from fat.** The BMI-30 cap barely touches lean
   lifters, but someone in contest prep should use their coach's numbers, which
-  "I have my own numbers" takes exactly.
+  "My own numbers" takes exactly. Since 2026-10-13, protein alone can be typed too.
 - **The calorie floors are a convention**, not a study result.
 - **Where MacroFactor is still ahead**, as far as I could verify from its help
   centre: it adapts the target weekly from the first week, sets protein from

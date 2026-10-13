@@ -136,7 +136,7 @@ def test_daily_summary_average_is_unchanged_by_widening_an_empty_range(client):
 # here.
 #
 # "Unset" means omittable from a PUT, not necessarily null in the response.
-# targets_auto, weigh_in_reminder_days, show_meal_times and target_set are NOT NULL columns, so their
+# targets_auto, weigh_in_reminder_days, show_meal_times, target_set and protein_own are NOT NULL columns, so their
 # entries here are the shipped defaults rather than None -- which is exactly
 # what a whole-payload assertion should be pinning.
 UNSET_OPTIONALS = {
@@ -150,6 +150,7 @@ UNSET_OPTIONALS = {
     "show_meal_times": True,
     "target_set": False,
     "protein_focus": None,
+    "protein_own": False,
     # A new signup starts with only the weigh-in; null is for accounts that
     # predate the column (see the trackers tests below).
     "trackers": [],
@@ -193,6 +194,7 @@ def test_body_profile_round_trips(client):
         # here chooses a target.
         "target_set": False,
         "protein_focus": "muscle",
+        "protein_own": True,
         "trackers": ["water", "supplements"],
     }
     assert client.put("/api/settings", json=profile).json() == profile
@@ -573,6 +575,16 @@ def test_protein_focus_is_kept_by_a_stale_save_and_cleared_on_purpose(client):
     assert client.put(
         "/api/settings", json={**saved, "protein_focus": "bulk"}
     ).status_code == 422
+
+
+def test_protein_own_is_kept_by_a_stale_save(client):
+    settings = client.get("/api/settings").json()
+    saved = client.put("/api/settings", json={**settings, "protein_own": True}).json()
+    assert saved["protein_own"] is True
+
+    stale = {key: value for key, value in saved.items() if key != "protein_own"}
+    assert client.put("/api/settings", json=stale).json()["protein_own"] is True
+    assert client.get("/api/data/export/all").json()["settings"]["protein_own"] is True
 
 
 def test_a_new_account_starts_with_the_weigh_in_only_and_chooses(client):

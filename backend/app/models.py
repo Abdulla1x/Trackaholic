@@ -603,6 +603,13 @@ class Setting(Base):
     # moves only the protein target (calculations.protein_g_per_kg), and it is
     # stored because automatic targets are recomputed on every weigh-in.
     protein_focus: Mapped[str | None] = mapped_column(String(6), default=None)
+    # Protein typed by the user while calories stay worked out. Only means
+    # anything with targets_auto on: protein_goal is then kept on every
+    # recompute and carbs and fat are split around it (targets.
+    # apply_auto_targets). The targets_auto pairing: NOT NULL, server_default.
+    protein_own: Mapped[bool] = mapped_column(
+        default=False, server_default=sa_false()
+    )
     # Which trackers Today shows besides the weigh-in (always on): a JSON list
     # from "water", "steps", "supplements". A fifth meaning for an empty
     # settings column: NULL is "not chosen yet" -- every account from before

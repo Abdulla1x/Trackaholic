@@ -905,6 +905,9 @@ class Settings(BaseModel):
     # just the scale; None means not answered. Patched, so a stale bundle
     # can't clear it and sending null clears it on purpose.
     protein_focus: Literal["muscle", "scale"] | None = None
+    # Protein is the user's own protein_goal while calories stay worked out.
+    # Only means anything with targets_auto on. Patched, like protein_focus.
+    protein_own: bool = False
     # Which trackers Today shows besides the weigh-in. None = not chosen yet
     # (keeps the old cards and asks once); [] = the weigh-in only. Patched and
     # converted by hand in routers/settings.py: the column is trackers_json.
@@ -999,6 +1002,14 @@ class TdeeBasis(BaseModel):
     unavailable_reason: str | None = None
 
 
+class ProteinOption(BaseModel):
+    """One answer's protein: the grams worked out and the range around it."""
+
+    g: float
+    low_g: float
+    high_g: float
+
+
 class BodyTargets(BaseModel):
     """What the profile implies, and what is stopping it implying more.
 
@@ -1059,6 +1070,12 @@ class BodyTargets(BaseModel):
     # calories: carbs are then 0 and the split overshoots. Mirrored on
     # targets.TargetsResult.
     protein_fits: bool = True
+    # What each answer to "What matters most?" would give, so a screen can
+    # offer all three and suggest a range for typed protein: keyed "muscle",
+    # "scale" and "unanswered". Mirrored on targets.TargetsResult.
+    protein_by_focus: dict[
+        Literal["muscle", "scale", "unanswered"], ProteinOption
+    ] | None = None
 
 
 class DayTotals(BaseModel):
