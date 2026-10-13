@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { parseIsoDate } from '../../lib/dates'
+import { plansLink } from '../../lib/planOrigin'
 import { calorieBalance, type DayTotals } from '../../lib/today'
 import { NextIcon } from '@/ui/icons'
 import CountUp from '@/ui/count-up'
@@ -160,7 +161,7 @@ export default function NutritionLabel({
             Over is fine. The week evens out.{' '}
             {/* Above the label's stretched link, so it is its own target. */}
             <Link
-              to={`/you/plans?plan=${day}&kind=compensating`}
+              to={plansLink(day, 'compensating', 'today')}
               className="relative z-10 font-bold text-ink underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
             >
               Spread it

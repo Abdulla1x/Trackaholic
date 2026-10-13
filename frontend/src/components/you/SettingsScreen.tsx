@@ -21,7 +21,19 @@ const SAVED_TOAST_MS = 1_500
  *  tabs; with a page of rows that each open a screen, a change left behind on
  *  a screen you can no longer see would be a surprise when it was saved, so
  *  the question is asked at the screen's edge instead. */
-export default function SettingsScreen({ title, children }: { title: string; children: ReactNode }) {
+export default function SettingsScreen({
+  title,
+  back = '/you',
+  backLabel = 'Back to You',
+  children,
+}: {
+  title: string
+  /** Where the back arrow goes: You, unless the screen was opened from
+   *  somewhere else that should get the user back (calorie plans from a day). */
+  back?: string
+  backLabel?: string
+  children: ReactNode
+}) {
   const { loadError, draft, dirty, status, error, rejected, setRejected, targetsKey, blocker, update, guard, save, discard } =
     useSettingsDraft((from, to) => from !== to)
   const toast = useToast()
@@ -35,7 +47,7 @@ export default function SettingsScreen({ title, children }: { title: string; chi
 
   return (
     <div className={SCREEN_FRAME}>
-      <ScreenBar title={title} back="/you" backLabel="Back to You" />
+      <ScreenBar title={title} back={back} backLabel={backLabel} />
       {draft ? (
         <SettingsScreenContext.Provider
           value={{ settings: draft, update, guard, onRejected: setRejected, targetsKey }}
