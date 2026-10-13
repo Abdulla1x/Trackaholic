@@ -637,3 +637,26 @@ def test_the_preview_needs_a_signed_in_user(anon_client):
     assert anon_client.post(
         "/api/settings/targets/preview", json=PREVIEW
     ).status_code == 401
+
+
+def test_the_targets_say_whether_protein_fits(client):
+    """protein_fits reaches both responses, False included: on the dataclass
+    or the schema alone it would serialise as True.
+
+    Worked-out protein rarely fails to fit, but it can: at 1.80 m and 100 kg
+    protein is worked out from 97.2 kg (BMI 30), so keeping muscle is 214 g
+    (855 kcal), and the fat minimum is 49 g (437 kcal). A sedentary woman of
+    76 burns about 2,218 kcal, so losing 1 kg a week hits the 1,200 floor."""
+    weigh_in(client, 100)
+    set_profile(
+        client, sex="female", activity_level="sedentary", birth_date="1950-05-04",
+        goal_rate_kg_per_week=-1.0, protein_focus="muscle",
+    )
+    body = client.get("/api/settings/targets").json()
+    assert body["target_calories"] == 1200
+    assert body["protein_fits"] is False
+    assert (body["carbs_g"], body["fat_g"]) == (0, 49)
+
+    set_profile(client, sex="male")
+    assert client.get("/api/settings/targets").json()["protein_fits"] is True
+    assert preview(client).json()["protein_fits"] is True

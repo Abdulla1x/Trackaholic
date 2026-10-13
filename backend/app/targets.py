@@ -141,6 +141,10 @@ class TargetsResult:
     protein_low_g: float | None = None
     protein_high_g: float | None = None
     protein_reference_kg: float | None = None
+    # False when protein and the fat minimum alone need more than the
+    # calories, so carbs are 0 and the split overshoots
+    # (calculations.macro_targets). Mirrored on schemas.BodyTargets.
+    protein_fits: bool = True
 
     @property
     def available(self) -> bool:
@@ -316,7 +320,7 @@ class _Plan:
     """
 
     target: TargetCalories
-    macros: dict[str, float]
+    macros: dict[str, float | bool]
     per_kg: tuple[float, float, float]
     reference_kg: float
 
@@ -336,6 +340,7 @@ class _Plan:
             "protein_low_g": float(round(low * self.reference_kg)),
             "protein_high_g": float(round(high * self.reference_kg)),
             "protein_reference_kg": round(self.reference_kg, 1),
+            "protein_fits": self.macros["fits"],
         }
 
 

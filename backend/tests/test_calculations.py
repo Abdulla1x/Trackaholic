@@ -24,6 +24,7 @@ from app.calculations import (
     estimated_tdee,
     goal_projection,
     macro_targets,
+    max_protein_g,
     measured_tdee,
     scale_macros,
     steps_burn,
@@ -406,6 +407,63 @@ def test_macro_targets_floor_carbs_at_zero_rather_than_going_negative():
     macros = macro_targets(1200, 200)
     assert macros["carbs"] == 0
     assert macros["protein"] > 0
+    assert macros["fits"] is False
+
+
+# The worked example the rule was decided on: 80 kg, 1,800 kcal, keeping
+# muscle while losing (2.2 g/kg, so 176 g worked out). Fat's quarter is 50 g
+# and its minimum 40 g.
+@pytest.mark.parametrize(
+    ("typed", "carbs", "fat"),
+    [(200, 160, 40), (250, 110, 40), (300, 60, 40), (360, 0, 40)],
+)
+def test_typed_protein_comes_out_of_fat_before_carbs(typed, carbs, fat):
+    macros = macro_targets(1800, 80, protein_g_per_kg=2.2, protein_g=typed)
+    assert (macros["protein"], macros["carbs"], macros["fat"]) == (typed, carbs, fat)
+    assert macros["fits"] is True
+
+
+def test_fat_gives_way_gradually_not_only_at_the_edge():
+    """Carbs keep every gram until fat reaches its minimum. 9 g more protein
+    is 36 kcal, which is 4 g of fat, and carbs do not move."""
+    auto = macro_targets(1800, 80, protein_g_per_kg=2.2)
+    typed = macro_targets(1800, 80, protein_g_per_kg=2.2, protein_g=185)
+    assert typed["fat"] == auto["fat"] - 4
+    assert typed["carbs"] == auto["carbs"]
+
+
+def test_typed_protein_that_does_not_fit_is_flagged():
+    macros = macro_targets(1800, 80, protein_g_per_kg=2.2, protein_g=361)
+    assert macros["fits"] is False
+    assert (macros["carbs"], macros["fat"]) == (0, 40)
+    assert max_protein_g(1800, 80) == 360
+
+
+def test_typed_protein_below_the_worked_out_amount_goes_to_carbs():
+    auto = macro_targets(1800, 80, protein_g_per_kg=2.2)
+    typed = macro_targets(1800, 80, protein_g_per_kg=2.2, protein_g=150)
+    assert typed["fat"] == auto["fat"] == 50
+    # 26 g less protein is 104 kcal, which is 26 g more carbs.
+    assert typed["carbs"] == auto["carbs"] + 26
+
+
+@pytest.mark.parametrize("calories", range(1000, 4001, 200))
+@pytest.mark.parametrize("weight", [50, 65, 80, 97.2, 120, 200])
+@pytest.mark.parametrize("per_kg", [1.4, 1.8, 1.9, 2.2, 2.6])
+def test_automatic_protein_split_is_unchanged(calories, weight, per_kg):
+    """The rule before 2026-10-13: fat at a quarter (never under the minimum),
+    carbs the rest, floored at zero. Fat giving way first changes nothing for
+    worked-out protein, overshoots included: overshooting with fat still at a
+    quarter would need protein above three times the fat minimum, over
+    3.4 g/kg, and the most the app works out is 2.6."""
+    protein = per_kg * weight
+    fat = max(calories * 0.25 / 9, 0.5 * weight)
+    carbs = (calories - protein * 4 - fat * 9) / 4
+    macros = macro_targets(calories, weight, protein_g_per_kg=per_kg)
+    assert (macros["protein"], macros["carbs"], macros["fat"]) == (
+        round(protein), round(max(carbs, 0)), round(fat)
+    )
+    assert macros["fits"] is (carbs >= 0)
 
 
 # --- measured TDEE (energy balance) ------------------------------------------

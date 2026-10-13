@@ -1055,6 +1055,10 @@ class BodyTargets(BaseModel):
     protein_low_g: float | None = None
     protein_high_g: float | None = None
     protein_reference_kg: float | None = None
+    # False when protein and the fat minimum alone need more than the
+    # calories: carbs are then 0 and the split overshoots. Mirrored on
+    # targets.TargetsResult.
+    protein_fits: bool = True
 
 
 class DayTotals(BaseModel):
