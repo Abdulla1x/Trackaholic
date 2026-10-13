@@ -54,6 +54,7 @@ export default function CaloriePlanSection({
   onRejected,
   initialDate,
   initialKind,
+  onDone,
 }: {
   onRejected: (message: string) => void
   /** Prefills the day being planned around, when arriving from a day's
@@ -63,6 +64,9 @@ export default function CaloriePlanSection({
    *  bigger day" and "Make up a day" as two rows, and each should land on its
    *  own form rather than on a choice the user already made. */
   initialKind?: PlanKind
+  /** Called once a plan is saved (true) or its form cancelled (false), when
+   *  the planner was opened from a day: the caller takes the user back there. */
+  onDone?: (saved: boolean) => void
 }) {
   const [plans, setPlans] = useState<CaloriePlan[]>([])
   const [loading, setLoading] = useState(true)
@@ -205,7 +209,8 @@ export default function CaloriePlanSection({
         calorie_delta: mode === 'planned' ? moved : null,
       })
       close()
-      load()
+      if (onDone) onDone(true)
+      else load()
     } catch (err) {
       // Server refusals arrive here whole -- every offending day at once,
       // because a plan is validated as a set. Shown next to the form rather
@@ -369,7 +374,7 @@ export default function CaloriePlanSection({
               <Button onClick={submit} disabled={busy}>
                 {busy ? 'Saving…' : 'Save plan'}
               </Button>
-              <Button variant="ghost" onClick={close} disabled={busy}>
+              <Button variant="ghost" onClick={onDone ? () => onDone(false) : close} disabled={busy}>
                 Cancel
               </Button>
             </div>

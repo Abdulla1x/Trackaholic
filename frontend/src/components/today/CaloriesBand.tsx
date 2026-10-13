@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useOnTargetMoment } from '../../hooks/useOnTargetMoment'
+import { plansLink } from '../../lib/planOrigin'
 import { calorieBalance, litSegments, type DayTotals } from '../../lib/today'
 import Gauge from '@/ui/gauge'
 import { NextIcon } from '@/ui/icons'
@@ -186,7 +187,7 @@ export default function CaloriesBand({
               Over is fine. The week evens out.{' '}
               {/* Above the band's stretched link, so it is its own target. */}
               <Link
-                to={`/you/plans?plan=${day}&kind=compensating`}
+                to={plansLink(day, 'compensating', 'today')}
                 className="relative z-10 font-semibold text-band-ink underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
               >
                 Spread it

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import ScreenBar from '../components/shell/ScreenBar'
 import { addDays, localIsoDate } from '../lib/dates'
+import { plansLink } from '../lib/planOrigin'
 import { calorieBalance, dayHeading, dayTotals, planCaption, targetIsSet, viewedDay } from '../lib/today'
 import { useSettings } from '../settings/SettingsContext'
 import { useLiveMessage } from '../hooks/useLiveMessage'
@@ -58,7 +59,6 @@ export default function Day() {
   const eaten = dayTotals(meals ?? [])
   const balance = goals ? calorieBalance(eaten.calories, goals.calorie_goal) : null
   const caption = planCaption(plan?.date === day ? plan : null, planFailed)
-  const plansLink = (kind: 'planned' | 'compensating') => `/you/plans?plan=${day}&kind=${kind}`
   // Before a target is chosen the day is what was eaten, with nothing to
   // measure it against, and calorie plans have no target to move around.
   const hasTarget = settings ? targetIsSet(settings) : true
@@ -142,8 +142,8 @@ export default function Day() {
             across the next few.
           </p>
           <div className="divide-y divide-rule">
-            <RowLink to={plansLink('planned')} label="Plan a bigger day" detail="Fund a dinner out from the days around it" />
-            <RowLink to={plansLink('compensating')} label="Make up a day" detail="Move what ran over onto the next few days" />
+            <RowLink to={plansLink(day, 'planned', 'day')} label="Plan a bigger day" detail="Fund a dinner out from the days around it" />
+            <RowLink to={plansLink(day, 'compensating', 'day')} label="Make up a day" detail="Move what ran over onto the next few days" />
           </div>
         </Block>
       )}
