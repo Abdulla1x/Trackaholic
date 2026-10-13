@@ -18,8 +18,10 @@ export interface BandTargets {
 
 const n = (value: number) => Math.round(value).toLocaleString()
 
-/** One macro as a full-width row: its name, a 10-segment bar, and "142 /
- *  240 g" (chosen from the 3a prototype, 2026-10-12). One row each rather
+/** One macro as a full-width row: its name, a 10-segment bar closed by the
+ *  same plan-coloured target tick as the calories gauge, and "142 / 240 g"
+ *  (rows chosen from the 3a prototype, 2026-10-12; the tick from a prototype
+ *  after a phone test, 2026-10-13). One row each rather
  *  than fields side by side, so carbs and fat add rows instead of squeezing
  *  protein. The value column has a fixed width, so the bars of every row
  *  start and end on the same lines. With no goal there is nothing to fill
@@ -31,7 +33,7 @@ function MacroRow({ label, value, goal }: { label: string; value: number; goal?:
       {goal === undefined ? (
         <span />
       ) : (
-        <Gauge segments={10} lit={litSegments(value, goal, 10)} tone="band" className="h-2" />
+        <Gauge segments={10} lit={litSegments(value, goal, 10)} target tone="band" className="h-2" />
       )}
       <span className="text-right text-row-number whitespace-nowrap">
         <RollingNumber value={value} />
