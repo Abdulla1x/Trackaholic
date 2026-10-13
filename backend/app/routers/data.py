@@ -248,6 +248,9 @@ def _everything(user: User, db: Session) -> dict:
             # A fifth meaning for null in this block: not answered, which
             # keeps the protein every account had before the question existed.
             "protein_focus": setting.protein_focus,
+            # Whether protein is typed while calories stay worked out. Never
+            # null.
+            "protein_own": setting.protein_own,
             # Exported as the list the API speaks. Null means not chosen yet.
             "trackers": (
                 None if setting.trackers_json is None

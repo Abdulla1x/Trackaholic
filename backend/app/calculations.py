@@ -1,3 +1,4 @@
+import math
 from collections.abc import Sequence
 from datetime import date as date_type
 from datetime import timedelta
@@ -733,7 +734,8 @@ def macro_targets(
     weight_kg: float,
     protein_g_per_kg: float = PROTEIN_G_PER_KG,
     fat_fraction: float = FAT_FRACTION_OF_CALORIES,
-) -> dict[str, float]:
+    protein_g: float | None = None,
+) -> dict[str, float | bool]:
     """Split a calorie target into protein / carbs / fat, in whole grams.
 
     Protein comes off body weight and fat off total calories, so carbohydrate
@@ -741,27 +743,58 @@ def macro_targets(
     would make protein *fall* as the calorie target falls, which is backwards
     during a cut, when protein matters most and calories least.
 
-    Fat never drops below MIN_FAT_G_PER_KG, so at a low target it can take
-    more than a quarter of calories; carbohydrate gives way first.
+    `protein_g` is protein the user typed instead. Calories stay worked out
+    and the same rule fills the rest, with one addition: protein above the
+    worked-out amount comes out of fat first, down to MIN_FAT_G_PER_KG, before
+    carbohydrate loses anything, because carbohydrate is what fuels training.
+    Protein typed below it leaves fat at its quarter and carbohydrate gains.
+    Decided 2026-10-13 after a prototype: taking it from carbohydrate first
+    left almost no carbohydrate at the protein a lifter types.
 
-    Carbohydrate floors at zero. At a very low target, protein and fat alone
-    can exceed the budget -- the split then no longer sums to `calories`, and
-    the caller should treat that as the sign it is, not paper over it.
+    Fat never drops below MIN_FAT_G_PER_KG, so at a low target it can take
+    more than a quarter of calories. If carbohydrate would still go below zero
+    with fat at its quarter, fat drops to that minimum first; past that,
+    protein and the fat minimum alone exceed the budget. Carbohydrate is then
+    zero, the split no longer sums to `calories`, and `fits` is False so the
+    caller can say so rather than paper over it.
     """
-    protein_g = protein_g_per_kg * weight_kg
-    fat_g = max(
-        (fat_fraction * calories) / KCAL_PER_G_FAT, MIN_FAT_G_PER_KG * weight_kg
-    )
-    remaining = calories - protein_g * KCAL_PER_G_PROTEIN - fat_g * KCAL_PER_G_FAT
-    carbs_g = max(remaining / KCAL_PER_G_CARB, 0.0)
+    auto_g = protein_g_per_kg * weight_kg
+    protein = auto_g if protein_g is None else protein_g
+    min_fat_g = MIN_FAT_G_PER_KG * weight_kg
+    normal_fat_g = max((fat_fraction * calories) / KCAL_PER_G_FAT, min_fat_g)
+    extra_kcal = max(0.0, protein - auto_g) * KCAL_PER_G_PROTEIN
+    fat_g = max(min_fat_g, normal_fat_g - extra_kcal / KCAL_PER_G_FAT)
+
+    def carbs_left(fat: float) -> float:
+        return (
+            calories - protein * KCAL_PER_G_PROTEIN - fat * KCAL_PER_G_FAT
+        ) / KCAL_PER_G_CARB
+
+    carbs_g = carbs_left(fat_g)
+    if carbs_g < 0:
+        fat_g = min_fat_g
+        carbs_g = carbs_left(fat_g)
+    # A hair of slack: at exactly the largest protein that fits, float error
+    # can leave carbohydrate a billionth of a gram below zero.
+    fits = carbs_g > -1e-6
 
     # Whole grams, for the same reason calories are whole: the inputs do not
     # support a decimal place.
     return {
-        "protein": float(round(protein_g)),
-        "carbs": float(round(carbs_g)),
+        "protein": float(round(protein)),
+        "carbs": float(round(max(carbs_g, 0.0))),
         "fat": float(round(fat_g)),
+        "fits": fits,
     }
+
+
+def max_protein_g(calories: float, weight_kg: float) -> int:
+    """The most protein that fits a calorie target: everything but the fat
+    minimum, with carbohydrate at zero. What a refusal tells you to lower to."""
+    return math.floor(
+        (calories - MIN_FAT_G_PER_KG * weight_kg * KCAL_PER_G_FAT)
+        / KCAL_PER_G_PROTEIN
+    )
 
 
 # CONVENTION. Millilitres of water per kilogram of body weight per day. The

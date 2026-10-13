@@ -637,3 +637,155 @@ def test_the_preview_needs_a_signed_in_user(anon_client):
     assert anon_client.post(
         "/api/settings/targets/preview", json=PREVIEW
     ).status_code == 401
+
+
+def test_the_targets_say_whether_protein_fits(client):
+    """protein_fits reaches both responses, False included: on the dataclass
+    or the schema alone it would serialise as True.
+
+    Worked-out protein rarely fails to fit, but it can: at 1.80 m and 100 kg
+    protein is worked out from 97.2 kg (BMI 30), so keeping muscle is 214 g
+    (855 kcal), and the fat minimum is 49 g (437 kcal). A sedentary woman of
+    76 burns about 2,218 kcal, so losing 1 kg a week hits the 1,200 floor."""
+    weigh_in(client, 100)
+    set_profile(
+        client, sex="female", activity_level="sedentary", birth_date="1950-05-04",
+        goal_rate_kg_per_week=-1.0, protein_focus="muscle",
+    )
+    body = client.get("/api/settings/targets").json()
+    assert body["target_calories"] == 1200
+    assert body["protein_fits"] is False
+    assert (body["carbs_g"], body["fat_g"]) == (0, 49)
+
+    set_profile(client, sex="male")
+    assert client.get("/api/settings/targets").json()["protein_fits"] is True
+    assert preview(client).json()["protein_fits"] is True
+
+
+# --- your own protein, with calories still worked out --------------------------
+
+
+def own_protein(client, grams, **overrides):
+    """Save typed protein with targets_auto on. Returns the response."""
+    return client.put(
+        "/api/settings",
+        json={
+            **BASE_SETTINGS, **FULL_PROFILE, "targets_auto": True,
+            "protein_focus": "muscle", "protein_own": True,
+            "protein_goal": grams, **overrides,
+        },
+    )
+
+
+def test_typed_protein_is_kept_and_carbs_and_fat_split_around_it(client):
+    weigh_in(client, 80.0)
+    set_profile(client, targets_auto=True, protein_focus="muscle")
+    auto = targets(client)
+
+    assert own_protein(client, auto["protein_g"] + 27).status_code == 200
+    stored, body = settings(client), targets(client)
+    # Calories stay worked out; 27 g more protein is 108 kcal, taken out of
+    # fat (12 g) while fat is above its minimum, and carbs do not move.
+    assert stored["calorie_goal"] == auto["target_calories"]
+    assert stored["protein_goal"] == body["protein_g"] == auto["protein_g"] + 27
+    assert stored["fat_goal"] == body["fat_g"] == auto["fat_g"] - 12
+    assert stored["carbs_goal"] == body["carbs_g"] == auto["carbs_g"]
+    assert body["protein_fits"] is True
+
+
+def test_the_targets_offer_every_answer_to_what_matters_most(client):
+    weigh_in(client, 80.0)
+    set_profile(client, targets_auto=True)  # losing 0.5 kg a week
+    by_focus = targets(client)["protein_by_focus"]
+    assert by_focus == {
+        "muscle": {"g": 176, "low_g": 144, "high_g": 208},
+        "scale": {"g": 112, "low_g": 96, "high_g": 128},
+        "unanswered": {"g": 144, "low_g": 128, "high_g": 176},
+    }
+
+
+def test_typed_protein_that_does_not_fit_is_refused_on_save(client):
+    weigh_in(client, 80.0)
+    set_profile(client, targets_auto=True, protein_focus="muscle")
+    before = settings(client)
+    calories = before["calorie_goal"]
+    most = int((calories - 40 * 9) // 4)
+
+    refused = own_protein(client, most + 1)
+    assert refused.status_code == 422
+    assert refused.json()["detail"] == (
+        f"Protein at {most + 1:,} g needs {(most + 1) * 4:,} kcal. With fat at "
+        f"its minimum, that's more than your {round(calories):,} kcal target. "
+        f"Lower it to {most:,} g or less."
+    )
+    # Nothing from the refused save was kept.
+    assert settings(client) == before
+
+    assert own_protein(client, most).status_code == 200
+    stored = settings(client)
+    assert (stored["protein_goal"], stored["fat_goal"]) == (most, 40)
+
+
+def test_a_weigh_in_and_its_delete_keep_typed_protein(client):
+    weigh_in(client, 80.0, days_ago=1)
+    set_profile(client, targets_auto=True, protein_focus="muscle")
+    assert own_protein(client, 190).status_code == 200
+
+    entry = weigh_in(client, 78.0)
+    assert settings(client)["protein_goal"] == 190
+    assert client.delete(f"/api/weights/{entry['id']}").status_code == 204
+    assert settings(client)["protein_goal"] == 190
+
+
+def test_protein_that_stops_fitting_is_kept_and_flagged_not_refused(client):
+    weigh_in(client, 80.0, days_ago=1)
+    set_profile(client, targets_auto=True, protein_focus="muscle")
+    most = int((settings(client)["calorie_goal"] - 40 * 9) // 4)
+    assert own_protein(client, most).status_code == 200
+
+    # Less body weight, fewer calories: the typed protein no longer fits.
+    weigh_in(client, 60.0)
+    stored, body = settings(client), targets(client)
+    assert body["protein_fits"] is False
+    assert stored["protein_goal"] == most
+    # Fat at its minimum, carbs at zero, stored as the 1 g floor.
+    assert body["carbs_g"] == 0 and stored["carbs_goal"] == 1
+    assert stored["fat_goal"] == round(0.5 * body["protein_reference_kg"])
+
+    # Saving something else still works, and so does sending the same protein.
+    unrelated = client.put("/api/settings", json={**stored, "water_goal_ml": 2500})
+    assert unrelated.status_code == 200, unrelated.text
+    # A new number that still doesn't fit is refused.
+    assert client.put(
+        "/api/settings", json={**stored, "protein_goal": most + 5}
+    ).status_code == 422
+
+
+def test_typed_protein_is_ignored_while_every_goal_is_typed(client):
+    weigh_in(client, 80.0)
+    set_profile(client, targets_auto=True, protein_focus="muscle")
+    auto = targets(client)
+    # Off: the response is the worked-out comparison, not the typed goals.
+    saved = own_protein(client, 999, targets_auto=False, calorie_goal=7000)
+    assert saved.status_code == 200, saved.text
+    assert targets(client)["protein_g"] == auto["protein_g"]
+
+
+def test_switching_automatic_back_on_checks_typed_protein(client):
+    weigh_in(client, 80.0)
+    saved = own_protein(client, 999, targets_auto=False, calorie_goal=7000)
+    assert saved.status_code == 200, saved.text
+    stored = settings(client)
+    assert client.put(
+        "/api/settings", json={**stored, "targets_auto": True}
+    ).status_code == 422
+
+
+def test_the_review_and_the_day_read_typed_protein(client):
+    weigh_in(client, 80.0)
+    assert own_protein(client, 190).status_code == 200
+    review = client.get("/api/review").json()
+    protein = next(c for c in review["checks"] if c["key"] == "protein")
+    assert protein["target"] == 190
+    day = client.get("/api/plan/day").json()
+    assert day["protein_goal"] == 190
