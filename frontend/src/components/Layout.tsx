@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Outlet, useLocation, useNavigationType } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { useAnnouncements } from '../hooks/useAnnouncements'
 import { useSettings } from '../settings/SettingsContext'
@@ -27,9 +27,31 @@ const ENTRANCE: Record<ScreenMotion, string> = {
   back: 'animate-screen-back',
 }
 
+/** A new page starts at its top. The window is what scrolls here, and the
+ *  router leaves it alone, so without this a page opened from low down on
+ *  another (How Trackaholic works, from the foot of You) opened part-way down,
+ *  and a tab kept the last tab's scroll.
+ *
+ *  Keyed on the path alone: the Log panel and Setup's questions live in the
+ *  address's search, and opening either must not move the page under them.
+ *  Back and forward (POP) are left alone too, as they always were. Not React
+ *  Router's ScrollRestoration: keyed by entry it resets on every Log panel
+ *  step, and keyed by path it puts a tab back where it was last left, which is
+ *  the mid-page landing this exists to stop. A layout effect, so the reset
+ *  lands before the new page's first paint and its entrance plays in view. */
+function useNewPageStartsAtTop(pathname: string) {
+  const navigation = useNavigationType()
+  useLayoutEffect(() => {
+    if (navigation !== 'POP') window.scrollTo(0, 0)
+    // The path is the trigger; the navigation type is read as it stands then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
+}
+
 export default function Layout() {
   const { user } = useAuth()
   const { pathname } = useLocation()
+  useNewPageStartsAtTop(pathname)
   const section = sectionFor(pathname)
   // How the page arrives, worked out when the path changes and then held: a
   // re-render for any other reason must not swap the class and cut the
