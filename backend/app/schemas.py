@@ -559,6 +559,10 @@ class StepDay(BaseModel):
     date: date_type
     steps: int
     logged: bool
+    # Whether the account has a step count on ANY day, not only this one: the
+    # card offers the history import to someone who has never logged a day,
+    # and only the server can see past the day being viewed.
+    ever_logged: bool
     goal: int | None = None
     # The walking estimate and the weight it was worked out from, together --
     # the standing rule that no derived number reaches the screen without its

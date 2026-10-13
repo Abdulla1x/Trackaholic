@@ -179,6 +179,9 @@ export interface StepDay {
   date: string
   steps: number
   logged: boolean
+  /** Any day on the account has a count, not just this one. Optional because
+   *  the API only started sending it with the import tip: absent, no tip. */
+  ever_logged?: boolean
   goal: number | null
   burn_kcal: number | null
   burn_weight_kg: number | null
