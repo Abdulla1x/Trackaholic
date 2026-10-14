@@ -9,6 +9,7 @@ import type { WeightEntry } from '../types'
 import { Button } from '@/ui/button'
 import { FIELD } from '@/ui/field'
 import { ExpandIcon } from '@/ui/icons'
+import Retry from '@/ui/retry'
 import { cn } from '@/lib/utils'
 
 /** How many rows show at first, and how many each "Show more" adds: about a
@@ -60,12 +61,12 @@ export default function WeighIns() {
       <ScreenBar title="All weigh-ins" back="/progress" backLabel="Back to Progress" />
 
       {failed && (
-        <p role="alert" className="mt-3 border-l-2 border-ink pl-3 text-small">
-          Couldn't load your weigh-ins. Check your connection, then try again.{' '}
-          <button type="button" onClick={load} className="font-semibold underline underline-offset-3">
-            Retry
-          </button>
-        </p>
+        <Retry
+          text="Couldn't load your weigh-ins. Check your connection, then try again."
+          onRetry={load}
+          role="alert"
+          className="mt-3"
+        />
       )}
 
       {entries === null && !failed && (

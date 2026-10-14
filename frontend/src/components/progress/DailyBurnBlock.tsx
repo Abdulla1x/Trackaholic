@@ -10,6 +10,7 @@ import { useUnlockMoment } from '../../hooks/useUnlockMoment'
 import Block from '@/ui/block'
 import Explainer from '@/ui/explainer'
 import Gauge from '@/ui/gauge'
+import Retry from '@/ui/retry'
 
 const n = (value: number) => Math.round(value).toLocaleString()
 
@@ -30,12 +31,7 @@ export default function DailyBurnBlock({ targets, onRetry }: { targets: BodyTarg
   if (!targets) {
     return (
       <Block label="Daily burn">
-        <p className="border-l-2 border-ink pl-3 text-small">
-          Couldn't load your daily burn.{' '}
-          <button type="button" onClick={onRetry} className="font-semibold underline underline-offset-3">
-            Retry
-          </button>
-        </p>
+        <Retry text="Couldn't load your daily burn." onRetry={onRetry} />
       </Block>
     )
   }

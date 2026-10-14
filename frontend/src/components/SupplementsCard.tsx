@@ -7,6 +7,7 @@ import DailyTrackerCard from './DailyTrackerCard'
 import Tracker from './today/Tracker'
 import { SupplementsIcon, DoneIcon } from '@/ui/icons'
 import { Button } from '@/ui/button'
+import Retry from '@/ui/retry'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 interface Props {
@@ -120,9 +121,7 @@ export default function SupplementsCard({ date, chosen = false }: Props) {
   if (error && !day) {
     return (
       <Tracker icon={<SupplementsIcon size={22} />} title="Supplements">
-        <p role="alert" className="border-l-2 border-ink pl-3 text-small">
-          {error}
-        </p>
+        <Retry text={error} onRetry={load} />
       </Tracker>
     )
   }

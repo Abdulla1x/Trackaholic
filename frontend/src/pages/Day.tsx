@@ -9,6 +9,7 @@ import { useSettings } from '../settings/SettingsContext'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import type { Meal, PlanDay } from '../types'
 import Block from '@/ui/block'
+import Retry from '@/ui/retry'
 import { RowLink } from '@/ui/row'
 import { Stat, StatGrid } from '@/ui/stat'
 
@@ -73,12 +74,7 @@ export default function Day() {
 
       <Block label="The day in numbers" value={meals ? `${meals.length} ${meals.length === 1 ? 'meal' : 'meals'}` : undefined}>
         {error ? (
-          <p role="alert" className="border-l-2 border-ink pl-3 text-small">
-            {error}{' '}
-            <button type="button" onClick={load} className="font-semibold underline underline-offset-3">
-              Retry
-            </button>
-          </p>
+          <Retry text={error} onRetry={load} role="alert" />
         ) : !meals || !goals || !settings || !balance ? (
           <div aria-hidden="true" className="grid grid-cols-2 gap-4 py-2.5">
             {[0, 1, 2, 3].map((key) => (

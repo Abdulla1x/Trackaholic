@@ -8,6 +8,7 @@ import Tracker from './today/Tracker'
 import { Button } from '@/ui/button'
 import { FIELD } from '@/ui/field'
 import Hint from '@/ui/hint'
+import Retry from '@/ui/retry'
 import { cn } from '@/lib/utils'
 import { StepsIcon } from '@/ui/icons'
 import { useLiveMessage } from '../hooks/useLiveMessage'
@@ -97,7 +98,11 @@ export default function StepsCard({ date }: Props) {
   if (!day) {
     return (
       <Tracker icon={<StepsIcon size={22} />} title="Steps">
-        <p className="text-small text-ink-2">{error ?? 'Loading…'}</p>
+        {error ? (
+          <Retry text={error} onRetry={load} />
+        ) : (
+          <p className="text-small text-ink-2">Loading…</p>
+        )}
       </Tracker>
     )
   }

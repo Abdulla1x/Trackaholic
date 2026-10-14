@@ -13,7 +13,7 @@ import { api } from '../api/client'
 import { useAnalysisProgress } from '../hooks/useAnalysisProgress'
 import { useAudioRecorder, voiceNoteFilename } from '../hooks/useAudioRecorder'
 import type { AnalysisInputs } from '../lib/analysisInputs'
-import { sameInputs } from '../lib/analysisInputs'
+import { photosCutMessage, sameInputs } from '../lib/analysisInputs'
 import { clearNoteDraft, readNoteDraft, writeNoteDraft } from '../lib/draft'
 import { downscaleForUpload } from '../lib/photoDownscale'
 import type { Food, MealAnalysisResponse } from '../types'
@@ -257,7 +257,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     // than nothing. Cheaper to catch here than to send it and let the user
     // wonder where "one" came from.
     if (durationMs < 500) {
-      setError('That recording was too short — hold the button while you speak.')
+      setError('That was too short to hear. Tap the mic, speak, then tap it again to stop.')
       clearRecording()
       return
     }
@@ -309,7 +309,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       }
       const accepted = chosen.slice(0, room)
       if (accepted.length < chosen.length) {
-        setError(`Only the first ${accepted.length} were added — ${MAX_IMAGES} photos max.`)
+        setError(photosCutMessage(accepted.length, MAX_IMAGES))
       }
       return [...current, ...accepted]
     })

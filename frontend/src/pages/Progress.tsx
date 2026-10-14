@@ -59,6 +59,7 @@ import Block, { LABEL_BOX } from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import Explainer from '@/ui/explainer'
 import Gauge from '@/ui/gauge'
+import Retry from '@/ui/retry'
 import { RowLink } from '@/ui/row'
 import Skeleton from '@/ui/skeleton'
 import { Stat, StatGrid } from '@/ui/stat'
@@ -233,17 +234,6 @@ function SkeletonBlock({ short = false }: { short?: boolean }) {
       <Skeleton className="h-9 w-3/5" />
       <Skeleton className={short ? 'h-[72px]' : 'h-[200px]'} />
     </div>
-  )
-}
-
-function Retry({ text, onRetry }: { text: string; onRetry: () => void }) {
-  return (
-    <p className="border-l-2 border-ink pl-3 text-small">
-      {text}{' '}
-      <button type="button" onClick={onRetry} className="font-semibold underline underline-offset-3">
-        Retry
-      </button>
-    </p>
   )
 }
 

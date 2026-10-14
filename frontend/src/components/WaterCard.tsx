@@ -11,6 +11,7 @@ import DailyTrackerCard from './DailyTrackerCard'
 import Tracker from './today/Tracker'
 import { Button } from '@/ui/button'
 import { FIELD } from '@/ui/field'
+import Retry from '@/ui/retry'
 import { cn } from '@/lib/utils'
 import { WaterIcon } from '@/ui/icons'
 import { useLiveMessage } from '../hooks/useLiveMessage'
@@ -95,7 +96,11 @@ export default function WaterCard({ date }: Props) {
   if (!day) {
     return (
       <Tracker icon={<WaterIcon size={22} />} title="Water">
-        <p className="text-small text-ink-2">{error ?? 'Loading…'}</p>
+        {error ? (
+          <Retry text={error} onRetry={load} />
+        ) : (
+          <p className="text-small text-ink-2">Loading…</p>
+        )}
       </Tracker>
     )
   }
