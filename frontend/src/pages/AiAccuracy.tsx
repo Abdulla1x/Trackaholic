@@ -7,6 +7,7 @@ import type { Calibration, MacroCalibration } from '../types'
 import Block from '@/ui/block'
 import Explainer from '@/ui/explainer'
 import Gauge from '@/ui/gauge'
+import Retry from '@/ui/retry'
 import { Stat, StatGrid } from '@/ui/stat'
 
 const round = (value: number) => Math.round(value)
@@ -41,16 +42,12 @@ export default function AiAccuracy() {
       <ScreenBar title="AI accuracy" back="/progress" backLabel="Back to Progress" />
 
       {failed ? (
-        <p role="alert" className="mt-3 border-l-2 border-ink pl-3 text-small">
-          Couldn't load the AI's accuracy. Check your connection, then try again.{' '}
-          <button
-            type="button"
-            onClick={() => setAttempt((now) => now + 1)}
-            className="font-semibold underline underline-offset-3"
-          >
-            Retry
-          </button>
-        </p>
+        <Retry
+          text="Couldn't load the AI's accuracy. Check your connection, then try again."
+          onRetry={() => setAttempt((now) => now + 1)}
+          role="alert"
+          className="mt-3"
+        />
       ) : !data ? (
         <p role="status" className="py-6 text-center text-small text-ink-2">
           Checking…

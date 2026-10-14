@@ -5,6 +5,7 @@ import type { Meal } from '../../types'
 import { Button } from '@/ui/button'
 import Block from '@/ui/block'
 import { LogIcon, NextIcon } from '@/ui/icons'
+import Retry from '@/ui/retry'
 
 /** The day's meals (DESIGN.md: Meal rows). Each row is time, name and detail,
  *  then kcal, and opens the meal's own screen, where Edit, Log it again,
@@ -63,12 +64,7 @@ export default function MealList({
       value={list.length ? `${Math.round(total).toLocaleString()} kcal` : undefined}
     >
       {error ? (
-        <p role="alert" className="border-l-2 border-ink pl-3 text-small">
-          {error}{' '}
-          <button type="button" onClick={onRetry} className="font-semibold underline underline-offset-3">
-            Retry
-          </button>
-        </p>
+        <Retry text={error} onRetry={onRetry} role="alert" />
       ) : all.length === 0 ? (
         <div className="grid gap-2 py-1">
           {isToday ? (

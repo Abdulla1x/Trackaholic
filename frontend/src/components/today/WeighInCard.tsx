@@ -11,6 +11,7 @@ import { Button } from '@/ui/button'
 import { FIELD } from '@/ui/field'
 import { cn } from '@/lib/utils'
 import { WeighInIcon } from '@/ui/icons'
+import Retry from '@/ui/retry'
 import Tracker from './Tracker'
 
 /** How often the clock is re-read while waiting for the reminder time, so a
@@ -153,12 +154,7 @@ export default function WeighInCard({
   return (
     <Tracker icon={<WeighInIcon size={22} />} title="Weigh-in" value={figure}>
       {failed && (
-        <p role="alert" className="border-l-2 border-ink pl-3 text-small">
-          Couldn't load your weigh-ins.{' '}
-          <button type="button" onClick={load} className="font-semibold underline underline-offset-3">
-            Retry
-          </button>
-        </p>
+        <Retry text="Couldn't load your weigh-ins." onRetry={load} role="alert" />
       )}
       {showInput && (
         <form onSubmit={save} className="flex flex-wrap items-center gap-2">

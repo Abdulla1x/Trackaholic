@@ -8,6 +8,7 @@ import { readLocal } from '../lib/storage'
 import { useSettings } from '../settings/SettingsContext'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import type { AnalyticsSummary, DayTotals } from '../types'
+import Retry from '@/ui/retry'
 
 const n = (value: number) => Math.round(value).toLocaleString()
 
@@ -48,12 +49,11 @@ export default function DailyTotals() {
       </p>
 
       {failed && (
-        <p role="alert" className="border-l-2 border-ink pl-3 text-small">
-          Couldn't load your daily totals. Check your connection, then try again.{' '}
-          <button type="button" onClick={load} className="font-semibold underline underline-offset-3">
-            Retry
-          </button>
-        </p>
+        <Retry
+          text="Couldn't load your daily totals. Check your connection, then try again."
+          onRetry={load}
+          role="alert"
+        />
       )}
 
       {!food && !failed && (

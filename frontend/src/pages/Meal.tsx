@@ -13,6 +13,7 @@ import type { Meal as MealType } from '../types'
 import Block from '@/ui/block'
 import { Button } from '@/ui/button'
 import { DeleteIcon, EditIcon, KeepIcon, LogAgainIcon, ShareIcon } from '@/ui/icons'
+import Retry from '@/ui/retry'
 import { RowButton } from '@/ui/row'
 import { Stat, StatGrid } from '@/ui/stat'
 import { useToast } from '@/ui/toast'
@@ -74,12 +75,7 @@ export default function Meal() {
           ) : loaded.kind === 'gone' ? (
             <p className="text-small text-ink-2">This meal isn't on this day any more. It may have been deleted or moved.</p>
           ) : (
-            <p role="alert" className="border-l-2 border-ink pl-3 text-small">
-              Couldn't load this meal. Check your connection, then try again.{' '}
-              <button type="button" onClick={load} className="font-semibold underline underline-offset-3">
-                Retry
-              </button>
-            </p>
+            <Retry text="Couldn't load this meal. Check your connection, then try again." onRetry={load} role="alert" />
           )}
         </Block>
       </div>
