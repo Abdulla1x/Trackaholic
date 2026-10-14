@@ -1,7 +1,7 @@
 // Run with `npm test` (see photoSize.test.ts for how).
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { sameInputs } from '../src/lib/analysisInputs.ts'
+import { photosCutMessage, sameInputs } from '../src/lib/analysisInputs.ts'
 
 // Stand-ins for File objects: only their identity matters to the rule.
 const photo1 = { name: 'a.jpg' }
@@ -42,4 +42,12 @@ test('the order foods were attached in is not a change', () => {
 test('a text-only estimate re-run with the same text is the same inputs', () => {
   const textOnly = { note: 'one banana', photos: [], foodIds: [] }
   assert.equal(sameInputs(textOnly, { note: 'one banana', photos: [], foodIds: [] }), true)
+})
+
+test('one photo kept reads as one more, not "the first 1 were"', () => {
+  assert.equal(photosCutMessage(1, 4), 'Only 1 more photo fit. 4 photos max.')
+})
+
+test('more than one photo kept gives the count', () => {
+  assert.equal(photosCutMessage(2, 4), 'Only the first 2 were added. 4 photos max.')
 })
