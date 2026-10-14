@@ -31,6 +31,7 @@ import type {
   PingSource,
 } from '../types'
 import Block from '@/ui/block'
+import Retry from '@/ui/retry'
 import { Stat, StatGrid } from '@/ui/stat'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
@@ -560,14 +561,7 @@ export default function Admin() {
         </p>
       </header>
 
-      {error && (
-        <p className="mt-3.5 border-l-2 border-ink pl-3 text-small">
-          {error}{' '}
-          <button type="button" onClick={load} className="font-semibold text-action underline underline-offset-3">
-            Retry
-          </button>
-        </p>
-      )}
+      {error && <Retry text={error} onRetry={load} className="mt-3.5" />}
 
       {loading && !stats && (
         <p className="py-3.5 text-small text-ink-2">Loading…</p>
@@ -730,7 +724,7 @@ export default function Admin() {
                       <tr key={row.id} className="border-t border-rule">
                         <td className="py-2 pr-4">{row.email}</td>
                         <td className="py-2 pr-4 text-ink-2">
-                          {row.created_at.slice(0, 10)}
+                          {shortDate(row.created_at.slice(0, 10))}
                         </td>
                         {/* Seen before active, deliberately: read left to
                             right the pair is a diagnosis. Seen with no

@@ -26,16 +26,6 @@
   --radius-log: 7px;
   --radius-sheet: 14px;
 
-  /* The only indeterminate animation in the app, used while the AI model is
-   * working and there is genuinely nothing to count. Registered here rather
-   * than written inline so it is `animate-indeterminate` like any other
-   * utility, and so `motion-reduce:` can switch it off the normal way.
-   *
-   * The segment is w-1/4 of its track, and translateX is a percentage of the
-   * SEGMENT, not the track -- so -100% parks it just off the left edge and
-   * 400% carries its leading edge just past the right one. */
-  --animate-indeterminate: indeterminate 1.4s ease-in-out infinite;
-
   /* DESIGN.md's one layout switch: under 900px a bottom tab bar, from 900px a
    * side rail. `desk:` rather than md: (768px), which today's pages still use
    * for their own inner layouts. */
@@ -253,15 +243,6 @@
     --animate-gauge-draw: route-in 120ms linear both;
     --animate-rise: route-in 120ms linear backwards;
     --animate-unlock: route-in 120ms linear both;
-  }
-}
-
-@keyframes indeterminate {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(400%);
   }
 }
 
