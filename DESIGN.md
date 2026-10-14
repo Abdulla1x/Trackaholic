@@ -286,6 +286,11 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - **Each row opens its own screen** with its own address (/you/water, /you/password), in the Settings-type column: the back arrow to You, the title in the middle, the form in blocks, and the Save bar at the bottom when something waits.
 - **What an action did stays in its row**: an import's counts replace the Import row's detail ("Imported 12 meals. 2 were already here.") until you leave the page.
 
+### Daily targets: the Protein block
+- **What:** on You → Daily targets, while the calories are worked out, a block labelled Protein asks "What matters most to you?" with three radio chips: "Keep or build muscle", "Just the scale" and "My own number". The first two show one plain line, "176 g a day, from 80 kg". "My own number" opens a number box (g a day) that starts at the protein already on screen, so nothing jumps until a new number is typed, and a line with the suggested ranges for both goals.
+- **What it moves:** calories stay as worked out, so a typed protein takes its room from fat and then carbs (the Fat Gives Way Rule). The stats above carry fat's state as their detail: "A quarter of the day", "Less, to make room for protein" or "At its minimum".
+- **When it can't fit:** saving a number that can't fit is refused on the Save bar, naming the most that fits. If a later weigh-in lowers the calories under a number already saved, a status block with the plan-coloured rule on its left says "Your protein no longer fits." and what it leaves room for, and the You row reads "(yours) · doesn't fit". Ink and words, never red.
+
 ### Save bar
 - **What waits for it:** typed numbers, and the choices on the same form (water's "From my weight" / "My own"). Switches and chips that stand alone save on tap, so the bar appearing is itself the sign that something is still waiting.
 - **Look:** pinned to the bottom of the screen just above the tab bar (the bottom of the column on desktop), field ground, a hairline along the top. "Unsaved changes" on the left, or the problem in its place, in ink; then Undo (ghost) and Save (primary), which reads "Saving…" while it works. A "Saved" toast follows, for 1.5 seconds.
@@ -310,7 +315,7 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - Deleting a meal returns to Today and leaves a struck-through line in its place, with an **Undo** button and a thin bar along the bottom that drains over **10 seconds**. Then the line folds away and the deletion is final. Undo puts the meal back where it was.
 
 ### AI estimate (Log panel)
-- **While working:** the user's photos and note sit at the top. Below them are honest stages: "Sending 2 photos" with a real upload bar, then "Reading your note", "Using 1 of your saved foods" and "Estimating portions from the photos". There is no fake percentage. After a long wait the last stage reads "Still looking. This one's got layers." The panel can be closed; the Log button keeps working, and a toast says when the estimate is ready.
+- **While working:** the user's photos and note sit at the top. Below them are honest stages: "Sending 2 photos" with a real upload bar, then one line saying what the estimate is built from, "Estimating from your note, 2 photos and 1 saved food". The app can't see when the model reads the note or uses a saved food, so those aren't ticked off as steps on a timer. There is no fake percentage. After a long wait the line gains "Still looking. This one's got layers." The panel can be closed; the Log button keeps working, and a toast says when the estimate is ready.
 - **Result:** one row per item, with name, quantity source ("200 g from your note", "about 10 g, from the photo"), kcal and range. Items taken from saved foods show a **Your food** tag and "exact". One "Save N new foods to my library" row and one "Keep as a saved meal" row follow. The footer holds Back and "Save meal · 563 kcal".
 
 ### The nutrition-label object
@@ -334,8 +339,16 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - Ink ground, ground-coloured text, 8px radius, above the tab bar on phones and bottom-right on desktop. They last 5 seconds and have a close button. The settings screens' "Saved" is the exception at 1.5 seconds: the Save bar going away already said it, and a longer toast covers the bottom of the screen and takes taps meant for it. One optional action ("View").
 - **A toast is never the only place.** Anything you might need to read again (an import's counts, a step history's result, a failure) is also written on the screen where it happened. The toast only confirms.
 
+### Hints
+- **What:** a one-line tip beside a feature that is easy to miss: a grey sentence (small, ink-2), one link with the quiet underline the Explainer trigger uses, and a 44px close button ("Hide this tip"). An offer, not a call to action, so nothing in it competes with the buttons around it.
+- **When:** each tip has its own rule, owned by the screen that shows it, and shows only when it would help. **Saved meal:** on the copy form, from the third log of the same name, never for a name already saved. **Steps:** on the Steps card, only for an account that has never logged a step. **Saved foods:** in the AI box, once a note is typed and the library has foods; not while the picker is open, and never with photos attached, so it never sits beside the question about what a photo can't show.
+- **Closing:** ✕ or using the link hides a tip for good on that device (dismissals are per device, like the look). No tip is ever shown when the data it depends on is missing: no count, no tip. Never a popup or a tour.
+
 ### Skeletons
 - Track-coloured blocks with a slow shimmer, shown for at least 650 ms on first load of a data screen, standing where the content will land. No spinners in content. Under reduced motion the shimmer stops and the blocks simply sit there.
+
+### Named Rules
+**The Fat Gives Way Rule.** When protein is typed above the worked-out amount and the calories stay put, the extra comes out of fat first, down to its minimum of 0.5 g per kilo, and only then out of carbs, because carbs fuel training. Protein typed below it frees calories for carbs. If carbs would go below 0, the number doesn't fit and is refused with the most that would.
 
 ## Do's and Don'ts
 
@@ -471,6 +484,9 @@ Wry, in small doses. Humour lives in quiet, good moments. Errors, going over a t
 | Deleting an account (plain) | This deletes everything: meals, weigh-ins, foods. It can't be undone. |
 | Logging out (plain) | Log out? Your data stays on your account. |
 | Importing meals again (plain) | No new meals. 2 were already here. |
+| Tip: a meal logged often (plain) | You've logged this 2 times before. · Keep as a saved meal |
+| Tip: no steps logged yet (plain) | Use Samsung Health? Bring in your step history from its export. · Import my steps |
+| Tip: saved foods in the AI box (plain) | Logging something you've saved? · Use my saved foods |
 
 ## Themes and palettes
 
