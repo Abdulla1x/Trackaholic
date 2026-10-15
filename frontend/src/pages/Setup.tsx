@@ -50,6 +50,7 @@ import { cn } from '@/lib/utils'
 import { LABEL_BOX } from '@/ui/block'
 import Explainer from '@/ui/explainer'
 import { n } from '@/lib/format'
+import Screen from '@/ui/screen'
 
 const TITLES: Record<Question, string> = {
   weight: 'Your weight today',
@@ -358,7 +359,7 @@ export default function Setup() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="Set your target" back="/" backLabel="Back to Today" />
       {qNumber > 0 && (
         <div className={`grid gap-2 border-b border-rule py-3.5 ${LABEL_BOX}`}>
@@ -383,7 +384,7 @@ export default function Setup() {
         {body}
         {next}
       </section>
-    </div>
+    </Screen>
   )
 }
 

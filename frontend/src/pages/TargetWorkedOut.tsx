@@ -11,6 +11,7 @@ import type { BodyTargets } from '../types'
 import Block from '@/ui/block'
 import Retry from '@/ui/retry'
 import { n } from '@/lib/format'
+import Screen from '@/ui/screen'
 
 function Step({ title, sum, children }: { title: string; sum: ReactNode; children: ReactNode }) {
   return (
@@ -84,7 +85,7 @@ export default function TargetWorkedOut() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="How your target is worked out" back={arrival.from ?? '/how-it-works'} backLabel="Back" />
       {typed && settings && (
         <Block>
@@ -95,7 +96,7 @@ export default function TargetWorkedOut() {
         </Block>
       )}
       {body}
-    </div>
+    </Screen>
   )
 }
 

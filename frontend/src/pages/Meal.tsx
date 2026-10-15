@@ -18,6 +18,7 @@ import { RowButton } from '@/ui/row'
 import { Stat, StatGrid } from '@/ui/stat'
 import { useToast } from '@/ui/toast'
 import { n } from '@/lib/format'
+import Screen from '@/ui/screen'
 
 type Loaded = { kind: 'loading' } | { kind: 'found'; meal: MealType } | { kind: 'gone' } | { kind: 'failed' }
 
@@ -66,7 +67,7 @@ export default function Meal() {
 
   if (loaded.kind !== 'found') {
     return (
-      <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+      <Screen>
         <ScreenBar title="Meal" back={back} backLabel="Back to Today" />
         <Block>
           {loaded.kind === 'loading' ? (
@@ -77,7 +78,7 @@ export default function Meal() {
             <Retry text="Couldn't load this meal. Check your connection, then try again." onRetry={load} role="alert" />
           )}
         </Block>
-      </div>
+      </Screen>
     )
   }
 
@@ -141,7 +142,7 @@ export default function Meal() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="Meal" back={back} backLabel="Back to Today" />
 
       {/* The name in full here, where it can wrap: the bar above would cut a
@@ -216,6 +217,6 @@ export default function Meal() {
           Delete
         </Button>
       </Block>
-    </div>
+    </Screen>
   )
 }

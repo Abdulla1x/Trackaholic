@@ -12,6 +12,7 @@ import { Button } from '@/ui/button'
 import Explainer from '@/ui/explainer'
 import Retry from '@/ui/retry'
 import { cn } from '@/lib/utils'
+import Screen from '@/ui/screen'
 
 /** The weekly review, in Progress (0a: a periodic output, not a tab). The
  *  seven days before today, or the week Today's card names in `?end=`. Never
@@ -54,7 +55,7 @@ export default function WeeklyReview() {
   }, [end, attempt])
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="Weekly review" back="/progress" backLabel="Back to Progress" />
 
       <p className="py-3 text-small text-ink-2">
@@ -93,7 +94,7 @@ export default function WeeklyReview() {
           {review.logged_days > 0 && <InWords end={end} />}
         </>
       )}
-    </div>
+    </Screen>
   )
 }
 

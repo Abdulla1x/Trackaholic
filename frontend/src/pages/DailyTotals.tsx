@@ -10,6 +10,7 @@ import { useLiveMessage } from '../hooks/useLiveMessage'
 import type { AnalyticsSummary, DayTotals } from '../types'
 import Retry from '@/ui/retry'
 import { n } from '@/lib/format'
+import Screen from '@/ui/screen'
 
 /** Every logged day in Progress's range, newest first, one row each: the date
  *  and its calories, the macros under them. It replaces the old 30-row table,
@@ -39,7 +40,7 @@ export default function DailyTotals() {
     range.days === null ? 'Every day you logged, up to yesterday.' : `The ${range.days} days before today.`
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="Daily totals" back={`/progress?range=${range.key}`} backLabel="Back to Progress" />
 
       <p className="py-3 text-small text-ink-2">
@@ -80,7 +81,7 @@ export default function DailyTotals() {
           ))}
         </ul>
       )}
-    </div>
+    </Screen>
   )
 }
 

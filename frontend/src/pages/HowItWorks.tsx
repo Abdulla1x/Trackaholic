@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import ScreenBar from '../components/shell/ScreenBar'
 import { CHANGE_TRACKERS } from '../lib/trackers'
 import Block from '@/ui/block'
+import Screen from '@/ui/screen'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -25,7 +26,7 @@ const LINK = 'font-semibold text-action underline underline-offset-3 focus-visib
  *  exists under the name it uses here; keep the two in step. */
 export default function HowItWorks() {
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="How Trackaholic works" back="/" backLabel="Back to Today" />
 
       <Section title="Log a meal">
@@ -123,6 +124,6 @@ export default function HowItWorks() {
           <li>Trackaholic gives estimates to help you plan. It isn't medical advice.</li>
         </List>
       </Section>
-    </div>
+    </Screen>
   )
 }

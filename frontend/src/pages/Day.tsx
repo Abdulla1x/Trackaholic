@@ -13,6 +13,7 @@ import Retry from '@/ui/retry'
 import { RowLink } from '@/ui/row'
 import { Stat, StatGrid } from '@/ui/stat'
 import { n } from '@/lib/format'
+import Screen from '@/ui/screen'
 
 /** The day in detail: what the calories band opens (DESIGN.md: "Tap: opens the
  *  day in detail, with calorie plans"). The band keeps one headline; the rest
@@ -64,7 +65,7 @@ export default function Day() {
   const hasTarget = settings ? targetIsSet(settings) : true
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar
         title={dayHeading(day, today, addDays(today, -1))}
         back={day === today ? '/' : `/?day=${day}`}
@@ -150,6 +151,6 @@ export default function Day() {
           </div>
         </Block>
       )}
-    </div>
+    </Screen>
   )
 }

@@ -3,6 +3,7 @@ import { CONTACT_EMAIL } from '../../lib/contact'
 import Block from '@/ui/block'
 import { Button } from '@/ui/button'
 import { useToast } from '@/ui/toast'
+import Screen from '@/ui/screen'
 
 /** Contact, from You -> Help: one address, to write to or to copy. Before
  *  this the address was only inside the release-notes popup. */
@@ -18,7 +19,7 @@ export default function Contact() {
     }
   }
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="Contact" back="/you" backLabel="Back to You" />
       <Block>
         <p>Questions, bugs or ideas: email me.</p>
@@ -37,6 +38,6 @@ export default function Contact() {
           </Button>
         </div>
       </Block>
-    </div>
+    </Screen>
   )
 }

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import Block from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import { SwitchRow } from '@/ui/switch'
+import Screen from '@/ui/screen'
 
 const THEME_CHOICES: [ThemeChoice, string][] = [
   ['auto', 'Automatic'],
@@ -28,7 +29,7 @@ export default function Appearance() {
   const saveNow = useInstantSave()
   const { appearance, theme, setAppearance } = useAppearance()
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="Appearance" back="/you" backLabel="Back to You" />
 
       <Block label="Theme">
@@ -98,7 +99,7 @@ export default function Appearance() {
           />
         </Block>
       )}
-    </div>
+    </Screen>
   )
 }
 

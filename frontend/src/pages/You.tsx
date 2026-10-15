@@ -21,6 +21,7 @@ import Block from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import { RowButton, RowLink } from '@/ui/row'
 import { n } from '@/lib/format'
+import Screen from '@/ui/screen'
 
 /** A group of rows under one label, hairlines between them. */
 function Group({ label, children }: { label: string; children: ReactNode }) {
@@ -153,7 +154,7 @@ export default function You() {
   useLiveMessage(error)
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <header className="border-b border-rule pb-1.5 text-center desk:text-left label:border-b-[5px]">
         <h1 className="pt-2.5 text-title label:text-[18px] label:font-black label:tracking-[-0.01em]">You</h1>
         {user && <p className="truncate pb-1 text-small text-ink-2">{user.email}</p>}
@@ -250,6 +251,6 @@ export default function You() {
           </AlertDialog>
         </>
       )}
-    </div>
+    </Screen>
   )
 }
