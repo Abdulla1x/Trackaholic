@@ -277,6 +277,9 @@ def build_review(db: Session, user_id: int, window_end: date_type):
         calibration=calibration_summary(db, user_id),
         rate_window_days=RATE_WINDOW_DAYS,
         rate_min_points=RATE_MIN_POINTS,
+        first_logged_day=db.scalar(
+            select(func.min(Meal.date)).where(Meal.user_id == user_id)
+        ),
     )
 
 

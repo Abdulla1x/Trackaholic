@@ -187,12 +187,34 @@ def test_logging_warns_that_the_averages_describe_the_days_not_the_week():
 
 
 def test_a_week_with_nothing_logged_answers_rather_than_refuses():
-    """Logging is the sample, so it is the one check that cannot lack one."""
-    check = logging_check([], WINDOW_END)
+    """Logging is the sample, so once anything has been logged it is the one
+    check that cannot lack one: an empty week after that is a real answer."""
+    check = logging_check([], WINDOW_END, first_logged_day=date(2026, 8, 1))
 
     assert check.status == OFF_TRACK
     assert check.unavailable_reason is None
     assert check.value == 0
+
+
+def test_before_anything_is_logged_the_review_says_when_it_starts():
+    """A week before the account's first log isn't a week anyone fell short in.
+
+    Judging it "Off target" is what a brand-new account used to see for days
+    before it existed.
+    """
+    never = logging_check([], WINDOW_END, first_logged_day=None)
+    assert never.status == UNKNOWN
+    assert never.value is None
+    assert never.unavailable_reason == (
+        "Your first review starts the day after you log your first meal."
+    )
+
+    later = logging_check([], WINDOW_END, first_logged_day=WINDOW_END + timedelta(days=1))
+    assert later.status == UNKNOWN
+    starts = WINDOW_END + timedelta(days=2)
+    assert later.unavailable_reason == (
+        f"Your first review starts {starts.day} {starts:%b}, with your first logged day in it."
+    )
 
 
 def test_one_logged_day_is_not_described_in_the_plural():
@@ -472,6 +494,26 @@ def fetch(client, **params):
 
 def check_of(payload, key):
     return next(c for c in payload["checks"] if c["key"] == key)
+
+
+def test_a_new_account_is_told_when_its_review_starts(client):
+    """The router passes the account's first logged day, not just the week's."""
+    assert check_of(fetch(client), "logging")["status"] == "unknown"
+
+    log_meal(client, 0)
+    logging = check_of(fetch(client), "logging")
+    tomorrow = date.today() + timedelta(days=1)
+    assert logging["status"] == "unknown"
+    assert f"starts {tomorrow.day} {tomorrow:%b}" in logging["unavailable_reason"]
+
+
+def test_an_account_that_logged_before_but_not_this_week_is_off_target(client):
+    log_meal(client, -20)
+
+    logging = check_of(fetch(client), "logging")
+
+    assert logging["status"] == "off_track"
+    assert logging["value"] == 0
 
 
 def test_the_window_is_seven_complete_days_ending_yesterday(client):

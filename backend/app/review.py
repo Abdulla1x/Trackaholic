@@ -49,6 +49,7 @@ an answer" beats a confident number built on four.
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date as date_type
+from datetime import timedelta
 from typing import NamedTuple
 
 from .calculations import RATE_MIN_POINTS, RATE_WINDOW_DAYS
@@ -194,15 +195,40 @@ def _plural(count: int, noun: str) -> str:
     return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
-def logging_check(days: Sequence[DayIntake], window_end: date_type) -> ReviewCheck:
+def logging_check(
+    days: Sequence[DayIntake],
+    window_end: date_type,
+    first_logged_day: date_type | None = None,
+) -> ReviewCheck:
     """How much of the week is actually in the sample.
 
     First, and never absent, because it is the check that qualifies every other
-    one. It also never refuses: a week with nothing logged is a complete answer
-    to this question, and the only one where the rest of the review has nothing
-    to describe.
+    one. It refuses only before the account's first logged day (`None` means
+    nothing has ever been logged): a week before anything was logged is not a
+    week someone fell short in, and "Off target" there judged an account for
+    days it didn't exist. After that, a week with nothing logged is a complete
+    answer to this question, and the only one where the rest of the review has
+    nothing to describe.
     """
     logged = len(days)
+    if logged == 0 and (first_logged_day is None or first_logged_day > window_end):
+        # The review's window ends yesterday, so a day first appears in one
+        # the day after it is logged.
+        starts = (
+            "the day after you log your first meal"
+            if first_logged_day is None
+            else f"{_day_label(first_logged_day + timedelta(days=1))}, with your first logged day in it"
+        )
+        return ReviewCheck(
+            key="logging",
+            status=UNKNOWN,
+            value=None,
+            target=REVIEW_WINDOW_DAYS,
+            unit="days",
+            sample_days=REVIEW_WINDOW_DAYS,
+            detail="",
+            unavailable_reason=f"Your first review starts {starts}.",
+        )
     if logged == 0:
         return ReviewCheck(
             key="logging",
@@ -636,6 +662,7 @@ def summarise(
     calibration: CalibrationSummary | None = None,
     rate_window_days: int = RATE_WINDOW_DAYS,
     rate_min_points: int = RATE_MIN_POINTS,
+    first_logged_day: date_type | None = None,
 ) -> WeeklyReview:
     """Assemble the review. The router does the queries; this decides what is said.
 
@@ -652,7 +679,7 @@ def summarise(
     does track steps and had a bad week -- exactly the week worth reading.
     """
     checks: list[ReviewCheck] = [
-        logging_check(days, window_end),
+        logging_check(days, window_end, first_logged_day),
         intake_check(days, daily_calorie_target, plan_touched),
         protein_check(days, protein_goal),
         weight_check(

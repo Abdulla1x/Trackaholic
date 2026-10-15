@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import ScreenBar from '../components/shell/ScreenBar'
 import { addDays, localIsoDate, shortDate } from '../lib/dates'
 import { hideReview } from '../lib/dismissals'
-import { checkFigure, checkLabel, checkStatus, lastWeekEnd, reviewEndFrom } from '../lib/review'
+import { checkFigure, checkLabel, checkStatus, lastWeekEnd, reviewEndFrom, reviewStartsLine } from '../lib/review'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import type { ReviewCheck, WeeklyReview as Review } from '../types'
 import Block, { LABEL_BOX, LABEL_TITLE } from '@/ui/block'
@@ -78,6 +78,10 @@ export default function WeeklyReview() {
         <p role="status" className="py-6 text-center text-small text-ink-2">
           Working it out…
         </p>
+      ) : reviewStartsLine(review) ? (
+        // A brand-new account: say when the review starts instead of judging
+        // a week before anything was logged.
+        <p className="border-t border-rule py-4">{reviewStartsLine(review)}</p>
       ) : (
         <>
           <ul className="border-t border-rule">
@@ -85,7 +89,8 @@ export default function WeeklyReview() {
               <Check key={check.key} check={check} turn={index} />
             ))}
           </ul>
-          <InWords end={end} />
+          {/* Nothing logged, nothing to word: the server refuses it too. */}
+          {review.logged_days > 0 && <InWords end={end} />}
         </>
       )}
     </div>
