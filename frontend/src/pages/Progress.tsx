@@ -64,8 +64,7 @@ import Retry from '@/ui/retry'
 import { RowLink } from '@/ui/row'
 import Skeleton from '@/ui/skeleton'
 import { Stat, StatGrid } from '@/ui/stat'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 /** The series the Nutrition chart can show. Carbs and fat only when tracked:
  *  off, nothing on the page mentions them (0a). */

@@ -12,8 +12,7 @@ import Block from '@/ui/block'
 import Retry from '@/ui/retry'
 import { RowLink } from '@/ui/row'
 import { Stat, StatGrid } from '@/ui/stat'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 /** The day in detail: what the calories band opens (DESIGN.md: "Tap: opens the
  *  day in detail, with calorie plans"). The band keeps one headline; the rest

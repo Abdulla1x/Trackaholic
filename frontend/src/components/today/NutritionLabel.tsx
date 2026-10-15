@@ -8,8 +8,7 @@ import CountUp from '@/ui/count-up'
 import RollingNumber from '@/ui/rolling-number'
 import { cn } from '@/lib/utils'
 import type { BandTargets } from './CaloriesBand'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 /** The thick rules that divide a nutrition label: 10px under the title and
  *  before the fine print, 5px between the calories and the macros. */

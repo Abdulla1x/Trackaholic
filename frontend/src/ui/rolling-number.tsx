@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react'
 import { changedDigits } from '../lib/today'
+import { n } from '@/lib/format'
 
 interface Shown {
   value: number
@@ -26,7 +27,7 @@ function first(value: number, text: string): Shown {
  *  Screen readers get the number once, whole; the per-digit spans are hidden
  *  from them so nothing reads it out a digit at a time. */
 export default function RollingNumber({ value }: { value: number }) {
-  const text = Math.round(value).toLocaleString()
+  const text = n(value)
   const [shown, setShown] = useState(() => first(value, text))
 
   // Adjusting state while rendering, React's pattern for state derived from a

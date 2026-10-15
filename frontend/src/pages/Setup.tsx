@@ -49,6 +49,7 @@ import { useToast } from '@/ui/toast'
 import { cn } from '@/lib/utils'
 import { LABEL_BOX } from '@/ui/block'
 import Explainer from '@/ui/explainer'
+import { n } from '@/lib/format'
 
 const TITLES: Record<Question, string> = {
   weight: 'Your weight today',
@@ -239,7 +240,7 @@ export default function Setup() {
       const saved = await updateSettings(autoSettings(settings, a, rate))
       removeLocal(draftKey(userId))
       toast.show({
-        text: `Your target: ${Math.round(saved.calorie_goal).toLocaleString()} kcal and ${Math.round(saved.protein_goal)} g protein. A guide, not a rule.`,
+        text: `Your target: ${n(saved.calorie_goal)} kcal and ${Math.round(saved.protein_goal)} g protein. A guide, not a rule.`,
       })
       navigate('/', { state: { firstTarget: true } })
     } catch {
@@ -256,7 +257,7 @@ export default function Setup() {
       const saved = await updateSettings(ownSettings(settings, a))
       removeLocal(draftKey(userId))
       toast.show({
-        text: `Your target: ${Math.round(saved.calorie_goal).toLocaleString()} kcal and ${Math.round(saved.protein_goal)} g protein. A guide, not a rule.`,
+        text: `Your target: ${n(saved.calorie_goal)} kcal and ${Math.round(saved.protein_goal)} g protein. A guide, not a rule.`,
       })
       navigate('/', { state: { firstTarget: true } })
     } catch {
@@ -802,7 +803,7 @@ function TargetSummary({
     <div aria-live="polite" className="grid gap-1.5 rounded-control border-[1.5px] border-rule p-3">
       <span className="text-small text-ink-2">Your daily target</span>
       <span className="text-field-number text-[26px]">
-        {Math.round(preview.target_calories).toLocaleString()} kcal · {Math.round(preview.protein_g ?? 0)} g protein
+        {n(preview.target_calories)} kcal · {Math.round(preview.protein_g ?? 0)} g protein
       </span>
       {preview.protein_low_g != null && preview.protein_high_g != null && (
         <span className="text-small text-ink-2">
@@ -817,7 +818,7 @@ function TargetSummary({
         </Explainer>
       )}
       <span className="text-small text-ink-2">
-        {pace} You burn about {Math.round(preview.tdee ?? 0).toLocaleString()} kcal a day, by the formula; after about two weeks it
+        {pace} You burn about {n(preview.tdee ?? 0)} kcal a day, by the formula; after about two weeks it
         measures your real burn.
       </span>
       {cut && max && asked !== null && (
@@ -835,8 +836,8 @@ function TargetSummary({
       </Link>
       {raised && (
         <span className="text-small">
-          Raised to {Math.round(floor).toLocaleString()} kcal, the lowest target it sets for you; your estimated burn of{' '}
-          {Math.round(preview.tdee ?? 0).toLocaleString()} kcal is below it.
+          Raised to {n(floor)} kcal, the lowest target it sets for you; your estimated burn of{' '}
+          {n(preview.tdee ?? 0)} kcal is below it.
         </span>
       )}
     </div>

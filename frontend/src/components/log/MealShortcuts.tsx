@@ -10,6 +10,7 @@ import { FIELD } from '@/ui/field'
 import { SearchIcon } from '@/ui/icons'
 import { logDate } from './logPanelUrl'
 import { useLogPanel } from './useLogPanel'
+import { n } from '@/lib/format'
 
 // How many of each list show at first (after a phone test: six each
 // made the panel long, and a search reaches the rest). Three covers the meals
@@ -68,7 +69,7 @@ function MealRow({ name, detail, kcal, onPick }: { name: string; detail: string;
           <span className="truncate text-small text-ink-2">{detail}</span>
         </span>
         <span className="shrink-0 text-row-number tabular-nums">
-          {Math.round(kcal).toLocaleString()}
+          {n(kcal)}
           <span className="ml-1 text-small font-normal text-ink-2">kcal</span>
         </span>
       </button>

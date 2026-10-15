@@ -6,6 +6,7 @@ import { Button } from '@/ui/button'
 import Block from '@/ui/block'
 import { LogIcon, NextIcon } from '@/ui/icons'
 import Retry from '@/ui/retry'
+import { n } from '@/lib/format'
 
 /** The day's meals (DESIGN.md: Meal rows). Each row is time, name and detail,
  *  then kcal, and opens the meal's own screen, where Edit, Log it again,
@@ -61,7 +62,7 @@ export default function MealList({
       // spread down it.
       className="content-start"
       label={list.length ? `Meals · ${list.length}` : 'Meals'}
-      value={list.length ? `${Math.round(total).toLocaleString()} kcal` : undefined}
+      value={list.length ? `${n(total)} kcal` : undefined}
     >
       {error ? (
         // No role: Today speaks this error through useLiveMessage.
@@ -114,7 +115,7 @@ export default function MealList({
                     <span className="truncate">{meal.name}</span>
                     <span className="truncate text-small text-ink-2">{detail}</span>
                   </span>
-                  <span className="text-row-number tabular-nums">{Math.round(meal.calories).toLocaleString()}</span>
+                  <span className="text-row-number tabular-nums">{n(meal.calories)}</span>
                   <NextIcon size={18} aria-hidden="true" className="shrink-0 text-ink-2" />
                 </Link>
               </li>

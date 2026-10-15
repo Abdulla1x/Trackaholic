@@ -9,8 +9,7 @@ import { useSettings } from '../settings/SettingsContext'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import type { AnalyticsSummary, DayTotals } from '../types'
 import Retry from '@/ui/retry'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 /** Every logged day in Progress's range, newest first, one row each: the date
  *  and its calories, the macros under them. It replaces the old 30-row table,

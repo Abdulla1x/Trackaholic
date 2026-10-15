@@ -12,6 +12,7 @@ import { Chip } from '@/ui/chip'
 import Explainer from '@/ui/explainer'
 import { FIELD } from '@/ui/field'
 import { NumberField } from '@/ui/number-field'
+import { n } from '@/lib/format'
 
 /** Move calories between days without moving the week.
  *
@@ -321,8 +322,8 @@ export default function CaloriePlanSection({
                 ) : (
                   <>
                     <p>
-                      {Math.round(surplus.consumed_calories).toLocaleString()} kcal eaten against a{' '}
-                      {Math.round(surplus.reference_calories).toLocaleString()} kcal target:{' '}
+                      {n(surplus.consumed_calories)} kcal eaten against a{' '}
+                      {n(surplus.reference_calories)} kcal target:{' '}
                       <b className="font-semibold">{signed(surplus.surplus_calories)} kcal</b>.
                     </p>
                     {/* Said plainly because it is a real limitation: this app
@@ -404,7 +405,7 @@ export default function CaloriePlanSection({
                         {day.date < today && ' · passed'}
                       </span>
                       <span className="tabular-nums">
-                        <b className="font-semibold text-ink">{Math.round(day.calorie_goal).toLocaleString()} kcal</b> (
+                        <b className="font-semibold text-ink">{n(day.calorie_goal)} kcal</b> (
                         {signed(day.calorie_delta ?? 0)})
                       </span>
                     </li>

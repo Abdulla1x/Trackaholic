@@ -10,8 +10,7 @@ import { useSettings } from '../settings/SettingsContext'
 import type { BodyTargets } from '../types'
 import Block from '@/ui/block'
 import Retry from '@/ui/retry'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 function Step({ title, sum, children }: { title: string; sum: ReactNode; children: ReactNode }) {
   return (

@@ -2,8 +2,7 @@ import { Link } from 'react-router-dom'
 import type { TargetMove } from '../../lib/targetMoves'
 import { Button } from '@/ui/button'
 import { LABEL_BOX } from '@/ui/block'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 function reason(move: TargetMove): string {
   switch (move.kind) {
