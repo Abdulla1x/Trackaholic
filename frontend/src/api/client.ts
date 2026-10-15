@@ -126,10 +126,16 @@ function parseJson(text: string): unknown {
   }
 }
 
-/** The error for a response that arrived and was not ok. */
+/** The error for a response that arrived and was not ok.
+ *
+ * Our API always sends a `detail`. A response without one came from something
+ * in front of it (a proxy's error page, say), so the user gets a plain line
+ * and the status goes to the console for whoever is debugging. "Request
+ * failed (503)" told users nothing they could act on. */
 function errorFrom(status: number, body: unknown): ApiError {
-  let detail = `Request failed (${status})`
+  let detail = 'The server had a problem. Try again in a moment.'
   const reported = (body as { detail?: unknown } | null)?.detail
+  if (reported === undefined) console.warn(`API error ${status} with no detail`)
   if (typeof reported === 'string') {
     detail = reported
   } else if (Array.isArray(reported)) {
