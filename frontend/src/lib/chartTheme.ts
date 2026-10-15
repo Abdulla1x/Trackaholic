@@ -1,4 +1,4 @@
-import { shortDate as shortDateLabel } from './dates'
+import { shortDate } from './dates'
 
 // The colours and shapes every chart in this app shares.
 //
@@ -19,16 +19,9 @@ export const chartMargin = { top: 5, right: 5, bottom: 0, left: -20 }
  *  are not corners. */
 export const barRadius: [number, number, number, number] = [4, 4, 0, 0]
 
-/** An axis date as "Sep 28" (lib/dates.ts). A tick formatter runs inside
- *  render, where a throw would take the whole chart down, so anything that is
- *  not a YYYY-MM-DD date is shown as it came. */
-export const shortDate = (value: string) => {
-  try {
-    return shortDateLabel(value)
-  } catch {
-    return value
-  }
-}
+/** An axis date as "Sep 28" (lib/dates.ts). Recharts calls a tick formatter
+ *  with (value, index), and the index must not reach shortDate's `now`. */
+export const axisDate = (value: string) => shortDate(value)
 
 /** The subject: the trend line, a day's bar. */
 export const chartInk = 'var(--ink)'

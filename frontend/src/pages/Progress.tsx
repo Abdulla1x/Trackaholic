@@ -36,6 +36,7 @@ import {
   weightRangeStart,
 } from '../lib/weight'
 import {
+  axisDate,
   chartGround,
   chartInk,
   chartInk2,
@@ -46,8 +47,8 @@ import {
   chartTooltipLabel,
   planDash,
   progressMargin,
-  shortDate,
 } from '../lib/chartTheme'
+import { shortDate } from '../lib/dates'
 import { useSettings } from '../settings/SettingsContext'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import { useSkeletonFloor } from '../hooks/useSkeletonFloor'
@@ -327,7 +328,7 @@ function WeightBlock({
               <XAxis
                 dataKey="date"
                 tick={chartTick}
-                tickFormatter={shortDate}
+                tickFormatter={axisDate}
                 stroke={chartRule}
                 tickLine={false}
                 minTickGap={24}
@@ -522,7 +523,7 @@ function NutritionBlock({
               <XAxis
                 dataKey="date"
                 tick={chartTick}
-                tickFormatter={shortDate}
+                tickFormatter={axisDate}
                 stroke={chartRule}
                 tickLine={false}
                 minTickGap={24}

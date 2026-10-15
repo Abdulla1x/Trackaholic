@@ -80,12 +80,31 @@ export function daysBetween(from: string, to: string): number {
 // when it is not this year's. Every list and chart label goes through here, so
 // no screen shows a raw "2026-09-28" or the "09-28" charts used to cut from it.
 //
+// Anything that is not a YYYY-MM-DD date is shown as it came rather than
+// thrown, unlike the rest of this module: chart tick formatters call this
+// inside render, where a throw takes the whole chart down, and a label that
+// reads oddly is a better failure than an empty card.
+//
 // `now` and `locale` exist for the tests; the app passes neither.
 export function shortDate(iso: string, now: Date = new Date(), locale?: string): string {
-  const date = parseIsoDate(iso)
+  let date: Date
+  try {
+    date = parseIsoDate(iso)
+  } catch {
+    return iso
+  }
   return date.toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
   })
+}
+
+// A day with its weekday: "Sat, Oct 10", or "Sat 10 Oct" in British English.
+// The day chips, the date control, the calorie-plan lines and the nutrition
+// label all name a day this way, so they read alike.
+//
+// `locale` exists for the tests; the app doesn't pass it.
+export function dayDate(iso: string, locale?: string): string {
+  return parseIsoDate(iso).toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })
 }

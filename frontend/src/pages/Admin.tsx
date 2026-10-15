@@ -15,6 +15,7 @@ import { api } from '../api/client'
 import {
   activeDot,
   adminHues,
+  axisDate,
   barRadius,
   chartMargin,
   chartRule,
@@ -22,8 +23,8 @@ import {
   chartTooltip,
   chartTooltipLabel,
   legendStyle,
-  shortDate,
 } from '../lib/chartTheme'
+import { shortDate } from '../lib/dates'
 import type {
   AdminStats,
   AdminUserRow,
@@ -606,7 +607,7 @@ export default function Admin() {
                 <XAxis
                   dataKey="date"
                   tick={chartTick}
-                  tickFormatter={shortDate}
+                  tickFormatter={axisDate}
                   stroke={chartRule}
                 />
                 <YAxis tick={chartTick} stroke={chartRule} allowDecimals={false} />
@@ -654,7 +655,7 @@ export default function Admin() {
                 <XAxis
                   dataKey="date"
                   tick={chartTick}
-                  tickFormatter={shortDate}
+                  tickFormatter={axisDate}
                   stroke={chartRule}
                 />
                 <YAxis tick={chartTick} stroke={chartRule} allowDecimals={false} />
