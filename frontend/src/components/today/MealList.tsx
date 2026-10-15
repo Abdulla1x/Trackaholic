@@ -95,9 +95,9 @@ export default function MealList({
               return <HeldRow key={meal.id} meal={meal} folding={held.folding} onUndo={held.onUndo} />
             const index = list.indexOf(meal)
             const detail = [
-              `${Math.round(meal.protein)} g protein`,
-              trackCarbs && meal.carbs !== null && `${Math.round(meal.carbs)} g carbs`,
-              trackFat && meal.fat !== null && `${Math.round(meal.fat)} g fat`,
+              `${n(meal.protein)} g protein`,
+              trackCarbs && meal.carbs !== null && `${n(meal.carbs)} g carbs`,
+              trackFat && meal.fat !== null && `${n(meal.fat)} g fat`,
             ]
               .filter(Boolean)
               .join(' · ')

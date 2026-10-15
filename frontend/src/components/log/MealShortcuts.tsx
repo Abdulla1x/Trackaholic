@@ -172,7 +172,7 @@ export default function MealShortcuts() {
                 <MealRow
                   key={template.id}
                   name={template.name}
-                  detail={`${Math.round(template.protein)} g protein`}
+                  detail={`${n(template.protein)} g protein`}
                   kcal={template.calories}
                   onPick={() => {
                     if (user) rememberTemplate(user.id, template.id)
@@ -202,7 +202,7 @@ export default function MealShortcuts() {
                 <MealRow
                   key={meal.id}
                   name={meal.name}
-                  detail={`${dayLabel(meal.date, today)} · ${Math.round(meal.protein)} g protein`}
+                  detail={`${dayLabel(meal.date, today)} · ${n(meal.protein)} g protein`}
                   kcal={meal.calories}
                   onPick={() => open('hand', { state: { copyMeal: meal } })}
                 />
