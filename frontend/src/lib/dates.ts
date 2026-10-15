@@ -108,3 +108,18 @@ export function shortDate(iso: string, now: Date = new Date(), locale?: string):
 export function dayDate(iso: string, locale?: string): string {
   return parseIsoDate(iso).toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })
 }
+
+// A stored "HH:MM" (24-hour, no timezone) as the device writes a time of day:
+// "8:00 PM" on a US phone, "20:00" on a British one. Meal times are written
+// the same way, so Today shows one clock, not two. Anything that isn't HH:MM
+// is shown as it came.
+//
+// `locale` exists for the tests; the app doesn't pass it.
+export function timeLabel(hhmm: string, locale?: string): string {
+  const match = /^(\d{2}):(\d{2})$/.exec(hhmm)
+  if (!match) return hhmm
+  return new Date(2000, 0, 1, Number(match[1]), Number(match[2])).toLocaleTimeString(locale, CLOCK)
+}
+
+/** The options every time of day on screen is written with. */
+export const CLOCK: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }

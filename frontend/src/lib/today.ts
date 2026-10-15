@@ -1,5 +1,5 @@
 import type { Meal, PlanDay, Settings } from '../types.ts'
-import { dayDate, localIsoDate, parseIsoDate } from './dates.ts'
+import { CLOCK, dayDate, localIsoDate, parseIsoDate } from './dates.ts'
 
 /** The arithmetic behind Today, kept apart from the page so it can be tested
  *  without a browser. Nothing in here draws anything. */
@@ -156,5 +156,5 @@ export function mealTimeLabel(meal: Pick<Meal, 'date' | 'created_at'>, show: boo
   if (!show || !meal.created_at) return null
   const logged = new Date(meal.created_at)
   if (Number.isNaN(logged.getTime()) || localIsoDate(logged) !== meal.date) return null
-  return logged.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return logged.toLocaleTimeString(undefined, CLOCK)
 }
