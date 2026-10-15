@@ -107,7 +107,7 @@ function SavedMeals() {
       toast.show({ text: `Deleted ${meal.name}` })
       setOpen(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That didn't delete. Try again.")
+      setError(err instanceof Error ? err.message : "That didn't delete. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }

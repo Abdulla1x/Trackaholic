@@ -111,7 +111,7 @@ export default function SupplementsCard({ date, chosen = false }: Props) {
       setDay(next)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save that — try again.')
+      setError(err instanceof Error ? err.message : "That didn't save. Check your connection, then try again.")
       // The optimistic tick was a guess and the guess was wrong, so go and ask.
       // Leaving it would show a dose as taken that the server never recorded.
       load()

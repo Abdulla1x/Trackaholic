@@ -145,7 +145,7 @@ export default function SaveIngredientToLibrary({
       setError('')
       onSaved(draft.name.trim())
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save that — try again.')
+      setError(err instanceof Error ? err.message : "That didn't save. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }

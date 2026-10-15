@@ -219,7 +219,7 @@ export default function CaloriePlanSection({
       setError(
         err instanceof Error
           ? humaniseDates(err.message)
-          : 'Could not save that plan.',
+          : "That plan didn't save. Check your connection, then try again.",
       )
     } finally {
       setBusy(false)
@@ -233,7 +233,7 @@ export default function CaloriePlanSection({
       await api.cancelPlan(eventDay)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not cancel that plan.')
+      setError(err instanceof Error ? err.message : "That plan didn't cancel. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }

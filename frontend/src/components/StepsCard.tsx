@@ -74,7 +74,7 @@ export default function StepsCard({ date }: Props) {
       setError(null)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save that — try again.')
+      setError(err instanceof Error ? err.message : "That didn't save. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }
@@ -89,7 +89,7 @@ export default function StepsCard({ date }: Props) {
       setError(null)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not clear that — try again.')
+      setError(err instanceof Error ? err.message : "That didn't clear. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }
