@@ -11,6 +11,7 @@ import { FIELD } from '@/ui/field'
 import { ExpandIcon } from '@/ui/icons'
 import Retry from '@/ui/retry'
 import { cn } from '@/lib/utils'
+import Screen from '@/ui/screen'
 
 /** How many rows show at first, and how many each "Show more" adds: about a
  *  month of daily weigh-ins at a time. */
@@ -57,7 +58,7 @@ export default function WeighIns() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="All weigh-ins" back="/progress" backLabel="Back to Progress" />
 
       {failed && (
@@ -106,7 +107,7 @@ export default function WeighIns() {
         </>
       )}
 
-    </div>
+    </Screen>
   )
 }
 
@@ -209,7 +210,7 @@ function WeighInRow({
                 onChange={(event) => setValue(event.target.value)}
                 aria-label={`Weight on ${day}, in ${label === 'kg' ? 'kilograms' : 'pounds'}`}
                 aria-invalid={error !== null || undefined}
-                className={cn(FIELD, 'w-28 text-[19px] font-bold [font-stretch:85%] tabular-nums')}
+                className={cn(FIELD, 'w-28 text-row-number')}
               />
               <span className="text-ink-2">{label}</span>
               <Button type="submit" disabled={busy}>

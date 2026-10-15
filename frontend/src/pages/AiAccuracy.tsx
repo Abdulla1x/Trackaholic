@@ -9,6 +9,7 @@ import Explainer from '@/ui/explainer'
 import Gauge from '@/ui/gauge'
 import Retry from '@/ui/retry'
 import { Stat, StatGrid } from '@/ui/stat'
+import Screen from '@/ui/screen'
 
 const round = (value: number) => Math.round(value)
 
@@ -38,7 +39,7 @@ export default function AiAccuracy() {
   }, [attempt])
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="AI accuracy" back="/progress" backLabel="Back to Progress" />
 
       {failed ? (
@@ -55,7 +56,7 @@ export default function AiAccuracy() {
       ) : (
         <Body data={data} />
       )}
-    </div>
+    </Screen>
   )
 }
 

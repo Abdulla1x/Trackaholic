@@ -3,18 +3,19 @@ import { Link } from 'react-router-dom'
 import ScreenBar from '../components/shell/ScreenBar'
 import { CHANGE_TRACKERS } from '../lib/trackers'
 import Block from '@/ui/block'
+import Screen from '@/ui/screen'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Block>
-      <h2 className="text-[17px] font-bold">{title}</h2>
+      <h2 className="text-title">{title}</h2>
       {children}
     </Block>
   )
 }
 
 function List({ children }: { children: ReactNode }) {
-  return <ul className="grid list-disc gap-1.5 pl-5 text-ink-2 marker:text-ink-2">{children}</ul>
+  return <ul className="grid list-disc gap-1.5 pl-5 text-ink-2 marker:text-ink-2 desk:measure">{children}</ul>
 }
 
 const LINK = 'font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'
@@ -25,7 +26,7 @@ const LINK = 'font-semibold text-action underline underline-offset-3 focus-visib
  *  exists under the name it uses here; keep the two in step. */
 export default function HowItWorks() {
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="How Trackaholic works" back="/" backLabel="Back to Today" />
 
       <Section title="Log a meal">
@@ -123,6 +124,6 @@ export default function HowItWorks() {
           <li>Trackaholic gives estimates to help you plan. It isn't medical advice.</li>
         </List>
       </Section>
-    </div>
+    </Screen>
   )
 }

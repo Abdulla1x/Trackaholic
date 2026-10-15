@@ -153,7 +153,7 @@ export function TabBar({ active }: { active: Section | null }) {
 // it these links fall back to index.css's older emerald ring.
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'
 
-const TAB_CLASS = `flex min-h-[54px] flex-col items-center justify-center gap-0.5 text-[11.5px] tracking-[0.02em] [font-stretch:105%] transition-colors ${FOCUS} label:aria-[current=page]:[&>span]:underline label:aria-[current=page]:[&>span]:decoration-[3px] label:aria-[current=page]:[&>span]:underline-offset-4`
+const TAB_CLASS = `pressable flex min-h-[54px] flex-col items-center justify-center gap-0.5 text-[11.5px] tracking-[0.02em] [font-stretch:105%] transition-colors active:bg-ink/8 active:duration-[40ms] ${FOCUS} label:aria-[current=page]:[&>span]:underline label:aria-[current=page]:[&>span]:decoration-[3px] label:aria-[current=page]:[&>span]:underline-offset-4`
 
 /** Desktop (900px and up): a 236px rail with the wordmark, the Log button and
  *  the tabs; the current tab has a 3px bar on its left that slides between
@@ -172,7 +172,7 @@ export function RailNav({ active }: { active: Section | null }) {
             key={tab.section}
             {...tab}
             active={active === tab.section}
-            className={`flex min-h-[46px] items-center gap-3 px-3 text-[15px] tracking-[0.02em] [font-stretch:105%] transition-colors ${FOCUS} label:aria-[current=page]:bg-ink label:aria-[current=page]:text-label`}
+            className={`pressable flex min-h-[46px] items-center gap-3 px-3 text-[15px] tracking-[0.02em] [font-stretch:105%] transition-colors active:bg-ink/8 active:duration-[40ms] ${FOCUS} label:aria-[current=page]:bg-ink label:aria-[current=page]:text-label`}
           />
         ))}
       </div>

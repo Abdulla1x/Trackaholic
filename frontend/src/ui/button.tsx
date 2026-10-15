@@ -19,7 +19,11 @@ const buttonVariants = cva(
   [
     'inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap select-none',
     'rounded-control border-[1.5px] font-semibold text-[14.5px] [font-stretch:105%]',
-    'transition-[background-color,border-color,color,opacity] duration-150 ease-out-expo',
+    'transition-[background-color,border-color,color,opacity,scale] duration-150 ease-out-expo',
+    // Pressed (UA-34): a tone shift per variant below, and a 2% shrink that
+    // springs back. The press goes in at 40ms and releases at 150ms, so a
+    // quick tap still shows. No shrink under reduced motion.
+    'pressable active:scale-[0.98] active:duration-[40ms] motion-reduce:active:scale-100',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
     'disabled:pointer-events-none disabled:opacity-45',
     // Label: square (the radius token), a 2px ink border, heavier type.
@@ -29,11 +33,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'border-action bg-action text-action-ink hover:bg-action/90',
-        secondary: 'border-ink bg-transparent text-ink hover:bg-ink/5 label:bg-label',
-        ghost: 'border-rule bg-transparent text-ink hover:bg-ink/5 label:bg-label',
+        primary:
+          'border-action bg-action text-action-ink hover:bg-action/90 active:bg-[color-mix(in_oklab,var(--action)_78%,var(--ink-2))]',
+        secondary:
+          'border-ink bg-transparent text-ink hover:bg-ink/5 active:bg-ink/12 label:bg-label label:active:bg-[color-mix(in_oklab,var(--ink)_12%,var(--label))]',
+        ghost:
+          'border-rule bg-transparent text-ink hover:bg-ink/5 active:bg-ink/12 label:bg-label label:active:bg-[color-mix(in_oklab,var(--ink)_12%,var(--label))]',
         // The middle of the tab bar and the top of the side rail.
-        log: 'gap-2 rounded-log border-ink bg-ink text-[15px] font-bold text-ground [font-stretch:108%] tracking-[0.02em] hover:bg-ink/90 label:font-black label:text-label',
+        log: 'gap-2 rounded-log border-ink bg-ink text-[15px] font-bold text-ground [font-stretch:108%] tracking-[0.02em] hover:bg-ink/90 active:bg-ink/80 label:font-black label:text-label',
       },
       size: {
         default: 'h-[42px] px-4',

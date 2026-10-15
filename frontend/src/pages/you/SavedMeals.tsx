@@ -10,7 +10,7 @@ import type { MealTemplate } from '../../types'
 import { cn } from '@/lib/utils'
 import Block from '@/ui/block'
 import { Button } from '@/ui/button'
-import { FIELD } from '@/ui/field'
+import { FIELD, FIELD_DESK_WIDTH } from '@/ui/field'
 import Retry from '@/ui/retry'
 import { RowButton } from '@/ui/row'
 import { Stat, StatGrid } from '@/ui/stat'
@@ -124,7 +124,7 @@ function SavedMeals() {
           onChange={(event) => setFilter(event.target.value)}
           placeholder={`Find among ${items.length} saved meals`}
           aria-label="Find a saved meal"
-          className={cn(FIELD)}
+          className={cn(FIELD, FIELD_DESK_WIDTH)}
         />
       )}
       {!items ? (

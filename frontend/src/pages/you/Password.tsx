@@ -6,7 +6,8 @@ import { SCREEN_FRAME } from '../../components/you/screenContext'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
 import { AlertDialog } from '@/ui/alert-dialog'
 import Block from '@/ui/block'
-import { FIELD } from '@/ui/field'
+import { cn } from '@/lib/utils'
+import { FIELD, FIELD_DESK_WIDTH } from '@/ui/field'
 import { SaveBar } from '@/ui/save-bar'
 
 const EMPTY = { current: '', next: '', again: '' }
@@ -75,7 +76,7 @@ export default function PasswordScreen() {
         autoComplete={autoComplete}
         value={fields[key]}
         onChange={edit(key)}
-        className={FIELD}
+        className={cn(FIELD, FIELD_DESK_WIDTH)}
       />
     </label>
   )

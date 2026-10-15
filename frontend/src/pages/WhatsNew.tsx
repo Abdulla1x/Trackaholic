@@ -3,6 +3,7 @@ import { NoteList } from '../components/AnnouncementBody'
 import ScreenBar from '../components/shell/ScreenBar'
 import { useAnnouncements } from '../hooks/useAnnouncements'
 import Block from '@/ui/block'
+import Screen from '@/ui/screen'
 
 // useAnnouncements returns null both while the fetch is in flight and when it
 // failed -- it fails silently by design, because everywhere else the notes are
@@ -28,7 +29,7 @@ export default function WhatsNew() {
   const items = announcements?.items ?? []
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="What's new" back="/you" backLabel="Back to You" />
       <Block>
         <p className="text-small text-ink-2">
@@ -47,6 +48,6 @@ export default function WhatsNew() {
           <NoteList heading="h2" items={items} />
         )}
       </Block>
-    </div>
+    </Screen>
   )
 }

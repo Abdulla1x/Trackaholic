@@ -320,6 +320,20 @@
      the last line (UA-35). */
   text-wrap: pretty;
 }
+/* The pressed state's plumbing (UA-34): the browser's grey tap rectangle
+   ignores the radius and fights the control's own pressed tone, so it goes
+   wherever a control has one. Controls without a pressed tone keep it, so
+   nothing loses its only feedback. */
+@utility pressable {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+/* The reading measure (UA-37): prose past about 75 characters a line is hard
+   to track back to the next line's start. Applied from desk: only, since a
+   phone line is already under 50. */
+@utility measure {
+  max-width: 65ch;
+}
 @utility text-body {
   font-size: 15px;
   font-weight: 400;
@@ -355,6 +369,13 @@
   :focus-visible {
     outline: 2px solid var(--color-action);
     outline-offset: 2px;
+  }
+
+  /* No double-tap zoom on a control, so two quick taps are two taps and the
+   * browser doesn't hold each one back waiting for a second. Pinch zoom
+   * still works everywhere. */
+  :where(a, button, [role='button'], label, summary, select) {
+    touch-action: manipulation;
   }
 
   /* The Label style's two global changes: Libre Franklin everywhere, and no

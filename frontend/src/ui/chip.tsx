@@ -17,10 +17,14 @@ export function Chip({ pressed, className, ...props }: ComponentProps<'button'> 
       aria-checked={radio ? pressed : undefined}
       className={cn(
         'inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-control border-[1.5px] px-3 text-[13.5px] font-semibold whitespace-nowrap',
-        'transition-[background-color,border-color,color] duration-150 ease-out-expo',
+        'transition-[background-color,border-color,color,scale] duration-150 ease-out-expo',
+        // Pressed (UA-34), as on Button: a tone shift and a 2% shrink.
+        'pressable active:scale-[0.98] active:duration-[40ms] motion-reduce:active:scale-100',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action',
         'label:border-2 label:font-bold',
-        pressed ? 'border-ink bg-ink text-ground label:text-label' : 'border-rule text-ink hover:border-ink',
+        pressed
+          ? 'border-ink bg-ink text-ground active:bg-ink/80 label:text-label'
+          : 'border-rule text-ink hover:border-ink active:border-ink active:bg-ink/12',
         className,
       )}
       {...props}

@@ -22,6 +22,11 @@ try {
   console.error('Service worker registration failed:', err)
 }
 
+// Some mobile browsers (iOS Safari among them) only apply :active on a tap
+// when the page has a touch listener, and :active is the pressed state every
+// control relies on (UA-34). An empty passive listener costs nothing.
+document.addEventListener('touchstart', () => {}, { passive: true })
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     {/* Outside AuthProvider deliberately: the provider reads the stored token

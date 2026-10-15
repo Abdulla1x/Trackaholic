@@ -81,7 +81,7 @@ export default function GettingStarted({
           <h2 className={`text-field-label text-ink-2 ${LABEL_TITLE}`}>Getting started</h2>
           <span className={`text-field-label text-ink-2 ${LABEL_VALUE}`}>Done</span>
         </div>
-        <p className="text-[17px] font-bold">That's the basics.</p>
+        <p className="text-title">That's the basics.</p>
         <p className="text-small text-ink-2">
           Progress fills in as you log: seven weigh-ins draw your trend line, and your first logged day starts a weekly
           review.

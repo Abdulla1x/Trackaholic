@@ -50,6 +50,7 @@ import { cn } from '@/lib/utils'
 import { LABEL_BOX } from '@/ui/block'
 import Explainer from '@/ui/explainer'
 import { n } from '@/lib/format'
+import Screen from '@/ui/screen'
 
 const TITLES: Record<Question, string> = {
   weight: 'Your weight today',
@@ -286,7 +287,7 @@ export default function Setup() {
     body = (
       <>
         <p className="text-small text-ink-2">Only you see these answers. They're used to work out your target, nothing else.</p>
-        <div className="divide-y divide-rule border-y border-rule">
+        <div className="divide-y divide-rule border-y border-rule desk:measure">
           <MethodRow
             label="Work it out for me"
             detail="A few questions about you; the target follows your weight as it changes"
@@ -307,7 +308,7 @@ export default function Setup() {
           <Button variant="ghost" onClick={back}>
             Back
           </Button>
-          <Button className="flex-1" disabled={!ownReady(a) || saving} onClick={useOwn}>
+          <Button className="flex-1 desk:min-w-[140px] desk:flex-none" disabled={!ownReady(a) || saving} onClick={useOwn}>
             {saveProblem ? 'Try again' : saving ? 'Saving…' : 'Use these numbers'}
           </Button>
         </div>
@@ -323,7 +324,7 @@ export default function Setup() {
           <Button variant="ghost" onClick={back}>
             Back
           </Button>
-          <Button className="flex-1" disabled={!preview || waking || saving || previewFailed} onClick={useTarget}>
+          <Button className="flex-1 desk:min-w-[140px] desk:flex-none" disabled={!preview || waking || saving || previewFailed} onClick={useTarget}>
             {saveProblem ? 'Try again' : saving ? 'Saving…' : 'Use this target'}
           </Button>
         </div>
@@ -350,7 +351,7 @@ export default function Setup() {
             Skip
           </Button>
         )}
-        <Button className="flex-1" disabled={!ok} onClick={() => go(nextOf(q))}>
+        <Button className="flex-1 desk:min-w-[140px] desk:flex-none" disabled={!ok} onClick={() => go(nextOf(q))}>
           Next
         </Button>
       </div>
@@ -358,7 +359,7 @@ export default function Setup() {
   }
 
   return (
-    <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
+    <Screen>
       <ScreenBar title="Set your target" back="/" backLabel="Back to Today" />
       {qNumber > 0 && (
         <div className={`grid gap-2 border-b border-rule py-3.5 ${LABEL_BOX}`}>
@@ -383,7 +384,7 @@ export default function Setup() {
         {body}
         {next}
       </section>
-    </div>
+    </Screen>
   )
 }
 
@@ -498,7 +499,7 @@ function QuestionBody({
       return (
         <>
           <p className="text-small text-ink-2">{ACTIVITY_QUESTION}</p>
-          <div role="radiogroup" aria-label="Activity" className="divide-y divide-rule border-y border-rule">
+          <div role="radiogroup" aria-label="Activity" className="divide-y divide-rule border-y border-rule desk:measure">
             {ACTIVITY_OPTIONS.map((option) => {
               const on = a.activity === option.value
               return (
@@ -802,7 +803,7 @@ function TargetSummary({
   return (
     <div aria-live="polite" className="grid gap-1.5 rounded-control border-[1.5px] border-rule p-3">
       <span className="text-small text-ink-2">Your daily target</span>
-      <span className="text-field-number text-[26px]">
+      <span className="text-field-number">
         {n(preview.target_calories)} kcal · {Math.round(preview.protein_g ?? 0)} g protein
       </span>
       {preview.protein_low_g != null && preview.protein_high_g != null && (
