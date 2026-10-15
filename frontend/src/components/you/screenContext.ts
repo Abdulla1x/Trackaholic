@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { Settings } from '../../types'
-import { SCREEN_WIDTH } from '@/ui/screen'
+import { SCREEN_MEASURE, SCREEN_WIDTH } from '@/ui/screen'
 
 /** What a settings screen hands the form inside it.
  *
@@ -32,4 +32,4 @@ export function useSettingsScreen(): SettingsScreenValue {
 
 /** A screen pushed from You, at least as tall as the space between the bars,
  *  so a Save bar (`mt-auto`) sits at the bottom even when the form is short. */
-export const SCREEN_FRAME = `${SCREEN_WIDTH} flex min-h-[calc(100dvh-var(--shell-bottom)-env(safe-area-inset-top)-3rem)] flex-col desk:min-h-[calc(100dvh-4rem)]`
+export const SCREEN_FRAME = `${SCREEN_WIDTH} ${SCREEN_MEASURE} flex min-h-[calc(100dvh-var(--shell-bottom)-env(safe-area-inset-top)-3rem)] flex-col desk:min-h-[calc(100dvh-4rem)]`

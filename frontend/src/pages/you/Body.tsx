@@ -103,7 +103,7 @@ function BodyForm() {
 
       <Block label="Activity">
         <p className="text-small text-ink-2">{ACTIVITY_QUESTION}</p>
-        <div role="radiogroup" aria-label="Activity" className="grid divide-y divide-rule">
+        <div role="radiogroup" aria-label="Activity" className="grid divide-y divide-rule desk:measure">
           {ACTIVITY_OPTIONS.map((option) => {
             const on = settings.activity_level === option.value
             return (

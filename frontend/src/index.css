@@ -328,6 +328,12 @@
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
+/* The reading measure (UA-37): prose past about 75 characters a line is hard
+   to track back to the next line's start. Applied from desk: only, since a
+   phone line is already under 50. */
+@utility measure {
+  max-width: 65ch;
+}
 @utility text-body {
   font-size: 15px;
   font-weight: 400;

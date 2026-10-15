@@ -15,7 +15,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function List({ children }: { children: ReactNode }) {
-  return <ul className="grid list-disc gap-1.5 pl-5 text-ink-2 marker:text-ink-2">{children}</ul>
+  return <ul className="grid list-disc gap-1.5 pl-5 text-ink-2 marker:text-ink-2 desk:measure">{children}</ul>
 }
 
 const LINK = 'font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'

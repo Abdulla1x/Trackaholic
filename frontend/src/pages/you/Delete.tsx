@@ -7,7 +7,8 @@ import { downloadExport } from '../../lib/downloadExport'
 import { AlertDialog } from '@/ui/alert-dialog'
 import Block from '@/ui/block'
 import { Button } from '@/ui/button'
-import { FIELD } from '@/ui/field'
+import { cn } from '@/lib/utils'
+import { FIELD, FIELD_DESK_WIDTH } from '@/ui/field'
 
 /** Delete account, pushed from You.
  *
@@ -67,7 +68,7 @@ export default function DeleteScreen() {
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className={FIELD}
+            className={cn(FIELD, FIELD_DESK_WIDTH)}
           />
         </label>
         <div>

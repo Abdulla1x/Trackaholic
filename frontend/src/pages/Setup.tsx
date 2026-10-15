@@ -287,7 +287,7 @@ export default function Setup() {
     body = (
       <>
         <p className="text-small text-ink-2">Only you see these answers. They're used to work out your target, nothing else.</p>
-        <div className="divide-y divide-rule border-y border-rule">
+        <div className="divide-y divide-rule border-y border-rule desk:measure">
           <MethodRow
             label="Work it out for me"
             detail="A few questions about you; the target follows your weight as it changes"
@@ -308,7 +308,7 @@ export default function Setup() {
           <Button variant="ghost" onClick={back}>
             Back
           </Button>
-          <Button className="flex-1" disabled={!ownReady(a) || saving} onClick={useOwn}>
+          <Button className="flex-1 desk:min-w-[140px] desk:flex-none" disabled={!ownReady(a) || saving} onClick={useOwn}>
             {saveProblem ? 'Try again' : saving ? 'Saving…' : 'Use these numbers'}
           </Button>
         </div>
@@ -324,7 +324,7 @@ export default function Setup() {
           <Button variant="ghost" onClick={back}>
             Back
           </Button>
-          <Button className="flex-1" disabled={!preview || waking || saving || previewFailed} onClick={useTarget}>
+          <Button className="flex-1 desk:min-w-[140px] desk:flex-none" disabled={!preview || waking || saving || previewFailed} onClick={useTarget}>
             {saveProblem ? 'Try again' : saving ? 'Saving…' : 'Use this target'}
           </Button>
         </div>
@@ -351,7 +351,7 @@ export default function Setup() {
             Skip
           </Button>
         )}
-        <Button className="flex-1" disabled={!ok} onClick={() => go(nextOf(q))}>
+        <Button className="flex-1 desk:min-w-[140px] desk:flex-none" disabled={!ok} onClick={() => go(nextOf(q))}>
           Next
         </Button>
       </div>
@@ -499,7 +499,7 @@ function QuestionBody({
       return (
         <>
           <p className="text-small text-ink-2">{ACTIVITY_QUESTION}</p>
-          <div role="radiogroup" aria-label="Activity" className="divide-y divide-rule border-y border-rule">
+          <div role="radiogroup" aria-label="Activity" className="divide-y divide-rule border-y border-rule desk:measure">
             {ACTIVITY_OPTIONS.map((option) => {
               const on = a.activity === option.value
               return (

@@ -184,7 +184,7 @@ Restrained: a tinted neutral ground, ink, one action colour and one plan colour.
 - **Field number** (780, 30px, width 78%): secondary numbers in fields: the weight trend, weekly rate.
 - **Row number** (760, 20px, width 80%): kcal on meal rows, and the macro rows in the calories band.
 - **Title** (750, 16px, width 112%): screen titles in the app bar and the date bar. It wraps with `text-wrap: pretty`, so a long name never leaves one word alone on its last line.
-- **Body** (400, 15px, line-height 1.4): rows, descriptions, form text. Prose capped at about 70 characters per line.
+- **Body** (400, 15px, line-height 1.4): rows, descriptions, form text. Prose is capped at the reading measure (see Layout).
 - **Small** (400, 13px): captions, helper text, ranges.
 - **Label** (650, 11px, letter-spacing 0.09em, uppercase, width 110%): field labels, section labels ("KCAL LEFT", "MEALS · 3") and tracker titles ("WATER", with the tracker's icon at 18px beside it). Every heading inside a screen uses it, so the page has one heading style; the figure at the right of a tracker stays in body type, because it is data.
 - **Label-style title** (Libre Franklin 900, 40px phone / 56px desktop, letter-spacing -0.03em): the heading of a nutrition-label block.
@@ -201,7 +201,8 @@ One responsive layout. The same screens at every width, with different density a
 - **Phone (under 900px):** a bottom tab bar (Today · Progress · Log · You), with the Log button in the middle. Blocks are full width, padded 14px vertically and 16px horizontally, separated by hairline rules.
 - **Desktop (900px and up):** a 236px side rail (wordmark, Log button, tabs), and content in two columns (1.25fr / 1fr). On Today, the calories band spans the full width at the top. Meals go on the left, trackers on the right, and both columns run to the same bottom line, so content of different lengths never looks ragged. Blocks pad 28px horizontally.
 - **Log panel:** a bottom sheet at 92% height on phones; a 480px right-side panel on desktop.
-- **Settings-type screens** (You, the day in detail, meal screens) are a single column capped at 760px.
+- **Settings-type screens** (You, the day in detail, meal screens) are a single column capped at 760px (`ui/screen`).
+- **The reading measure (desktop):** in that column, every paragraph and choice list (Setup's two ways in, the activity levels) stops at 65ch, about 65 characters a line; small text would otherwise run to about 95. Headings, rules, rows and the Save bar keep the full column. Buttons size to their words (Setup's primary at least 140px), and a full-width text field stops at 360px. Phones are unchanged, since a phone line is already under 50 characters.
 - **Spacing rhythm:** 8px between related controls, 10px inside rows, 14px/16px block padding. More space above a section title than below it.
 
 ## Elevation & Depth
