@@ -31,6 +31,7 @@ import { useLiveMessage } from '../hooks/useLiveMessage'
 import { useToast } from '../ui/toast'
 import { DURATION } from '../lib/motion'
 import { Button } from '@/ui/button'
+import Retry from '@/ui/retry'
 
 /** Waits for the Log panel to leave, then scrolls to the top of the page.
  *  Instant under reduced motion. Resolves once there, or after a second in
@@ -57,7 +58,7 @@ function showTheTop(): Promise<void> {
 }
 
 export default function Today() {
-  const { settings } = useSettings()
+  const { settings, loading: settingsLoading, error: settingsError, reload: reloadSettings } = useSettings()
   const { appearance } = useAppearance()
   const Calories = appearance.style === 'label' ? NutritionLabel : CaloriesBand
   // Null until the day's first answer: an empty list and "not loaded yet"
@@ -335,7 +336,17 @@ export default function Today() {
         {/* Above the calories until there is a target to show, then under
             them (chosen from the first-use prototype). */}
         {!hasTarget && gettingStarted}
-        {!settings || !goals || meals === null ? (
+        {/* The band needs both loads. A failed settings load says so here,
+            since nothing else on Today does; a failed meals load leaves the
+            slot empty, because the meal list below already says it and its
+            Retry brings the band back too. Only a load still in flight pulses. */}
+        {!settings && settingsError && !settingsLoading ? (
+          <Retry
+            text="Couldn't load your targets. Check your connection, then try again."
+            onRetry={reloadSettings}
+            role="alert"
+          />
+        ) : error && meals === null ? null : !settings || !goals || meals === null ? (
           <div aria-hidden="true" className="-mx-4 h-[226px] bg-track/40 motion-safe:animate-pulse desk:mx-0 desk:h-[274px]" />
         ) : (
           // The Label style draws the calories as a nutrition label instead of

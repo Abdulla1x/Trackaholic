@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import Block from '@/ui/block'
 import { Button } from '@/ui/button'
 import { FIELD } from '@/ui/field'
+import Retry from '@/ui/retry'
 import { RowButton } from '@/ui/row'
 import { Stat, StatGrid } from '@/ui/stat'
 import { useToast } from '@/ui/toast'
@@ -61,7 +62,7 @@ function SavedMeals() {
       })
       // An empty list and a failed fetch render identically, and one of them
       // means "nothing saved yet" while the other means "try again".
-      .catch(() => setLoadError('Couldn’t load your saved meals.'))
+      .catch(() => setLoadError("Couldn't load your saved meals. Check your connection, then try again."))
 
   useEffect(() => {
     load()
@@ -127,7 +128,18 @@ function SavedMeals() {
         />
       )}
       {!items ? (
-        <p className="text-ink-2">{loadError || 'Loading…'}</p>
+        loadError ? (
+          // No role: useLiveMessage(loadError) already speaks it.
+          <Retry
+            text={loadError}
+            onRetry={() => {
+              setLoadError('')
+              load()
+            }}
+          />
+        ) : (
+          <p className="text-ink-2">Loading…</p>
+        )
       ) : items.length === 0 ? (
         <p className="text-ink-2">Nothing saved yet. When you log a meal, “Keep as a saved meal” puts it here.</p>
       ) : shown.length === 0 ? (

@@ -64,7 +64,8 @@ export default function MealList({
       value={list.length ? `${Math.round(total).toLocaleString()} kcal` : undefined}
     >
       {error ? (
-        <Retry text={error} onRetry={onRetry} role="alert" />
+        // No role: Today speaks this error through useLiveMessage.
+        <Retry text={error} onRetry={onRetry} />
       ) : all.length === 0 ? (
         <div className="grid gap-2 py-1">
           {isToday ? (

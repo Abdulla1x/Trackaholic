@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { api } from '../api/client'
 import ScreenBar from '../components/shell/ScreenBar'
@@ -9,6 +9,7 @@ import { formatWeight, unitLabel, type WeightUnit } from '../lib/units'
 import { useSettings } from '../settings/SettingsContext'
 import type { BodyTargets } from '../types'
 import Block from '@/ui/block'
+import Retry from '@/ui/retry'
 
 const n = (value: number) => Math.round(value).toLocaleString()
 
@@ -38,13 +39,16 @@ export default function TargetWorkedOut() {
   const arrival = (useLocation().state as Arrival | null) ?? {}
   const [saved, setSaved] = useState<BodyTargets | null>(null)
   const [failed, setFailed] = useState(false)
-  useEffect(() => {
-    if (arrival.preview) return
+  const load = useCallback(() => {
+    setFailed(false)
     api
       .getBodyTargets()
       .then(setSaved)
       .catch(() => setFailed(true))
-  }, [arrival.preview])
+  }, [])
+  useEffect(() => {
+    if (!arrival.preview) load()
+  }, [arrival.preview, load])
 
   const targets = arrival.preview ?? saved
   const sum = targets
@@ -55,7 +59,14 @@ export default function TargetWorkedOut() {
 
   let body: ReactNode
   if (failed) {
-    body = <p role="alert" className="border-l-2 border-ink py-3 pl-3 text-small">Couldn't load your numbers. Check your connection, then try again.</p>
+    body = (
+      <Retry
+        text="Couldn't load your numbers. Check your connection, then try again."
+        onRetry={load}
+        role="alert"
+        className="py-3"
+      />
+    )
   } else if (!targets) {
     body = <div aria-hidden="true" className="my-4 h-40 rounded-control bg-track motion-safe:animate-pulse" />
   } else if (!sum) {

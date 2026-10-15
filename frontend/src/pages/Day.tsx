@@ -25,7 +25,7 @@ const n = (value: number) => Math.round(value).toLocaleString()
  *  No measured daily burn here: the endpoint for it has no date, so on a past
  *  day it would show today's figure under that day's name. */
 export default function Day() {
-  const { settings } = useSettings()
+  const { settings, loading: settingsLoading, error: settingsError, reload: reloadSettings } = useSettings()
   const today = localIsoDate()
   const day = viewedDay(useParams().date ?? null, today)
   const [meals, setMeals] = useState<Meal[] | null>(null)
@@ -74,7 +74,16 @@ export default function Day() {
 
       <Block label="The day in numbers" value={meals ? `${meals.length} ${meals.length === 1 ? 'meal' : 'meals'}` : undefined}>
         {error ? (
-          <Retry text={error} onRetry={load} role="alert" />
+          // No role: useLiveMessage(error) above already speaks it.
+          <Retry text={error} onRetry={load} />
+        ) : !settings && settingsError && !settingsLoading ? (
+          // Nothing else on this page says the settings failed, so this one
+          // is an alert.
+          <Retry
+            text="Couldn't load your targets. Check your connection, then try again."
+            onRetry={reloadSettings}
+            role="alert"
+          />
         ) : !meals || !goals || !settings || !balance ? (
           <div aria-hidden="true" className="grid grid-cols-2 gap-4 py-2.5">
             {[0, 1, 2, 3].map((key) => (
