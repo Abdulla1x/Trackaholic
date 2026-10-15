@@ -1,4 +1,5 @@
 import type { Food } from '../types'
+import { n } from './format'
 
 /**
  * Saved foods in the one unit that makes two of them comparable.
@@ -52,5 +53,5 @@ export function per100g(food: Food) {
  */
 export function per100gSummary(food: Food) {
   const { calories, protein } = per100g(food)
-  return `${Math.round(calories)} kcal · ${Math.round(protein * 10) / 10} g protein / ${NORMALIZED_SERVING_G} g`
+  return `${n(calories)} kcal · ${n(protein, 1)} g protein / ${NORMALIZED_SERVING_G} g`
 }

@@ -12,6 +12,7 @@ import Retry from '@/ui/retry'
 import { cn } from '@/lib/utils'
 import { StepsIcon } from '@/ui/icons'
 import { useLiveMessage } from '../hooks/useLiveMessage'
+import { n } from '@/lib/format'
 
 interface Props {
   /** The day being viewed on the dashboard, not necessarily today. */
@@ -190,7 +191,7 @@ function StepsCaption({ day }: { day: StepDay }) {
   if (day.burn_kcal != null && day.burn_weight_kg != null) {
     return (
       <>
-        Roughly {Math.round(day.burn_kcal).toLocaleString()} kcal of walking at{' '}
+        Roughly {n(day.burn_kcal)} kcal of walking at{' '}
         {day.burn_weight_kg.toFixed(1)} kg, a rule of thumb. It doesn't change
         your target: a measured daily burn already counts it.
       </>

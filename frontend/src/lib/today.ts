@@ -1,5 +1,5 @@
 import type { Meal, PlanDay, Settings } from '../types.ts'
-import { localIsoDate, parseIsoDate } from './dates.ts'
+import { CLOCK, dayDate, localIsoDate, parseIsoDate } from './dates.ts'
 
 /** The arithmetic behind Today, kept apart from the page so it can be tested
  *  without a browser. Nothing in here draws anything. */
@@ -72,11 +72,7 @@ export function planCaption(plan: PlanDay | null, failed: boolean): string | und
   if (plan.event_date === plan.date) return `${moved} — a day you planned for`
 
   const when = plan.event_date
-    ? parseIsoDate(plan.event_date).toLocaleDateString(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      })
+    ? dayDate(plan.event_date)
     : null
   if (!when) return moved
   return plan.kind === 'planned' ? `${moved} — funding ${when}` : `${moved} — making up ${when}`
@@ -124,11 +120,7 @@ export function viewedDay(param: string | null, today: string): string {
 /** The date control's words: "Today, Sat 10 Oct", "Yesterday, Fri 9 Oct",
  *  or just "Wed 7 Oct" further back. */
 export function dayHeading(day: string, today: string, yesterday: string): string {
-  const date = parseIsoDate(day).toLocaleDateString(undefined, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  })
+  const date = dayDate(day)
   if (day === today) return `Today, ${date}`
   if (day === yesterday) return `Yesterday, ${date}`
   return date
@@ -164,5 +156,5 @@ export function mealTimeLabel(meal: Pick<Meal, 'date' | 'created_at'>, show: boo
   if (!show || !meal.created_at) return null
   const logged = new Date(meal.created_at)
   if (Number.isNaN(logged.getTime()) || localIsoDate(logged) !== meal.date) return null
-  return logged.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return logged.toLocaleTimeString(undefined, CLOCK)
 }

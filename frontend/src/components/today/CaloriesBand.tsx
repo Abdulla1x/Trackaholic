@@ -8,6 +8,7 @@ import { NextIcon } from '@/ui/icons'
 import CountUp from '@/ui/count-up'
 import RollingNumber from '@/ui/rolling-number'
 import { cn } from '@/lib/utils'
+import { n } from '@/lib/format'
 
 export interface BandTargets {
   calorie_goal: number
@@ -15,8 +16,6 @@ export interface BandTargets {
   carbs_goal: number
   fat_goal: number
 }
-
-const n = (value: number) => Math.round(value).toLocaleString()
 
 /** One macro as a full-width row: its name, a 10-segment bar closed by the
  *  same plan-coloured target tick as the calories gauge, and "142 / 240 g"

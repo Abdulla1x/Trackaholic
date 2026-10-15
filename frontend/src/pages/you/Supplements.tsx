@@ -11,6 +11,7 @@ import {
   validateSupplement,
 } from '../../lib/limits'
 import type { Supplement } from '../../types'
+import { timeLabel } from '../../lib/dates'
 import { cn } from '@/lib/utils'
 import Block from '@/ui/block'
 import { Button } from '@/ui/button'
@@ -178,7 +179,7 @@ function Supplements() {
                   )}
                 </span>
               }
-              detail={[item.dose, item.times.join(', ')].filter(Boolean).join(' · ')}
+              detail={[item.dose, item.times.map((time) => timeLabel(time)).join(', ')].filter(Boolean).join(' · ')}
             />
           ))}
         </div>

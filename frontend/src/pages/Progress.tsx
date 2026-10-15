@@ -36,6 +36,7 @@ import {
   weightRangeStart,
 } from '../lib/weight'
 import {
+  axisDate,
   chartGround,
   chartInk,
   chartInk2,
@@ -46,8 +47,8 @@ import {
   chartTooltipLabel,
   planDash,
   progressMargin,
-  shortDate,
 } from '../lib/chartTheme'
+import { shortDate } from '../lib/dates'
 import { useSettings } from '../settings/SettingsContext'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 import { useSkeletonFloor } from '../hooks/useSkeletonFloor'
@@ -63,8 +64,7 @@ import Retry from '@/ui/retry'
 import { RowLink } from '@/ui/row'
 import Skeleton from '@/ui/skeleton'
 import { Stat, StatGrid } from '@/ui/stat'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 /** The series the Nutrition chart can show. Carbs and fat only when tracked:
  *  off, nothing on the page mentions them (0a). */
@@ -327,7 +327,7 @@ function WeightBlock({
               <XAxis
                 dataKey="date"
                 tick={chartTick}
-                tickFormatter={shortDate}
+                tickFormatter={axisDate}
                 stroke={chartRule}
                 tickLine={false}
                 minTickGap={24}
@@ -522,7 +522,7 @@ function NutritionBlock({
               <XAxis
                 dataKey="date"
                 tick={chartTick}
-                tickFormatter={shortDate}
+                tickFormatter={axisDate}
                 stroke={chartRule}
                 tickLine={false}
                 minTickGap={24}

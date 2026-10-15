@@ -20,8 +20,7 @@ import { AlertDialog } from '@/ui/alert-dialog'
 import Block from '@/ui/block'
 import { Chip } from '@/ui/chip'
 import { RowButton, RowLink } from '@/ui/row'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 /** A group of rows under one label, hairlines between them. */
 function Group({ label, children }: { label: string; children: ReactNode }) {

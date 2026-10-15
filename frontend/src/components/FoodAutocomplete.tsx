@@ -4,6 +4,7 @@ import type { Food, FoodCreate, OFFProduct, ReferenceFood } from '../types'
 import { SOURCE_BADGE, SOURCE_NAME } from '../lib/foodSources'
 import { FIELD } from '@/ui/field'
 import { useLiveMessage } from '../hooks/useLiveMessage'
+import { n } from '@/lib/format'
 
 interface Props {
   value: string
@@ -251,7 +252,7 @@ export default function FoodAutocomplete({ value, onChange, onSelect, focusOnMou
   }
 
   const macroSummary = (food: FoodCreate | OFFProduct | ReferenceFood) =>
-    `${food.calories} kcal · ${food.protein} g protein / ${food.serving_size} g`
+    `${n(food.calories)} kcal · ${n(food.protein, 1)} g protein / ${n(food.serving_size, 1)} g`
 
   const listboxOpen = open && suggestions.length > 0
 
@@ -260,6 +261,7 @@ export default function FoodAutocomplete({ value, onChange, onSelect, focusOnMou
       <input
         ref={inputRef}
         type="text"
+        autoComplete="off"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onFocus={() => value.trim().length >= 2 && setOpen(true)}

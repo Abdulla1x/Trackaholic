@@ -4,6 +4,7 @@ import Explainer from '@/ui/explainer'
 import Gauge from '@/ui/gauge'
 import RollingNumber from '@/ui/rolling-number'
 import Tracker from './today/Tracker'
+import { n } from '@/lib/format'
 
 /**
  * The shell every daily quick-log tracker renders inside.
@@ -61,7 +62,6 @@ export default function DailyTrackerCard({
   error,
 }: Props) {
   const hasGoal = goal !== null && goal > 0
-  const n = (amount: number) => Math.round(amount).toLocaleString()
 
   return (
     <Tracker

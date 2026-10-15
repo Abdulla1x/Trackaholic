@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { parseIsoDate } from '../../lib/dates'
+import { dayDate } from '../../lib/dates'
 import { plansLink } from '../../lib/planOrigin'
 import { calorieBalance, type DayTotals } from '../../lib/today'
 import { NextIcon } from '@/ui/icons'
@@ -8,8 +8,7 @@ import CountUp from '@/ui/count-up'
 import RollingNumber from '@/ui/rolling-number'
 import { cn } from '@/lib/utils'
 import type { BandTargets } from './CaloriesBand'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 /** The thick rules that divide a nutrition label: 10px under the title and
  *  before the fine print, 5px between the calories and the macros. */
@@ -86,7 +85,7 @@ export default function NutritionLabel({
   const balance = calorieBalance(eaten.calories, targets.calorie_goal)
   const onTarget = targetSet && balance.onTarget
   const over = targetSet && balance.over && !onTarget
-  const date = parseIsoDate(day).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
+  const date = dayDate(day)
 
   const macro = (name: string, value: number, goal: number, first = false) => (
     <Line first={first} value={targetSet ? `of ${n(goal)} g` : ''}>

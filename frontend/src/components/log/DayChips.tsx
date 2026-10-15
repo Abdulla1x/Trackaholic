@@ -1,4 +1,4 @@
-import { addDays, localIsoDate, parseIsoDate } from '../../lib/dates'
+import { addDays, dayDate, localIsoDate } from '../../lib/dates'
 import { Chip } from '@/ui/chip'
 
 /** Which day a meal is for: Today, Yesterday, or the native date picker behind
@@ -18,11 +18,7 @@ export default function DayChips({
   const today = localIsoDate()
   const yesterday = addDays(today, -1)
   const other = value !== today && value !== yesterday
-  const chipDate = parseIsoDate(value).toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
+  const chipDate = dayDate(value)
   return (
     <fieldset className="grid gap-2">
       <legend className="mb-2 text-field-label text-ink-2">{legend}</legend>

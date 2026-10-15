@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import { localIsoDate } from '../lib/dates'
+import { localIsoDate, timeLabel } from '../lib/dates'
 import type { SupplementDay, SupplementSlot } from '../types'
 import DailyTrackerCard from './DailyTrackerCard'
 import Tracker from './today/Tracker'
@@ -199,7 +199,7 @@ export default function SupplementsCard({ date, chosen = false }: Props) {
                     <span className={slot.taken ? 'text-ink-2 line-through' : ''}>{slot.name}</span>
                     {slot.dose && <span className="ml-1.5 text-small text-ink-2">{slot.dose}</span>}
                   </span>
-                  <span className="shrink-0 text-small text-ink-2 tabular-nums">{slot.time}</span>
+                  <span className="shrink-0 text-small text-ink-2 tabular-nums">{timeLabel(slot.time)}</span>
                   {isOverdue && <span className="shrink-0 text-small font-semibold text-action">Due</span>}
                   {/* Marked rather than hidden: this dose was ticked on a day
                       it was scheduled, and the schedule has since moved. It is
@@ -257,10 +257,10 @@ function DoseCaption({
         <span className="font-semibold text-ink">
           {overdue} {overdue === 1 ? 'dose' : 'doses'} overdue
         </span>
-        {next && <> · next at {next.time}</>}
+        {next && <> · next at {timeLabel(next.time)}</>}
       </>
     )
   }
   if (day.taken >= day.scheduled) return <>All doses done. Your future self says thanks.</>
-  return <>{next ? <>Next at {next.time}.</> : <>Nothing outstanding right now.</>}</>
+  return <>{next ? <>Next at {timeLabel(next.time)}.</> : <>Nothing outstanding right now.</>}</>
 }

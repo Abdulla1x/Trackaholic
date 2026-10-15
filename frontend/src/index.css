@@ -316,6 +316,9 @@
   font-weight: 750;
   font-stretch: 112%;
   line-height: 1.25;
+  /* A user-named meal or food at 360px must not leave one word alone on
+     the last line (UA-35). */
+  text-wrap: pretty;
 }
 @utility text-body {
   font-size: 15px;

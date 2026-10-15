@@ -11,8 +11,7 @@ import Block from '@/ui/block'
 import Explainer from '@/ui/explainer'
 import Gauge from '@/ui/gauge'
 import Retry from '@/ui/retry'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 /** DESIGN.md Voice: "Daily burn unlocks". */
 const UNLOCKED_LINE = "Enough data. Here's what you actually burn, measured, not guessed."

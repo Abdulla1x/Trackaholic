@@ -15,8 +15,7 @@ import Retry from '@/ui/retry'
 import { RowButton } from '@/ui/row'
 import { Stat, StatGrid } from '@/ui/stat'
 import { useToast } from '@/ui/toast'
-
-const n = (value: number) => Math.round(value).toLocaleString()
+import { n } from '@/lib/format'
 
 function detail(meal: MealTemplate): string {
   const parts = [`${n(meal.calories)} kcal`, `${n(meal.protein)} g protein`]
@@ -120,6 +119,7 @@ function SavedMeals() {
         <input
           id="saved-meals-filter"
           type="search"
+          autoComplete="off"
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           placeholder={`Find among ${items.length} saved meals`}

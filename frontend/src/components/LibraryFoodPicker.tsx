@@ -107,6 +107,7 @@ export default function LibraryFoodPicker({
           <div className="p-2">
             <input
               type="text"
+              autoComplete="off"
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
               placeholder="Filter your saved foods…"

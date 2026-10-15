@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { n } from '@/lib/format'
 
 /** A number counting up from zero to its value once (DESIGN.md Motion: First
  *  target, 900ms), on the default exponential ease-out, so most of the climb
@@ -24,5 +25,5 @@ export default function CountUp({ value, duration = 900 }: { value: number; dura
     frame = requestAnimationFrame(step)
     return () => cancelAnimationFrame(frame)
   }, [value, duration, still])
-  return <span className="tabular-nums">{Math.round(shown).toLocaleString()}</span>
+  return <span className="tabular-nums">{n(shown)}</span>
 }

@@ -1,5 +1,6 @@
 import type { ReviewCheck, WeeklyReview } from '../types.ts'
 import { addDays, localIsoDate, parseIsoDate } from './dates.ts'
+import { n } from './format.ts'
 
 /** The end of the last full Monday-to-Sunday week before `today`: the most
  *  recent Sunday that has already finished. Monday gives yesterday, and a
@@ -88,7 +89,7 @@ export function checkFigure(check: ReviewCheck): string | null {
     case '%':
       return `${check.value > 0 ? '+' : ''}${Math.round(check.value)}%`
     default:
-      return `${Math.round(check.value).toLocaleString()} ${check.unit}`
+      return `${n(check.value)} ${check.unit}`
   }
 }
 

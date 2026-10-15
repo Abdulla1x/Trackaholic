@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../api/client'
-import { addDays, dayRange, localIsoDate, parseIsoDate } from '../../lib/dates'
+import { addDays, dayDate, dayRange, localIsoDate } from '../../lib/dates'
 import { MAX_PLAN_DAYS, MAX_PLAN_HORIZON_DAYS, validatePlan } from '../../lib/limits'
 import { num } from '../../lib/parse'
 import type { CaloriePlan, DaySurplus, PlanKind } from '../../types'
@@ -12,6 +12,7 @@ import { Chip } from '@/ui/chip'
 import Explainer from '@/ui/explainer'
 import { FIELD } from '@/ui/field'
 import { NumberField } from '@/ui/number-field'
+import { n } from '@/lib/format'
 
 /** Move calories between days without moving the week.
  *
@@ -29,12 +30,6 @@ import { NumberField } from '@/ui/number-field'
  * calorie floor, and say which day and why.
  */
 
-const short = (iso: string) =>
-  parseIsoDate(iso).toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
 
 const signed = (kcal: number) =>
   `${kcal > 0 ? '+' : '−'}${Math.abs(Math.round(kcal)).toLocaleString()}`
@@ -48,7 +43,7 @@ const signed = (kcal: number) =>
 // shape these sentences contain, and anything that does not match is left
 // exactly as the server wrote it.
 const humaniseDates = (message: string) =>
-  message.replace(/\d{4}-\d{2}-\d{2}/g, (iso) => short(iso))
+  message.replace(/\d{4}-\d{2}-\d{2}/g, (iso) => dayDate(iso))
 
 export default function CaloriePlanSection({
   onRejected,
@@ -322,13 +317,13 @@ export default function CaloriePlanSection({
                   <p className="text-ink-2">Checking that day…</p>
                 ) : surplus.meal_count === 0 ? (
                   <p className="text-ink-2">
-                    Nothing is logged on {short(eventDate)}, so there's nothing to spread.
+                    Nothing is logged on {dayDate(eventDate)}, so there's nothing to spread.
                   </p>
                 ) : (
                   <>
                     <p>
-                      {Math.round(surplus.consumed_calories).toLocaleString()} kcal eaten against a{' '}
-                      {Math.round(surplus.reference_calories).toLocaleString()} kcal target:{' '}
+                      {n(surplus.consumed_calories)} kcal eaten against a{' '}
+                      {n(surplus.reference_calories)} kcal target:{' '}
                       <b className="font-semibold">{signed(surplus.surplus_calories)} kcal</b>.
                     </p>
                     {/* Said plainly because it is a real limitation: this app
@@ -357,7 +352,7 @@ export default function CaloriePlanSection({
                       title={taken ? 'Already moved by another plan' : undefined}
                       className="disabled:cursor-not-allowed disabled:opacity-35"
                     >
-                      {short(day)}
+                      {dayDate(day)}
                     </Chip>
                   )
                 })}
@@ -389,7 +384,7 @@ export default function CaloriePlanSection({
               <li key={plan.event_date} className="grid gap-1.5 py-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-semibold">
-                    {plan.kind === 'planned' ? `Bigger day on ${short(plan.event_date)}` : `Making up ${short(plan.event_date)}`}
+                    {plan.kind === 'planned' ? `Bigger day on ${dayDate(plan.event_date)}` : `Making up ${dayDate(plan.event_date)}`}
                   </span>
                   {/* GET /api/plan only returns plans with a day still ahead,
                       so this is always true today. Kept as a condition: the
@@ -406,11 +401,11 @@ export default function CaloriePlanSection({
                   {plan.days.map((day) => (
                     <li key={day.date} className="flex justify-between gap-3">
                       <span>
-                        {short(day.date)}
+                        {dayDate(day.date)}
                         {day.date < today && ' · passed'}
                       </span>
                       <span className="tabular-nums">
-                        <b className="font-semibold text-ink">{Math.round(day.calorie_goal).toLocaleString()} kcal</b> (
+                        <b className="font-semibold text-ink">{n(day.calorie_goal)} kcal</b> (
                         {signed(day.calorie_delta ?? 0)})
                       </span>
                     </li>

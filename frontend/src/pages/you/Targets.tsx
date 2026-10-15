@@ -16,6 +16,7 @@ import { ExpandIcon } from '@/ui/icons'
 import { SettingNumber } from '@/ui/number-field'
 import { Stat, StatGrid } from '@/ui/stat'
 import { SwitchRow } from '@/ui/switch'
+import { n } from '@/lib/format'
 
 type Goal = 'calorie_goal' | 'protein_goal' | 'carbs_goal' | 'fat_goal'
 
@@ -47,8 +48,6 @@ const FAT_DETAIL: Record<FatState, string> = {
   less: 'Less, to make room for protein',
   minimum: 'At its minimum',
 }
-
-const n = (value: number) => Math.round(value).toLocaleString()
 
 const shows = (settings: Settings, key: Goal) =>
   key === 'carbs_goal' ? settings.track_carbs : key === 'fat_goal' ? settings.track_fat : true
