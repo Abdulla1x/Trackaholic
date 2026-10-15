@@ -16,6 +16,7 @@ import { Button } from '@/ui/button'
 import Explainer from '@/ui/explainer'
 import { FIELD } from '@/ui/field'
 import { NumberField } from '@/ui/number-field'
+import Retry from '@/ui/retry'
 import { RowButton } from '@/ui/row'
 import { useToast } from '@/ui/toast'
 
@@ -123,7 +124,7 @@ function Library() {
       })
       // An empty library and a failed fetch render identically, and one of
       // them means "nothing saved yet" while the other means "try again".
-      .catch(() => setLoadError('Couldn’t load your food library.'))
+      .catch(() => setLoadError("Couldn't load your food library. Check your connection, then try again."))
 
   useEffect(() => {
     load()
@@ -244,7 +245,18 @@ function Library() {
           </div>
         )}
         {!items ? (
-          <p className="text-ink-2">{loadError || 'Loading…'}</p>
+          loadError ? (
+            // No role: useLiveMessage(loadError) already speaks it.
+            <Retry
+              text={loadError}
+              onRetry={() => {
+                setLoadError('')
+                load()
+              }}
+            />
+          ) : (
+            <p className="text-ink-2">Loading…</p>
+          )
         ) : items.length === 0 ? (
           <p className="text-ink-2">
             Nothing saved yet. Add one here, or tick “save to library” on an ingredient when you log a meal.
