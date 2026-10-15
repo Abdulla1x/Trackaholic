@@ -268,15 +268,17 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - **Ghost:** transparent with a 1.5px rule-coloured border (Undo, Cancel).
 - **Log button:** ink fill, ground-coloured text, 7px radius, 50px tall. While an AI estimate runs it shows a spinner; when the estimate is ready it shows a dot and "Ready".
 - **Disabled:** 45% opacity, no pointer.
+- **Pressed:** while held, a primary button darkens toward ink 2 (78% action mixed with ink 2), secondary and ghost take a 12% ink wash, and the Log button goes to 80% ink. Every button also shrinks to 0.98 and springs back, except under reduced motion. Hover only exists on a mouse, so on a phone this is the only answer a tap gets, and the browser's grey tap rectangle is switched off where a control has its own pressed tone.
 
 ### Chips
 - **Style:** 36px tall, 1.5px rule border, 5px radius.
 - **Selected:** ink fill, ground-coloured text.
+- **Pressed:** a 12% ink wash and an ink border (a selected chip goes to 80% ink), plus the same 0.98 shrink as a button.
 
 ### Blocks and rows
 - **Blocks:** no border, no background. A hairline rule along the bottom, with an optional section label and value in the label style.
 - **A block that can be put away** (Today's weekly review card): a 36px ghost ✕ after the value in the heading, named for what it does ("Hide until next week"). The block going is the first sign, a toast saying where it went the second. The weekly review card shows from the first open of the week until it is closed or the review is opened, then stays away on that device until the next week.
-- **Rows:** at least 52px tall, with a chevron when they open something. Hairline rules between rows.
+- **Rows:** at least 52px tall, with a chevron when they open something. Hairline rules between rows. Pressed: an 8% ink wash and no shrink, because a full-width row that shrinks looks broken. The tabs and the rail take the same wash.
 - **Meal rows:** time (13px, ink 2) · name and detail · kcal (row number), 56px minimum. The time is when the meal was **logged** (no time of eating is recorded), so it shows only beside a meal logged on the day it was eaten, and can be switched off; a list where no row has one carries no time column. Tapping one opens the meal screen (Edit, Log it again, Share as a code, Keep as a saved meal, Delete).
 
 ### You
@@ -375,7 +377,8 @@ Motion says what changed. Nothing moves for decoration. Animations are built wit
 
 **Tokens:**
 - **Ease (default):** `cubic-bezier(0.16, 1, 0.3, 1)`, an exponential ease-out.
-- **Fast:** 150ms (tab changes: a crossfade).
+- **Fast:** 150ms (tab changes: a crossfade; a pressed control letting go).
+- **Press-in:** 40ms, so even a quick tap shows its pressed state before the release.
 - **Base:** 240ms (most transitions).
 - **Screen push and back:** 260ms; content slides 28px from the right on push, from the left on back, and fades in. The direction comes from how deep the screen sits below its tab (a meal is below the day in detail, which is below Today), not from which button was pressed, so the phone's back button and a screen's back arrow look the same. Under reduced motion it is the plain fade. CSS keyframes, like the tab crossfade, so the first screen never waits on Motion.
 - **Log panel open:** spring, stiffness 380, damping 36. It rises from the bottom on phones and slides from the right on desktop. The scrim fades in over 200ms.

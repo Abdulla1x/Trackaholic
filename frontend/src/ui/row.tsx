@@ -6,8 +6,9 @@ import { NextIcon } from '@/ui/icons'
 /** A row that opens something (DESIGN.md: Blocks and rows): at least 52px
  *  tall, a label with optional detail beneath, and a chevron. As a link or a
  *  button, styled the same. */
+// Pressed (UA-34): a tone only. A full-width row that shrinks looks broken.
 const ROW =
-  'flex min-h-[52px] w-full items-center gap-3 py-2 text-left text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-45'
+  'pressable flex min-h-[52px] w-full items-center gap-3 py-2 text-left text-ink transition-colors duration-150 ease-out-expo active:bg-ink/8 active:duration-[40ms] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-45'
 
 function Content({ icon, label, detail, chevron }: { icon?: ReactNode; label: ReactNode; detail?: ReactNode; chevron: boolean }) {
   return (
