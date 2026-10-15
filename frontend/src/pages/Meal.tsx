@@ -147,7 +147,7 @@ export default function Meal() {
       {/* The name in full here, where it can wrap: the bar above would cut a
           long one off, and it is the one thing this screen is about. */}
       <Block label={logged ? `Logged ${logged}` : undefined}>
-        <h2 className="text-title text-pretty">{meal.name}</h2>
+        <h2 className="text-title">{meal.name}</h2>
         <p className="flex items-end gap-2">
           <span className="text-display-number text-[72px]">{n(meal.calories)}</span>
           <span className="pb-1.5 text-small text-ink-2">kcal</span>

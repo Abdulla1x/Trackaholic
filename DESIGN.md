@@ -183,7 +183,7 @@ Restrained: a tinted neutral ground, ink, one action colour and one plan colour.
 - **Display number** (820, 92px phone / 132px desktop, line-height 0.86, width 75%): the calories headline on Today only.
 - **Field number** (780, 30px, width 78%): secondary numbers in fields: the weight trend, weekly rate.
 - **Row number** (760, 20px, width 80%): kcal on meal rows, and the macro rows in the calories band.
-- **Title** (750, 16px, width 112%): screen titles in the app bar and the date bar.
+- **Title** (750, 16px, width 112%): screen titles in the app bar and the date bar. It wraps with `text-wrap: pretty`, so a long name never leaves one word alone on its last line.
 - **Body** (400, 15px, line-height 1.4): rows, descriptions, form text. Prose capped at about 70 characters per line.
 - **Small** (400, 13px): captions, helper text, ranges.
 - **Label** (650, 11px, letter-spacing 0.09em, uppercase, width 110%): field labels, section labels ("KCAL LEFT", "MEALS · 3") and tracker titles ("WATER", with the tracker's icon at 18px beside it). Every heading inside a screen uses it, so the page has one heading style; the figure at the right of a tracker stays in body type, because it is data.
