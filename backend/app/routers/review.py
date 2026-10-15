@@ -333,6 +333,14 @@ async def review_summary(
     `_reserve_call`'s contract.
     """
     review = build_review(db, user.id, _window_end(end))
+    if review.logged_days == 0:
+        # Refused before the slot is reserved: a week with nothing logged has
+        # no figures to put into words, and the call would still spend one of
+        # the app-wide daily model calls on saying so.
+        raise HTTPException(
+            status_code=409,
+            detail="Nothing was logged that week, so there's nothing to put into words.",
+        )
     facts = [
         check.detail or check.unavailable_reason or ""
         for check in review.checks
