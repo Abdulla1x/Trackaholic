@@ -223,6 +223,7 @@ function Library() {
             <input
               id="library-filter"
               type="search"
+              autoComplete="off"
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
               placeholder={`Find among ${items.length} ${items.length === 1 ? 'food' : 'foods'}`}

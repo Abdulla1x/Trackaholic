@@ -119,6 +119,7 @@ function SavedMeals() {
         <input
           id="saved-meals-filter"
           type="search"
+          autoComplete="off"
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           placeholder={`Find among ${items.length} saved meals`}

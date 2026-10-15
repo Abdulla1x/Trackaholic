@@ -261,6 +261,7 @@ export default function FoodAutocomplete({ value, onChange, onSelect, focusOnMou
       <input
         ref={inputRef}
         type="text"
+        autoComplete="off"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onFocus={() => value.trim().length >= 2 && setOpen(true)}
