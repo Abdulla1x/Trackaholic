@@ -72,7 +72,7 @@ export default function TargetWorkedOut() {
   } else if (!sum) {
     body = (
       <Block>
-        <p>Your numbers show here once you’ve answered setup’s questions.</p>
+        <p>Your numbers show here once you've answered setup's questions.</p>
         <p>
           <Link to="/setup" className="font-semibold text-action underline underline-offset-3">
             Set your target
@@ -112,7 +112,7 @@ function Steps({ sum, unit }: { sum: TargetSum; unit: WeightUnit }) {
       {sum.measured === null ? (
         <Step title="2. What you burn in a day" sum={`${n(sum.rest)} × ${sum.multiplier.toFixed(2)} = ${n(sum.estimated)} kcal`}>
           The {sum.multiplier.toFixed(2)} is your activity level, from measured data on how much people with that kind of
-          week burn (FAO/WHO/UNU). It’s an estimate until the app can measure yours.
+          week burn (FAO/WHO/UNU). It's an estimate until the app can measure yours.
         </Step>
       ) : (
         <Step title="2. What you burn in a day" sum={`${n(sum.measured)} kcal, measured`}>

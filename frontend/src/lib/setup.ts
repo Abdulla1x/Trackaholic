@@ -145,7 +145,7 @@ export function weightProblem(a: Answers): string | null {
   const w = weightKg(a)
   if (w === null) return `Type your weight as a number, like ${a.unit === 'lb' ? '177' : '80.4'}.`
   if (w < SETUP_LIMITS.minWeightKg || w > SETUP_LIMITS.maxWeightKg) {
-    return `That doesn’t look right for a weight in ${a.unit}. Check for a typo.`
+    return `That doesn't look right for a weight in ${a.unit}. Check for a typo.`
   }
   return null
 }
@@ -162,7 +162,7 @@ export function heightProblem(a: Answers): string | null {
   const b = bmi(a)
   if (b !== null && (b < SETUP_LIMITS.minBmi || b > SETUP_LIMITS.maxBmi)) {
     const other = a.unit === 'kg' ? 'lb and ft' : 'kg and cm'
-    return `With your weight that would be a BMI of ${Math.round(b)}, which can’t be right. Check the units: did you mean ${other}?`
+    return `With your weight that would be a BMI of ${Math.round(b)}, which can't be right. Check the units: did you mean ${other}?`
   }
   return null
 }
@@ -254,7 +254,7 @@ export function goalWeightRemark(a: Answers): Remark | null {
   if (typed === null || typed <= 0) return { kind: 'ask', text: 'Type a goal weight as a number, or leave it empty.' }
   const goalKg = toKg(typed, a.unit)
   if (goalKg < SETUP_LIMITS.minWeightKg || goalKg > SETUP_LIMITS.maxWeightKg) {
-    return { kind: 'ask', text: `That doesn’t look like a weight in ${a.unit}. Check for a typo.` }
+    return { kind: 'ask', text: `That doesn't look like a weight in ${a.unit}. Check for a typo.` }
   }
   const now = weightKg(a)
   if (now !== null && a.goal === 'lose' && goalKg >= now) {
@@ -269,7 +269,7 @@ export function goalWeightRemark(a: Answers): Remark | null {
     const shown = a.unit === 'lb' ? floor / KG_PER_LB : floor
     return {
       kind: 'warn',
-      text: `That’s under a healthy BMI for your height (about ${shown.toFixed(1)} ${a.unit}). It’s saved either way.`,
+      text: `That's under a healthy BMI for your height (about ${shown.toFixed(1)} ${a.unit}). It's saved either way.`,
     }
   }
   return null
@@ -380,7 +380,7 @@ export function ownNumbersProblem(a: Answers): string | null {
 export function ownNumbersRemark(a: Answers): string | null {
   const kcal = parseNumber(a.ownCalories)
   return kcal !== null && kcal > 0 && kcal < 1200
-    ? 'Under 1,200 kcal a day is usually done with a doctor’s knowledge. It’s saved either way.'
+    ? "Under 1,200 kcal a day is usually done with a doctor's knowledge. It's saved either way."
     : null
 }
 

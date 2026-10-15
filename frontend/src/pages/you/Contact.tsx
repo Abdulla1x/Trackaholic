@@ -14,7 +14,7 @@ export default function Contact() {
       await navigator.clipboard.writeText(CONTACT_EMAIL)
       toast.show({ text: 'Address copied' })
     } catch {
-      toast.show({ text: 'Couldn’t copy it. Press and hold the address instead.' })
+      toast.show({ text: "Couldn't copy it. Press and hold the address instead." })
     }
   }
   return (

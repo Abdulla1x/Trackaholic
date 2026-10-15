@@ -15,7 +15,7 @@ const count = (n: number, one: string, many: string) => `${n.toLocaleString()} $
 function importSummary(result: ImportResult): string {
   let text = `Imported ${count(result.inserted, 'day', 'days')}.`
   if (result.skipped_duplicates > 0) text += ` Kept ${count(result.skipped_duplicates, 'day', 'days')} you already had.`
-  if (result.skipped_invalid > 0) text += ` ${count(result.skipped_invalid, 'row', 'rows')} couldn’t be read.`
+  if (result.skipped_invalid > 0) text += ` ${count(result.skipped_invalid, 'row', 'rows')} couldn't be read.`
   return text
 }
 
@@ -76,7 +76,7 @@ function Steps() {
           onBlur={guard('steps_goal')}
         />
         <p className="text-small text-ink-2">
-          Steps don’t change your calorie target. Your measured burn already counts them.
+          Steps don't change your calorie target. Your measured burn already counts them.
         </p>
       </Block>
 
@@ -99,8 +99,8 @@ function Steps() {
         {result && <p className="text-small">{result}</p>}
         {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
         <Explainer label="What files work?">
-          A CSV with a date column and a steps column, one row per day. Samsung Health’s export works as it comes; for
-          other apps, pick out those two columns first. Days you already have are kept. There’s no live sync: Health
+          A CSV with a date column and a steps column, one row per day. Samsung Health's export works as it comes; for
+          other apps, pick out those two columns first. Days you already have are kept. There's no live sync: Health
           Connect and Apple Health only open to apps from a store.
         </Explainer>
       </Block>

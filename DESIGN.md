@@ -459,6 +459,8 @@ The gauge: five lit segments, two dark, and the target tick, centred as one grou
 
 Wry, in small doses. Humour lives in quiet, good moments. Errors, going over a target, and anything about the body stay plain.
 
+Apostrophes are straight (`'`), never curly (`’`), in every string a person reads, client and server alike. The server's sentences and this table already were, and nobody types a curly one by accident, so straight is the one that stays consistent.
+
 | Moment | What the app says |
 |---|---|
 | No meals yet today | Nothing logged yet. Suspiciously disciplined. |

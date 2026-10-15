@@ -53,7 +53,7 @@ export default function PasswordScreen() {
   const save = async () => {
     if (fields.current === '') return setError('Type your current password.')
     if (fields.next.length < 8) return setError('The new password needs at least 8 characters.')
-    if (fields.next !== fields.again) return setError('The two new passwords don’t match.')
+    if (fields.next !== fields.again) return setError("The two new passwords don't match.")
     setSaving(true)
     try {
       // Signs every other device out; this one gets a fresh token.
@@ -61,7 +61,7 @@ export default function PasswordScreen() {
       setFields(EMPTY)
       setChanged(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'The password wasn’t changed. Try again.')
+      setError(err instanceof Error ? err.message : "The password wasn't changed. Try again.")
     } finally {
       setSaving(false)
     }
@@ -104,7 +104,7 @@ export default function PasswordScreen() {
         onCancel={() => blocker.reset?.()}
         onConfirm={() => blocker.proceed?.()}
       >
-        The new password hasn’t been saved.
+        The new password hasn't been saved.
       </AlertDialog>
     </div>
   )

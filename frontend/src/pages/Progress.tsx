@@ -159,8 +159,8 @@ export default function Progress() {
       <div className={`grid grid-cols-[minmax(0,1fr)] gap-2 border-b border-rule py-3.5 desk:col-span-2 ${LABEL_BOX}`}>
         <RangeControl value={range.key} onChange={chooseRange} />
         <p className="text-small text-ink-2">The range changes the charts and averages.</p>
-        <Explainer label="What doesn’t change?">
-          Trend weight, this week’s change and the goal date always use your latest weigh-ins.
+        <Explainer label="What doesn't change?">
+          Trend weight, this week's change and the goal date always use your latest weigh-ins.
         </Explainer>
       </div>
 
@@ -425,7 +425,7 @@ function AllWeighIns() {
 }
 
 /** DESIGN.md Voice: "Weight trend unlocks". */
-const UNLOCKED_LINE = 'Seven weigh-ins. You’ve earned a trend line.'
+const UNLOCKED_LINE = "Seven weigh-ins. You've earned a trend line."
 
 /** The weight axis: a little room around the weigh-ins and the goal, cut into
  *  four even whole-number steps, so the labels read 80 · 82 · 84 · 86 rather
@@ -569,11 +569,11 @@ function NutritionBlock({
           Target {n(target)} {series.unit}
         </PlanKey>
       )}
-      {food.logged_days > 0 && <p className="text-small text-ink-2">Today is left out until it’s over.</p>}
+      {food.logged_days > 0 && <p className="text-small text-ink-2">Today is left out until it's over.</p>}
       <RowLink
         to={`/progress/days?range=${range.key}`}
         label="Daily totals"
-        detail="Each day’s calories and macros"
+        detail="Each day's calories and macros"
         className="border-t border-rule"
       />
     </Block>

@@ -170,7 +170,7 @@ function Library() {
       if (close) setOpen(null)
       return true
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'That didn’t save. Try again.')
+      setError(err instanceof Error ? err.message : "That didn't save. Try again.")
       return false
     } finally {
       setBusy(false)

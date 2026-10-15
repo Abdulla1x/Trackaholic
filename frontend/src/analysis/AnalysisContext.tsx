@@ -304,7 +304,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     setFiles((current) => {
       const room = MAX_IMAGES - current.length
       if (room <= 0) {
-        setError(`That's the limit — ${MAX_IMAGES} photos per analysis.`)
+        setError(`That's the limit: ${MAX_IMAGES} photos per analysis.`)
         return current
       }
       const accepted = chosen.slice(0, room)

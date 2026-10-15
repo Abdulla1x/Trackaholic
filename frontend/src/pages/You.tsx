@@ -36,7 +36,7 @@ function targetsDetail(settings: Settings, proteinFits: boolean): string {
   if (!targetIsSet(settings)) return 'Not set yet'
   const kcal = `${n(settings.calorie_goal)} kcal`
   if (settings.targets_auto && settings.protein_own) {
-    return `${kcal} · ${n(settings.protein_goal)} g protein (yours)${proteinFits ? '' : ' · doesn’t fit'}`
+    return `${kcal} · ${n(settings.protein_goal)} g protein (yours)${proteinFits ? '' : " · doesn't fit"}`
   }
   const how = settings.targets_auto ? 'automatic' : 'your own numbers'
   return `${kcal} · ${n(settings.protein_goal)} g protein · ${how}`
@@ -235,7 +235,7 @@ export default function You() {
 
           <Group label="Help">
             <RowLink to="/how-it-works" label="How Trackaholic works" detail="And things you might have missed" />
-            <RowLink to="/whats-new" label="What’s new" detail="Release notes" />
+            <RowLink to="/whats-new" label="What's new" detail="Release notes" />
             <RowLink to="/you/contact" label="Contact" detail="Questions or feedback by email" />
           </Group>
 

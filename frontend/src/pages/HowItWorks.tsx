@@ -30,7 +30,7 @@ export default function HowItWorks() {
 
       <Section title="Log a meal">
         <p>
-          Tap Log and describe what you ate with the grams, say it, or take a photo; you check the AI’s numbers before
+          Tap Log and describe what you ate with the grams, say it, or take a photo; you check the AI's numbers before
           anything is saved.
         </p>
         <List>
@@ -38,13 +38,13 @@ export default function HowItWorks() {
           <li>Photos miss oil, butter, sauce and sugar. Say them.</li>
           <li>Foods you save are used as facts: attach the packaged ones and the AI only judges the portion.</li>
           <li>To fix an estimate, change your note and press Refine rather than starting again.</li>
-          <li>If the AI isn’t available, search a food or enter the numbers by hand.</li>
+          <li>If the AI isn't available, search a food or enter the numbers by hand.</li>
         </List>
       </Section>
 
       <Section title="Read Today">
         <p>
-          The big number is what’s left of your daily target; tap it for the day in detail.
+          The big number is what's left of your daily target; tap it for the day in detail.
         </p>
         <p className="text-ink-2">Over is fine. The week evens out.</p>
       </Section>
@@ -57,7 +57,7 @@ export default function HowItWorks() {
             burn instead of estimating it.
           </li>
           <li>Your first logged day starts a weekly review.</li>
-          <li>Ten AI estimates you’ve checked and corrected show how accurate the AI is for you.</li>
+          <li>Ten AI estimates you've checked and corrected show how accurate the AI is for you.</li>
         </List>
       </Section>
 
@@ -76,7 +76,7 @@ export default function HowItWorks() {
       <Section title="Things you might have missed">
         <List>
           <li>
-            <b className="text-ink">Saved meals.</b> Open a meal and choose Keep as a saved meal; it’s then one tap from
+            <b className="text-ink">Saved meals.</b> Open a meal and choose Keep as a saved meal; it's then one tap from
             Log.
           </li>
           <li>
@@ -96,7 +96,7 @@ export default function HowItWorks() {
             in Progress any time.
           </li>
           <li>
-            <b className="text-ink">AI accuracy.</b> How far the AI’s estimates were from what you saved, in Progress.
+            <b className="text-ink">AI accuracy.</b> How far the AI's estimates were from what you saved, in Progress.
           </li>
           <li>
             <b className="text-ink">Trackers.</b> Water, steps and supplements: {CHANGE_TRACKERS}, at the bottom of
@@ -112,7 +112,7 @@ export default function HowItWorks() {
       <Section title="When to ask a doctor">
         <List>
           <li>
-            <b className="text-ink">Pregnant or breastfeeding:</b> these targets aren’t built for that. Your midwife or
+            <b className="text-ink">Pregnant or breastfeeding:</b> these targets aren't built for that. Your midwife or
             doctor can set one; you can still log meals.
           </li>
           <li>
@@ -120,7 +120,7 @@ export default function HowItWorks() {
             protein and calorie targets may need your doctor or dietitian.
           </li>
           <li>If you use food or weight to cope with how you feel, the NHS advises talking to a GP.</li>
-          <li>Trackaholic gives estimates to help you plan. It isn’t medical advice.</li>
+          <li>Trackaholic gives estimates to help you plan. It isn't medical advice.</li>
         </List>
       </Section>
     </div>

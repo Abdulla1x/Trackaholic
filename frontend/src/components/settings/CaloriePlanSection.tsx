@@ -219,7 +219,7 @@ export default function CaloriePlanSection({
       setError(
         err instanceof Error
           ? humaniseDates(err.message)
-          : 'Could not save that plan.',
+          : "That plan didn't save. Check your connection, then try again.",
       )
     } finally {
       setBusy(false)
@@ -233,7 +233,7 @@ export default function CaloriePlanSection({
       await api.cancelPlan(eventDay)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not cancel that plan.')
+      setError(err instanceof Error ? err.message : "That plan didn't cancel. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }
@@ -317,12 +317,12 @@ export default function CaloriePlanSection({
             {mode === 'compensating' && (
               <div className="grid gap-1 text-small">
                 {surplusFailed ? (
-                  <p className="text-ink-2">Couldn’t work out how that day went. Try again.</p>
+                  <p className="text-ink-2">Couldn't work out how that day went. Try again.</p>
                 ) : surplus === null ? (
                   <p className="text-ink-2">Checking that day…</p>
                 ) : surplus.meal_count === 0 ? (
                   <p className="text-ink-2">
-                    Nothing is logged on {short(eventDate)}, so there’s nothing to spread.
+                    Nothing is logged on {short(eventDate)}, so there's nothing to spread.
                   </p>
                 ) : (
                   <>
@@ -334,7 +334,7 @@ export default function CaloriePlanSection({
                     {/* Said plainly because it is a real limitation: this app
                         stores one calorie goal, not a history of them, so a past
                         day can only be measured against the target it has now. */}
-                    <p className="text-ink-2">Measured against that day’s target as it is now.</p>
+                    <p className="text-ink-2">Measured against that day's target as it is now.</p>
                   </>
                 )}
               </div>

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { hideReview, reviewHidden } from '../src/lib/dismissals.ts'
-import { checkFigure, checkLabel, checkStatus, lastWeekEnd, reviewEndFrom, reviewHeadline, reviewLocked } from '../src/lib/review.ts'
+import { checkFigure, checkLabel, checkStatus, lastWeekEnd, reviewEndFrom, reviewHeadline, reviewLocked, reviewStartsLine } from '../src/lib/review.ts'
 import type { ReviewCheck, WeeklyReview } from '../src/types.ts'
 
 const check = (status: ReviewCheck['status']): ReviewCheck => ({
@@ -104,4 +104,18 @@ test('the review is locked only while the week has no meals logged', () => {
   // A new account: the logging check answers "off target" at 0 of 7.
   assert.equal(reviewLocked(review(0, ['off_track', 'unknown', 'note'])), true)
   assert.equal(reviewLocked(review(2, ['unknown', 'note', 'unknown'])), false)
+})
+
+test('before the first log, the review is one line saying when it starts', () => {
+  const starts = 'Your first review starts the day after you log your first meal.'
+  const fresh: WeeklyReview = {
+    ...review(0, []),
+    checks: [{ ...check('unknown'), key: 'logging', unavailable_reason: starts }, check('unknown')],
+  }
+  assert.equal(reviewStartsLine(fresh), starts)
+
+  // An account that has logged before and skipped this week is reviewed.
+  const lapsed: WeeklyReview = { ...review(0, []), checks: [{ ...check('off_track'), key: 'logging', value: 0 }] }
+  assert.equal(reviewStartsLine(lapsed), null)
+  assert.equal(reviewStartsLine(review(3, ['on_track'])), null)
 })

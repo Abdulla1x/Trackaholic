@@ -166,9 +166,8 @@ function errorFrom(status: number, body: unknown): ApiError {
 function transportError(timedOut: boolean): ApiError {
   return new ApiError(
     timedOut
-      ? 'That took too long — the server may be waking up. Try again.'
-      : 'Could not reach the server. It may be temporarily unavailable — ' +
-        'check your connection, or try again in a few minutes.',
+      ? 'That took too long. The server may be waking up, so try again.'
+      : "Couldn't reach the server. Check your connection, or try again in a few minutes.",
     0,
   )
 }

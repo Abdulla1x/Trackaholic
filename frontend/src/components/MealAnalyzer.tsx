@@ -180,7 +180,7 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
           }}
           onClose={closeSavedFoodsTip}
         >
-          Logging something you’ve saved?
+          Logging something you've saved?
         </Hint>
       )}
 
@@ -333,7 +333,7 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
       {unchangedRerun && (
         <div role="status" className="grid gap-2 border-l-2 border-ink pl-3 text-small">
           <p>
-            Nothing has changed since this estimate, so running it again uses one of today’s AI
+            Nothing has changed since this estimate, so running it again uses one of today's AI
             estimates.
           </p>
           <Explainer label="Will it change much?">

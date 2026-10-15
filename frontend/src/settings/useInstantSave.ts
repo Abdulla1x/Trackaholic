@@ -19,7 +19,7 @@ export function useInstantSave() {
       await updateSettings({ ...settings, ...patch })
       toast.show({ text: 'Saved' })
     } catch (err) {
-      toast.show({ text: err instanceof Error ? err.message : 'Couldn’t save that. Try again.' })
+      toast.show({ text: err instanceof Error ? err.message : "Couldn't save that. Try again." })
     }
   }
 }

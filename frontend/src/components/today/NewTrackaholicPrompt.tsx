@@ -86,7 +86,7 @@ export default function NewTrackaholicPrompt({ ready }: { ready: boolean }) {
           <MakeItYoursLink />
         </div>
         <p>
-          Untick any trackers you don’t want on Today. You can change it later at the bottom of Today.
+          Untick any trackers you don't want on Today. You can change it later at the bottom of Today.
         </p>
         <ul className="divide-y divide-rule">
           {TRACKERS.map(({ key, name, description }) => (
@@ -108,7 +108,7 @@ export default function NewTrackaholicPrompt({ ready }: { ready: boolean }) {
         </ul>
         {failed && (
           <p role="alert" className="border-l-2 border-ink pl-3 text-small">
-            That didn’t save. Check your connection, then try again.
+            That didn't save. Check your connection, then try again.
           </p>
         )}
         <div className="flex flex-wrap gap-2">

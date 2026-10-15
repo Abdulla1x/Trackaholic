@@ -147,7 +147,7 @@ export default function LibraryFoodPicker({
 
           {full && (
             <p className="border-t border-rule px-3 py-2 text-small">
-              That’s the limit: {max} saved foods per estimate.
+              That's the limit: {max} saved foods per estimate.
             </p>
           )}
         </div>

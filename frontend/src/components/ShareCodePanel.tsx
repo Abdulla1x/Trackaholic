@@ -66,9 +66,9 @@ export default function ShareCodePanel({
           <CloseIcon size={18} />
         </button>
       </div>
-      <p className="text-small text-ink-2">Anyone with this code can load this meal’s name and numbers into their own log.</p>
+      <p className="text-small text-ink-2">Anyone with this code can load this meal's name and numbers into their own log.</p>
       <Explainer label="Will my edits reach them?">
-        No. It’s a copy, not a link, so later edits to this meal don’t travel with it.
+        No. It's a copy, not a link, so later edits to this meal don't travel with it.
       </Explainer>
       <textarea
         readOnly

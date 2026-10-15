@@ -15,7 +15,7 @@ const count = (n: number, one: string, many: string) => `${n.toLocaleString()} $
 function importSummary(result: ImportResult): string {
   let text = result.inserted > 0 ? `Imported ${count(result.inserted, 'meal', 'meals')}.` : 'No new meals.'
   if (result.skipped_duplicates > 0) text += ` ${count(result.skipped_duplicates, 'was', 'were')} already here.`
-  if (result.skipped_invalid > 0) text += ` ${count(result.skipped_invalid, 'row', 'rows')} couldn’t be read.`
+  if (result.skipped_invalid > 0) text += ` ${count(result.skipped_invalid, 'row', 'rows')} couldn't be read.`
   return text
 }
 
@@ -54,7 +54,7 @@ export default function YourData() {
         setLatest(text)
       }
     } catch (err) {
-      const text = err instanceof Error ? err.message : 'That didn’t work. Try again.'
+      const text = err instanceof Error ? err.message : "That didn't work. Try again."
       setSaid((now) => ({ ...now, [job]: text }))
       setLatest(text)
     } finally {

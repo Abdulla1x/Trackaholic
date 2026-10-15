@@ -8,9 +8,9 @@ const n = (value: number) => Math.round(value).toLocaleString()
 function reason(move: TargetMove): string {
   switch (move.kind) {
     case 'measured':
-      return `Your burn is now measured from your meals and weigh-ins: ${n(move.measured)} kcal a day, not the formula’s ${n(move.estimated)}.`
+      return `Your burn is now measured from your meals and weigh-ins: ${n(move.measured)} kcal a day, not the formula's ${n(move.estimated)}.`
     case 'goal':
-      return 'You’ve reached your goal weight, so it now keeps you there.'
+      return "You've reached your goal weight, so it now keeps you there."
     case 'limit':
       return move.reason ?? 'The limit holding it back no longer applies.'
   }

@@ -54,7 +54,7 @@ export default function WaterCard({ date }: Props) {
       setError(null)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save that — try again.')
+      setError(err instanceof Error ? err.message : "That didn't save. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }
@@ -87,7 +87,7 @@ export default function WaterCard({ date }: Props) {
       setError(null)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not undo that — try again.')
+      setError(err instanceof Error ? err.message : "That didn't undo. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }

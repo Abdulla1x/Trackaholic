@@ -284,7 +284,7 @@ export default function Setup() {
   if (screen === 'start') {
     body = (
       <>
-        <p className="text-small text-ink-2">Only you see these answers. They’re used to work out your target, nothing else.</p>
+        <p className="text-small text-ink-2">Only you see these answers. They're used to work out your target, nothing else.</p>
         <div className="divide-y divide-rule border-y border-rule">
           <MethodRow
             label="Work it out for me"
@@ -488,7 +488,7 @@ function QuestionBody({
           </div>
           <Hint>The formula takes one of the two. If neither fits, pick either: after about two weeks the app measures your real burn.</Hint>
           <Hint>
-            <b className="text-ink">Pregnant or breastfeeding?</b> These targets aren’t built for that. Your midwife or doctor can
+            <b className="text-ink">Pregnant or breastfeeding?</b> These targets aren't built for that. Your midwife or doctor can
             set one; you can still log meals.
           </Hint>
         </>
@@ -572,7 +572,7 @@ function GoalQuestion({
       </div>
       {refused && (
         <Hint>
-          Your weight is already below the healthy range for your height, so this won’t plan a loss. Maintain or gain are here,
+          Your weight is already below the healthy range for your height, so this won't plan a loss. Maintain or gain are here,
           and a doctor can help with anything else.
         </Hint>
       )}
@@ -641,7 +641,7 @@ function ExtrasQuestion({ a, patch }: { a: Answers; patch: (next: Partial<Answer
       {a.goal !== 'maintain' && (
         <div className="grid gap-1.5">
           <NumberField id="setup-goal-weight" label="Goal weight" unit={a.unit} value={a.goalWeight} onChange={(goalWeight) => patch({ goalWeight })} placeholder={a.unit === 'lb' ? 'e.g. 165' : 'e.g. 75'} />
-          <Hint>Progress shows when you’d reach it.</Hint>
+          <Hint>Progress shows when you'd reach it.</Hint>
           <Problem text={remark?.text ?? null} warn={remark?.kind === 'warn'} />
         </div>
       )}
@@ -778,7 +778,7 @@ function TargetSummary({
         <span className="font-semibold">Working it out…</span>
         {waking && (
           <>
-            <span className="text-small text-ink-2">Waking the server. It’s on a free plan and naps a lot. About a minute.</span>
+            <span className="text-small text-ink-2">Waking the server. It's on a free plan and naps a lot. About a minute.</span>
             <WakeSegments />
           </>
         )}
@@ -812,7 +812,7 @@ function TargetSummary({
       )}
       {preview.protein_low_g != null && preview.protein_high_g != null && ref < w - 0.5 && (
         <Explainer label={`Why ${Math.round(ref)} kg?`}>
-          It’s worked out from {Math.round(ref)} kg, the weight at a BMI of 30 for your height, because body fat needs no
+          It's worked out from {Math.round(ref)} kg, the weight at a BMI of 30 for your height, because body fat needs no
           protein.
         </Explainer>
       )}

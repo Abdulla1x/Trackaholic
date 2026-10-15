@@ -44,7 +44,7 @@ export default function DailyTotals() {
       <ScreenBar title="Daily totals" back={`/progress?range=${range.key}`} backLabel="Back to Progress" />
 
       <p className="py-3 text-small text-ink-2">
-        {within} Today joins tomorrow, once it’s over.
+        {within} Today joins tomorrow, once it's over.
         {food && food.logged_days > 0 && range.days !== null && ` ${food.logged_days} of ${range.days} days logged.`}
       </p>
 

@@ -15,7 +15,7 @@ import Retry from '@/ui/retry'
 const n = (value: number) => Math.round(value).toLocaleString()
 
 /** DESIGN.md Voice: "Daily burn unlocks". */
-const UNLOCKED_LINE = 'Enough data. Here’s what you actually burn, measured, not guessed.'
+const UNLOCKED_LINE = "Enough data. Here's what you actually burn, measured, not guessed."
 
 /** Daily burn in Progress (0a: moved here from Settings). Measured from the
  *  user's own logs once there is enough of them: what they ate, against how
@@ -83,7 +83,7 @@ export default function DailyBurnBlock({ targets, onRetry }: { targets: BodyTarg
     <Block label="Daily burn" value="Not measured yet">
       {targets.tdee !== null && (
         <p className="text-small text-ink-2">
-          Until it’s measured, your target uses an estimate from your profile: {n(targets.tdee)} kcal a day.
+          Until it's measured, your target uses an estimate from your profile: {n(targets.tdee)} kcal a day.
         </p>
       )}
       <Explainer label="How is it measured?">

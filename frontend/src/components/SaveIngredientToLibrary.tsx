@@ -145,7 +145,7 @@ export default function SaveIngredientToLibrary({
       setError('')
       onSaved(draft.name.trim())
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save that — try again.')
+      setError(err instanceof Error ? err.message : "That didn't save. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }
@@ -191,7 +191,7 @@ export default function SaveIngredientToLibrary({
       </p>
       <Explainer>
         Scaled from the {Math.round(item.portion_grams)} g this estimate assumed. Blank carbs or fat means “not
-        recorded”, which isn’t zero.
+        recorded”, which isn't zero.
       </Explainer>
 
       {/* Ink and words, never a warning colour (DESIGN.md, the No Red Rule). */}

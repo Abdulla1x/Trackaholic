@@ -94,9 +94,18 @@ export function checkFigure(check: ReviewCheck): string | null {
 
 /** True while the week has no meals logged at all: Progress then shows how
  *  much of a week is logged rather than a review of nothing. Not "every check
- *  unknown": the logging check always has an answer, and at 0 of 7 days that
- *  answer is "off target", so a brand-new account would never count as
- *  locked. */
+ *  unknown": once anything has been logged the logging check always has an
+ *  answer, and at 0 of 7 days that answer is "off target". */
 export function reviewLocked(review: WeeklyReview): boolean {
   return review.logged_days === 0
+}
+
+/** Before the account's first logged day, the one line the review shows
+ *  instead of its checks ("Your first review starts…"); null once there is a
+ *  week to review. The server decides, because only it knows the first
+ *  logged day: it refuses the logging check for exactly that case. */
+export function reviewStartsLine(review: WeeklyReview): string | null {
+  if (review.logged_days !== 0) return null
+  const logging = review.checks.find((check) => check.key === 'logging')
+  return logging?.status === 'unknown' ? logging.unavailable_reason : null
 }

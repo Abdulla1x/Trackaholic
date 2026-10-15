@@ -108,8 +108,8 @@ function Body({ data }: { data: Calibration }) {
           </p>
           <Explainer>
             <p>
-              Counted only from meals saved straight after an estimate; later edits aren’t included. Using a saved
-              food’s numbers counts as a correction, so some figures measure your library rather than you.
+              Counted only from meals saved straight after an estimate; later edits aren't included. Using a saved
+              food's numbers counts as a correction, so some figures measure your library rather than you.
             </p>
             <p className="mt-1.5">
               Weighed portions and voice notes narrow the range, so this describes the app the way you log.{' '}
