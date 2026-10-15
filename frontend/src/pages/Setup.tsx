@@ -803,7 +803,7 @@ function TargetSummary({
   return (
     <div aria-live="polite" className="grid gap-1.5 rounded-control border-[1.5px] border-rule p-3">
       <span className="text-small text-ink-2">Your daily target</span>
-      <span className="text-field-number text-[26px]">
+      <span className="text-field-number">
         {n(preview.target_calories)} kcal · {Math.round(preview.protein_g ?? 0)} g protein
       </span>
       {preview.protein_low_g != null && preview.protein_high_g != null && (

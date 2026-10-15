@@ -16,8 +16,8 @@ import Screen from '@/ui/screen'
 function Step({ title, sum, children }: { title: string; sum: ReactNode; children: ReactNode }) {
   return (
     <Block>
-      <h2 className="text-[17px] font-bold">{title}</h2>
-      <p className="text-field-number text-[22px]">{sum}</p>
+      <h2 className="text-title">{title}</h2>
+      <p className="text-row-number">{sum}</p>
       <p className="text-small text-ink-2">{children}</p>
     </Block>
   )
@@ -145,7 +145,7 @@ function Steps({ sum, unit }: { sum: TargetSum; unit: WeightUnit }) {
           ` You chose your own: ${n(sum.ownProtein)} g. Carbs and fat fill the rest, and protein above the worked-out amount comes out of fat first.`}
       </Step>
       <Block>
-        <h2 className="text-[17px] font-bold">5. After about two weeks</h2>
+        <h2 className="text-title">5. After about two weeks</h2>
         <p>
           The formula is a starting guess. Once you have {TDEE_MIN_WEIGH_INS} weigh-ins over at least {TDEE_MIN_SPAN_DAYS} days,
           with {Math.round(TDEE_MIN_LOGGED_FRACTION * 100)}% of those days logged, the app measures your real burn from them

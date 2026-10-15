@@ -164,7 +164,7 @@ export default function WeighInCard({
             onChange={(event) => setValue(event.target.value)}
             aria-label={`Weight in ${label === 'kg' ? 'kilograms' : 'pounds'}`}
             aria-invalid={error !== null || undefined}
-            className={cn(FIELD, 'w-28 text-[19px] font-bold [font-stretch:85%] tabular-nums')}
+            className={cn(FIELD, 'w-28 text-row-number')}
           />
           <span className="text-ink-2">{label}</span>
           <Button type="submit" disabled={saving}>

@@ -8,7 +8,7 @@ import Screen from '@/ui/screen'
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Block>
-      <h2 className="text-[17px] font-bold">{title}</h2>
+      <h2 className="text-title">{title}</h2>
       {children}
     </Block>
   )
