@@ -92,7 +92,7 @@ function SavedMeals() {
     try {
       setCode((await api.shareMealTemplate(meal.id)).code)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Couldn’t make a code. Try again.')
+      setError(err instanceof Error ? err.message : "Couldn't make a code. Try again.")
     } finally {
       setBusy(false)
     }
@@ -107,7 +107,7 @@ function SavedMeals() {
       toast.show({ text: `Deleted ${meal.name}` })
       setOpen(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'That didn’t delete. Try again.')
+      setError(err instanceof Error ? err.message : "That didn't delete. Try again.")
     } finally {
       setBusy(false)
     }

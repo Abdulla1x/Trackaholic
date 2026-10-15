@@ -65,7 +65,7 @@ function Reminder() {
         </div>
       </div>
       <Explainer label="Why not a phone notification?">
-        Trackaholic runs in the browser, and a web app can’t wake your phone reliably (on phones without Google services,
+        Trackaholic runs in the browser, and a web app can't wake your phone reliably (on phones without Google services,
         not at all). So the reminder lives on Today, where you look anyway, and only while the app is open.
       </Explainer>
     </Block>

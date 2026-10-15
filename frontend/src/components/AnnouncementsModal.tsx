@@ -88,14 +88,14 @@ export default function AnnouncementsModal({
   const remaining = open ? view.remaining : 0
 
   return (
-    <Sheet open={open} onOpenChange={(next) => !next && close()} title="What’s new" desk="center">
+    <Sheet open={open} onOpenChange={(next) => !next && close()} title="What's new" desk="center">
       <div className="grid gap-4 py-2">
         <NoteList heading="h3" items={shown} />
         {remaining > 0 && (
           <p className="text-center text-small text-ink-2">
             and {remaining} older {remaining === 1 ? 'note' : 'notes'} in{' '}
             <Link to="/whats-new" onClick={close} className={LINK}>
-              What’s new
+              What's new
             </Link>
           </p>
         )}

@@ -73,11 +73,11 @@ export default function SettingsScreen({
         onCancel={() => blocker.reset?.()}
         onConfirm={() => blocker.proceed?.()}
       >
-        Your changes on this screen haven’t been saved.
+        Your changes on this screen haven't been saved.
       </AlertDialog>
       <AlertDialog
         open={rejected !== null}
-        title="That value can’t be used"
+        title="That value can't be used"
         cancel="OK"
         onCancel={() => setRejected(null)}
       >

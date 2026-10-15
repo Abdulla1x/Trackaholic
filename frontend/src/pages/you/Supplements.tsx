@@ -106,7 +106,7 @@ function Supplements() {
       toast.show({ text: done })
       if (close) setOpen(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'That didn’t save. Try again.')
+      setError(err instanceof Error ? err.message : "That didn't save. Try again.")
     } finally {
       setBusy(false)
     }
@@ -190,7 +190,7 @@ function Supplements() {
               Add a supplement
             </Button>
           </div>
-          {full && <p className="text-small text-ink-2">That’s the limit of {MAX_SUPPLEMENTS}.</p>}
+          {full && <p className="text-small text-ink-2">That's the limit of {MAX_SUPPLEMENTS}.</p>}
         </div>
       )}
 

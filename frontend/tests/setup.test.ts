@@ -60,7 +60,7 @@ test('numbers accept a decimal comma and refuse words', () => {
 })
 
 test('typos are caught on the question they were made on', () => {
-  assert.equal(weightProblem(filled({ weight: '8000' })), 'That doesn’t look right for a weight in kg. Check for a typo.')
+  assert.equal(weightProblem(filled({ weight: '8000' })), "That doesn't look right for a weight in kg. Check for a typo.")
   assert.equal(weightProblem(filled()), null)
   assert.match(heightProblem(filled({ heightCm: '18' })) ?? '', /between 100 and 272 cm/)
   // 80 lb typed as kg with 5 ft 10 typed as cm: a BMI that can't be real.

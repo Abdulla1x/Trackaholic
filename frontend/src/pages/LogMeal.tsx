@@ -449,7 +449,7 @@ export default function LogMeal() {
           sets a notice apart from the form it is about. */}
       {fromCode && (
         <p className="border-l-2 border-ink pl-3 text-small">
-          These numbers came from whoever sent the code, and the app hasn’t checked them. Change
+          These numbers came from whoever sent the code, and the app hasn't checked them. Change
           anything that looks wrong before you save.
         </p>
       )}
@@ -481,7 +481,7 @@ export default function LogMeal() {
           }}
           onClose={closeSavedMealTip}
         >
-          You’ve logged this {copyMeal.count} times before.
+          You've logged this {copyMeal.count} times before.
         </Hint>
       )}
 

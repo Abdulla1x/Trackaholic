@@ -65,7 +65,7 @@ export default function WeeklyReview() {
             : `The week to ${shortDate(end)}. `}
         {/* Only true of a week that runs up to yesterday: on a Wednesday, last
             Mon-Sun from Today's card has nothing to say about today. */}
-        {upToYesterday && 'Today is left out until it’s over.'}
+        {upToYesterday && "Today is left out until it's over."}
       </p>
 
       {failed ? (

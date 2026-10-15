@@ -29,7 +29,7 @@ export default function WhatsNew() {
 
   return (
     <div className="mx-auto grid max-w-[760px] grid-cols-[minmax(0,1fr)]">
-      <ScreenBar title="What’s new" back="/you" backLabel="Back to You" />
+      <ScreenBar title="What's new" back="/you" backLabel="Back to You" />
       <Block>
         <p className="text-small text-ink-2">
           Every release note, newest first. The pop-up only ever shows the newest few, so this

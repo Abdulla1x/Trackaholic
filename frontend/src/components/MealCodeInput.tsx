@@ -91,7 +91,7 @@ export default function MealCodeInput({
       <h3 className="text-field-label text-ink-2">Paste a meal code</h3>
       <p className="text-small text-ink-2">Paste the whole code.</p>
       <Explainer label="Will they know?">
-        Nothing is sent to whoever gave it to you, and they aren’t told you used it.
+        Nothing is sent to whoever gave it to you, and they aren't told you used it.
       </Explainer>
       <textarea
         ref={box}

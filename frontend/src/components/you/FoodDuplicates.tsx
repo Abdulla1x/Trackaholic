@@ -73,7 +73,7 @@ export default function FoodDuplicates({
       await api.deleteFood(food.id)
       onChanged()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'That didn’t delete. Try again.')
+      setError(err instanceof Error ? err.message : "That didn't delete. Try again.")
     } finally {
       setBusy(false)
     }

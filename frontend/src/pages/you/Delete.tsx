@@ -40,7 +40,7 @@ export default function DeleteScreen() {
       await deleteAccount(password)
       // AuthContext clears the user, so RequireAuth sends you to Log in.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'The account wasn’t deleted. Try again.')
+      setError(err instanceof Error ? err.message : "The account wasn't deleted. Try again.")
       setDeleting(false)
     }
   }
@@ -49,7 +49,7 @@ export default function DeleteScreen() {
     <div className={SCREEN_FRAME}>
       <ScreenBar title="Delete account" back="/you" backLabel="Back to You" />
       <Block>
-        <p className="font-bold">This deletes everything: meals, weigh-ins, foods. It can’t be undone.</p>
+        <p className="font-bold">This deletes everything: meals, weigh-ins, foods. It can't be undone.</p>
         <p className="text-small text-ink-2">
           Want a copy first?{' '}
           <button

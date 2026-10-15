@@ -97,7 +97,7 @@ function BodyForm() {
         </div>
         <Explainer label="Why does it ask?">
           The formula for your resting burn (Mifflin-St Jeor) only takes female or male. That is a limit of the formula,
-          not of you. Without it, the target isn’t worked out for you.
+          not of you. Without it, the target isn't worked out for you.
         </Explainer>
       </Block>
 
