@@ -74,7 +74,8 @@ export default function Day() {
 
       <Block label="The day in numbers" value={meals ? `${meals.length} ${meals.length === 1 ? 'meal' : 'meals'}` : undefined}>
         {error ? (
-          <Retry text={error} onRetry={load} role="alert" />
+          // No role: useLiveMessage(error) above already speaks it.
+          <Retry text={error} onRetry={load} />
         ) : !meals || !goals || !settings || !balance ? (
           <div aria-hidden="true" className="grid grid-cols-2 gap-4 py-2.5">
             {[0, 1, 2, 3].map((key) => (

@@ -10,6 +10,7 @@ import type { ReviewCheck, WeeklyReview as Review } from '../types'
 import Block, { LABEL_BOX, LABEL_TITLE } from '@/ui/block'
 import { Button } from '@/ui/button'
 import Explainer from '@/ui/explainer'
+import Retry from '@/ui/retry'
 import { cn } from '@/lib/utils'
 
 /** The weekly review, in Progress (0a: a periodic output, not a tab). The
@@ -68,16 +69,11 @@ export default function WeeklyReview() {
       </p>
 
       {failed ? (
-        <p role="alert" className="border-l-2 border-ink pl-3 text-small">
-          Couldn't load your review. Check your connection, then try again.{' '}
-          <button
-            type="button"
-            onClick={() => setAttempt((now) => now + 1)}
-            className="font-semibold underline underline-offset-3"
-          >
-            Retry
-          </button>
-        </p>
+        // No role: useLiveMessage above already speaks the failure.
+        <Retry
+          text="Couldn't load your review. Check your connection, then try again."
+          onRetry={() => setAttempt((now) => now + 1)}
+        />
       ) : !review ? (
         <p role="status" className="py-6 text-center text-small text-ink-2">
           Working it out…
