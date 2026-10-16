@@ -1,13 +1,20 @@
 #!/usr/bin/env node
 //
-// Retake every screenshot in the README, at both widths, from the running app.
+// Retake every screenshot in the README, at both widths and in both light and
+// dark, from the running app.
 //
 // The README's screenshots went stale three times before this script existed:
 // a phase moves a screen, nobody retakes the images, and the front door shows
 // a layout the app has not had for months. Taking them by hand is why -- eight
-// screens at two widths is sixteen captures, each needing an account with
-// enough data in it that no screen renders an empty state. So this seeds the
-// data, drives the app, and writes all sixteen files.
+// screens at two widths in two themes is thirty-two captures, each needing an
+// account with enough data in it that no screen renders an empty state. So
+// this seeds the data, drives the app, and writes all thirty-two files:
+//
+//   <output-dir>/{light,dark}/{desktop,mobile}/<screen>.png
+//
+// Both themes use the default look (Daylight, Fields). The README shows each
+// reader the set matching their GitHub theme, through <picture> and a
+// prefers-color-scheme source.
 //
 // Usage:
 //
@@ -57,10 +64,13 @@
 // The script asks GET /api/ai/status which of the two situations it is in:
 //
 //   * Backend configured with a GEMINI_API_KEY -> a real analysis, from the
-//     real model. This is how the committed images were taken.
+//     real model. This is how the committed images were taken. Only the FIRST
+//     capture calls the model; its answer is recorded and replayed to the
+//     other three, so all four AI images show the same estimate and a run
+//     costs one call of the free tier's daily allowance, not four.
 //   * No key -> the analyze response is intercepted and a representative one
-//     served instead, so the panel still renders and the other fifteen
-//     captures are not held hostage to a key. It says so on stdout.
+//     served instead, so the panel still renders and the other captures are
+//     not held hostage to a key. It says so on stdout.
 //
 // ---------------------------------------------------------------------------
 // Why the seed data looks the way it does. Every figure on these screens is
@@ -97,6 +107,8 @@ if (!outDir) {
 // screenshot has to show the whole screen or it misrepresents it.
 const DESKTOP = { width: 1280, height: 832 }
 const MOBILE = { width: 390, height: 844 }
+
+const THEMES = ['light', 'dark']
 
 // ---------------------------------------------------------------------------
 // API
@@ -370,27 +382,40 @@ const STAND_IN_ANALYSIS = {
   clarifying_question: null,
 }
 
-async function newContext(browser, token, seenIds, viewport, standIn) {
-  const context = await browser.newContext({ viewport, deviceScaleFactor: 2 })
+/** The analysis every AI capture shows: the stand-in, or the first real one
+ *  once it has come back. Shared across all four contexts on purpose -- see
+ *  the header. */
+let analysis = null
+
+async function newContext(browser, token, seenIds, viewport, theme) {
+  const context = await browser.newContext({ viewport, deviceScaleFactor: 2, colorScheme: theme })
+  // Stored before every load, as a real choice would be, so
+  // public/theme-init.js paints the theme from the first frame.
+  const appearance = JSON.stringify({ theme, palette: 'daylight', style: 'fields' })
   await context.addInitScript(
-    ([t, ids]) => {
+    ([t, ids, look]) => {
       localStorage.setItem('macros_token', t)
       // ⚠ The real announcement ids, not a placeholder: the modal asks only
       // whether the key EXISTS, so junk sends it down the "unseen notes"
       // branch and it covers every capture.
       localStorage.setItem('macros_seen_announcements', JSON.stringify(ids))
+      localStorage.setItem('trackaholic_appearance', look)
     },
-    [token, seenIds],
+    [token, seenIds, appearance],
   )
-  if (standIn) {
-    await context.route('**/api/ai/analyze', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(STAND_IN_ANALYSIS),
-      }),
-    )
-  }
+  await context.route('**/api/ai/analyze', async (route) => {
+    if (!analysis) {
+      // The same 90 s runAnalysis allows: route.fetch gives up after 30 s by
+      // default, and a busy model retrying takes longer than that.
+      const response = await route.fetch({ timeout: 90_000 })
+      if (!response.ok()) {
+        console.error(`  analyze answered ${response.status()}: the model is busy or out of calls; try again later`)
+        return route.fulfill({ response })
+      }
+      analysis = await response.json()
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(analysis) })
+  })
   return context
 }
 
@@ -538,8 +563,8 @@ async function capture(context, dir, kind) {
  *  tool should cost file size, not the whole run. */
 function compress(dir) {
   const keys = SHOTS.flatMap((shot) => (shot.then ? [shot.key, shot.then.key] : [shot.key]))
-  const files = keys.flatMap((key) =>
-    ['desktop', 'mobile'].map((kind) => join(dir, kind, `${key}.png`)),
+  const files = THEMES.flatMap((theme) =>
+    keys.flatMap((key) => ['desktop', 'mobile'].map((kind) => join(dir, theme, kind, `${key}.png`))),
   )
   try {
     execFileSync('pngquant', ['--quality=70-92', '--speed', '1', '--force', '--ext', '.png', ...files])
@@ -558,6 +583,7 @@ console.log(`seeded ${SEED_DAYS} days`)
 
 const status = await apiJson('/api/ai/status', { headers: { Authorization: `Bearer ${token}` } })
 const standIn = !status.body?.configured
+if (standIn) analysis = STAND_IN_ANALYSIS
 console.log(
   standIn
     ? 'no provider key on the backend — the two AI captures use a stand-in response'
@@ -570,18 +596,18 @@ const seenIds = (announcements.body?.items ?? []).map((item) => item.id)
 const chromium = await loadChromium()
 const browser = await chromium.launch({ executablePath: findExecutable() })
 
-const desktop = await newContext(browser, token, seenIds, DESKTOP, standIn)
-const desktopErrors = await capture(desktop, join(outDir, 'desktop'), 'desktop')
-await desktop.close()
-
-const mobile = await newContext(browser, token, seenIds, MOBILE, standIn)
-const mobileErrors = await capture(mobile, join(outDir, 'mobile'), 'mobile')
-await mobile.close()
+const errors = []
+for (const theme of THEMES) {
+  for (const [kind, viewport] of [['desktop', DESKTOP], ['mobile', MOBILE]]) {
+    const context = await newContext(browser, token, seenIds, viewport, theme)
+    errors.push(...(await capture(context, join(outDir, theme, kind), `${theme}/${kind}`)))
+    await context.close()
+  }
+}
 
 await browser.close()
 compress(outDir)
 
-const errors = [...desktopErrors, ...mobileErrors]
 if (errors.length) {
   console.error(`\n${errors.length} page errors:`)
   for (const error of errors) console.error(`  ${error}`)
