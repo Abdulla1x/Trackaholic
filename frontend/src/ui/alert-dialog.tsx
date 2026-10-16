@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { AlertDialog as Radix } from 'radix-ui'
 import { Button } from '@/ui/button'
 
@@ -12,6 +12,11 @@ import { Button } from '@/ui/button'
  *  Each button has its own handler and nothing listens to Radix's
  *  onOpenChange: Action closes the dialog through it too, and a router
  *  blocker must never be reset straight after it was told to proceed.
+ *
+ *  It has no Radix Trigger (it opens from state), so Radix has nowhere to put
+ *  focus back on close and it fell to <body>: a keyboard user who pressed
+ *  Cancel on "Log out?" was dropped at the top of the page. It hands focus
+ *  back to whatever had it when the dialog opened, the way ui/sheet does.
  *
  *  `confirm` omitted makes it a notice with a single button. */
 export function AlertDialog({
@@ -31,11 +36,28 @@ export function AlertDialog({
   onCancel: () => void
   onConfirm?: () => void
 }) {
+  // Read during render, before the focus trap's effect moves focus inside.
+  const opener = useRef<HTMLElement | null>(null)
+  const wasOpen = useRef(false)
+  if (open && !wasOpen.current && document.activeElement instanceof HTMLElement) {
+    opener.current = document.activeElement
+  }
+  wasOpen.current = open
+
   return (
     <Radix.Root open={open}>
       <Radix.Portal>
         <Radix.Overlay className="fixed inset-0 z-50 bg-black/45" />
-        <Radix.Content onEscapeKeyDown={onCancel} className="fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-32px)] max-w-[360px] -translate-1/2 gap-3 rounded-[8px] border border-rule bg-ground p-[18px] text-ink label:rounded-none label:border-2 label:bg-label">
+        <Radix.Content
+          onEscapeKeyDown={onCancel}
+          onCloseAutoFocus={(event) => {
+            // The opener can be gone by now: Delete on a row that no longer
+            // exists, or Log out leaving the page. Then Radix's default.
+            if (!opener.current?.isConnected) return
+            event.preventDefault()
+            opener.current.focus({ preventScroll: true })
+          }}
+          className="fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-32px)] max-w-[360px] -translate-1/2 gap-3 rounded-[8px] border border-rule bg-ground p-[18px] text-ink label:rounded-none label:border-2 label:bg-label">
           <Radix.Title className="text-[18px] font-bold">{title}</Radix.Title>
           <Radix.Description asChild>
             <div className="text-body text-ink-2">{children}</div>

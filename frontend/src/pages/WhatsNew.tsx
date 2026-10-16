@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NoteList } from '../components/AnnouncementBody'
 import ScreenBar from '../components/shell/ScreenBar'
 import { useAnnouncements } from '../hooks/useAnnouncements'
+import { useLiveMessage } from '../hooks/useLiveMessage'
 import Block from '@/ui/block'
 import Screen from '@/ui/screen'
 
@@ -12,10 +13,13 @@ import Screen from '@/ui/screen'
 // Layout's COLD_START_NOTICE_AFTER_MS: say nothing until the wait stops looking
 // normal, then say something true.
 const GAVE_UP_AFTER_MS = 8_000
+const GAVE_UP = 'Could not load the release notes just now. Try again later.'
 
 export default function WhatsNew() {
   const announcements = useAnnouncements()
   const [gaveUp, setGaveUp] = useState(false)
+  // The line replaces "Loading…" in place, which a screen reader never hears.
+  useLiveMessage(gaveUp ? GAVE_UP : null)
 
   useEffect(() => {
     if (announcements !== null) {
@@ -40,7 +44,7 @@ export default function WhatsNew() {
       <Block>
         {announcements === null ? (
           <p className="text-small text-ink-2">
-            {gaveUp ? 'Could not load the release notes just now. Try again later.' : 'Loading…'}
+            {gaveUp ? GAVE_UP : 'Loading…'}
           </p>
         ) : items.length === 0 ? (
           <p className="text-small text-ink-2">No release notes yet.</p>
