@@ -1,19 +1,30 @@
 #!/usr/bin/env node
 //
-// Retake every screenshot in the README, at both widths, from the running app.
+// Retake every screenshot in the README, at both widths and in both light and
+// dark, from the running app.
 //
 // The README's screenshots went stale three times before this script existed:
 // a phase moves a screen, nobody retakes the images, and the front door shows
 // a layout the app has not had for months. Taking them by hand is why -- eight
-// screens at two widths is sixteen captures, each needing an account with
-// enough data in it that no screen renders an empty state. So this seeds the
-// data, drives the app, and writes all sixteen files.
+// screens at two widths in two themes is thirty-two captures, each needing an
+// account with enough data in it that no screen renders an empty state. So
+// this seeds the data, drives the app, and writes all thirty-two files:
+//
+//   <output-dir>/{light,dark}/{desktop,mobile}/<screen>.png
+//
+// Both themes use the default look (Daylight, Fields). The README shows each
+// reader the set matching their GitHub theme, through <picture> and a
+// prefers-color-scheme source.
 //
 // Usage:
 //
-//   node scripts/screenshots.mjs screenshots
+//   BASE_URL=http://localhost:4173 node scripts/screenshots.mjs screenshots
 //
-// Both servers must already be running (scripts/dev.sh).
+// Both servers must already be running: the backend, and a production build
+// served by `vite preview` (cd frontend && npx vite build && npx vite preview).
+// The dev server works too, but it compiles each route on first visit, and a
+// long run against it has died part-way more than once; the preview build is
+// what the README should show anyway.
 //
 // ⚠ It signs up, DELETES and re-creates the demo account every run. Seeding is
 // additive, so re-running against a surviving account gives every day two of
@@ -53,10 +64,13 @@
 // The script asks GET /api/ai/status which of the two situations it is in:
 //
 //   * Backend configured with a GEMINI_API_KEY -> a real analysis, from the
-//     real model. This is how the committed images were taken.
+//     real model. This is how the committed images were taken. Only the FIRST
+//     capture calls the model; its answer is recorded and replayed to the
+//     other three, so all four AI images show the same estimate and a run
+//     costs one call of the free tier's daily allowance, not four.
 //   * No key -> the analyze response is intercepted and a representative one
-//     served instead, so the panel still renders and the other fifteen
-//     captures are not held hostage to a key. It says so on stdout.
+//     served instead, so the panel still renders and the other captures are
+//     not held hostage to a key. It says so on stdout.
 //
 // ---------------------------------------------------------------------------
 // Why the seed data looks the way it does. Every figure on these screens is
@@ -93,6 +107,8 @@ if (!outDir) {
 // screenshot has to show the whole screen or it misrepresents it.
 const DESKTOP = { width: 1280, height: 832 }
 const MOBILE = { width: 390, height: 844 }
+
+const THEMES = ['light', 'dark']
 
 // ---------------------------------------------------------------------------
 // API
@@ -263,7 +279,11 @@ async function seed(token) {
       const noise = [0, 0.28, -0.19, 0.12, -0.3, 0.22, -0.08][day % 7]
       await post('/api/weights', { date, weight_kg: Number((82.9 + drift + noise).toFixed(1)) })
     }
-    for (const ml of [350, 500, 500, 400, day % 3 === 0 ? 500 : 250]) {
+    // 3,000 ml most days and 2,750 every third, against the ~2,900 ml goal
+    // the app derives from the weigh-ins (35 ml/kg): the review's water check
+    // then reports most days met. Below the goal every day, it read "0 of 7"
+    // and put an off-target check on every screen that summarises the week.
+    for (const ml of [500, 750, 500, 750, day % 3 === 0 ? 250 : 500]) {
       await post('/api/water', { date, ml })
     }
     await post('/api/steps', { date, steps: [11240, 8630, 13010, 6420, 9870, 12360, 7180][day % 7] })
@@ -362,27 +382,40 @@ const STAND_IN_ANALYSIS = {
   clarifying_question: null,
 }
 
-async function newContext(browser, token, seenIds, viewport, standIn) {
-  const context = await browser.newContext({ viewport, deviceScaleFactor: 2 })
+/** The analysis every AI capture shows: the stand-in, or the first real one
+ *  once it has come back. Shared across all four contexts on purpose -- see
+ *  the header. */
+let analysis = null
+
+async function newContext(browser, token, seenIds, viewport, theme) {
+  const context = await browser.newContext({ viewport, deviceScaleFactor: 2, colorScheme: theme })
+  // Stored before every load, as a real choice would be, so
+  // public/theme-init.js paints the theme from the first frame.
+  const appearance = JSON.stringify({ theme, palette: 'daylight', style: 'fields' })
   await context.addInitScript(
-    ([t, ids]) => {
+    ([t, ids, look]) => {
       localStorage.setItem('macros_token', t)
       // ⚠ The real announcement ids, not a placeholder: the modal asks only
       // whether the key EXISTS, so junk sends it down the "unseen notes"
       // branch and it covers every capture.
       localStorage.setItem('macros_seen_announcements', JSON.stringify(ids))
+      localStorage.setItem('trackaholic_appearance', look)
     },
-    [token, seenIds],
+    [token, seenIds, appearance],
   )
-  if (standIn) {
-    await context.route('**/api/ai/analyze', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(STAND_IN_ANALYSIS),
-      }),
-    )
-  }
+  await context.route('**/api/ai/analyze', async (route) => {
+    if (!analysis) {
+      // The same 90 s runAnalysis allows: route.fetch gives up after 30 s by
+      // default, and a busy model retrying takes longer than that.
+      const response = await route.fetch({ timeout: 90_000 })
+      if (!response.ok()) {
+        console.error(`  analyze answered ${response.status()}: the model is busy or out of calls; try again later`)
+        return route.fulfill({ response })
+      }
+      analysis = await response.json()
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(analysis) })
+  })
   return context
 }
 
@@ -396,44 +429,39 @@ async function settle(page) {
 const AI_NOTE =
   'Grilled chicken breast, about 165 g, with a cup of basmati rice and a side salad with olive oil'
 
-/** MealAnalyzer seeds `expanded` from the note draft in sessionStorage, so on a
- *  second visit the panel is ALREADY open and clicking the toggle would close
- *  it. Read the state, then act. */
-async function ensureAnalyzerOpen(page) {
-  const toggle = page.locator('button:has-text("Estimate macros with AI")')
-  await page.waitForTimeout(300)
-  if ((await toggle.count()) > 0) {
-    await toggle.click()
-    await page.waitForLoadState('networkidle')
-  }
-}
+/** The Log panel is a dialog over the page, opened by `?log` in the address
+ *  (see frontend/src/components/log/logPanelUrl.ts), so every Log shot loads
+ *  it directly rather than clicking the Log button first. */
+const panel = (page) => page.getByRole('dialog')
 
 async function runAnalysis(page) {
-  await ensureAnalyzerOpen(page)
-  await page.fill('textarea', AI_NOTE)
-  await page.click('button:has-text("Analyze")')
+  await panel(page).getByRole('textbox', { name: /Describe it/ }).fill(AI_NOTE)
+  await panel(page).getByRole('button', { name: 'Estimate', exact: true }).click()
   // A real provider call retries a busy model for up to its deadline.
-  await page.waitForSelector('button:has-text("Use these ingredients")', { timeout: 90_000 })
+  await panel(page)
+    .getByRole('region', { name: 'Estimate', exact: true })
+    .waitFor({ timeout: 90_000 })
 }
 
+// Each shot gets a page of its own. The note draft lives in sessionStorage,
+// which is per tab, so a fresh page is what keeps the AI note out of the Log
+// shot that comes before it -- the old script cleared storage by hand and
+// still had to work out whether a panel was already open.
 const SHOTS = [
-  { key: 'dashboard', route: '/' },
+  { key: 'today', route: '/' },
   {
     key: 'log-meal',
-    route: '/log',
-    // The AI panel must be COLLAPSED here, and an earlier capture leaves a note
-    // draft behind that opens it. Clear it, then load the page again.
-    async before(page) {
-      await page.evaluate(() => sessionStorage.clear())
-    },
+    route: '/?log=hand',
+    dialog: true,
     async prep(page) {
-      await page.fill('input[placeholder="Type a food name…"]', 'Chick')
+      await panel(page).getByRole('combobox', { name: 'Food name' }).first().fill('Chick')
       await page.waitForTimeout(900)
     },
   },
   {
     key: 'ai-analysis',
-    route: '/log',
+    route: '/?log',
+    dialog: true,
     async prep(page) {
       await runAnalysis(page)
       await page.waitForTimeout(600)
@@ -446,17 +474,16 @@ const SHOTS = [
     then: {
       key: 'ai-applied',
       async prep(page) {
-        await page.click('button:has-text("Use these ingredients")')
+        await panel(page).getByRole('button', { name: 'Check and edit first' }).click()
+        await panel(page).getByRole('combobox', { name: 'Food name' }).first().waitFor()
         await page.waitForTimeout(900)
-        await page.locator('input[placeholder="Type a food name…"]').first().scrollIntoViewIfNeeded()
-        await page.waitForTimeout(400)
       },
     },
   },
-  { key: 'weight', route: '/progress/weigh-ins' },
-  { key: 'analytics', route: '/progress' },
+  { key: 'target', route: '/how-it-works/target' },
+  { key: 'progress', route: '/progress' },
   { key: 'review', route: '/progress/review' },
-  { key: 'settings', route: '/you' },
+  { key: 'you', route: '/you' },
 ]
 
 
@@ -475,43 +502,60 @@ const SHOTS = [
  *  The height is re-measured after the resize because the reflow can change it
  *  -- a narrower scrollbar, a chart that re-lays-out -- and settles in one or
  *  two passes. */
-async function captureWholePage(page, path) {
+async function captureWholePage(page, path, dialog) {
   const viewport = page.viewportSize()
-  let height = 0
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const measured = await page.evaluate(() => document.documentElement.scrollHeight)
-    if (measured === height) break
-    height = measured
+  let height = viewport.height
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const needed = await page.evaluate(dialog ? dialogHeightNeeded : () => document.documentElement.scrollHeight)
+    if (Math.abs(needed - height) <= 1) break
+    height = needed
     await page.setViewportSize({ width: viewport.width, height })
     // recharts re-measures on resize and animates into the new size.
     await page.waitForTimeout(1200)
   }
+  // Off every control: the pointer stays where the last click put it, and a
+  // hovered number field shows its spinner in the capture.
+  await page.mouse.move(0, 0)
   await page.screenshot({ path })
   await page.setViewportSize(viewport)
 }
 
+/** The viewport height at which the open Log panel shows all of its content.
+ *
+ *  The panel is fixed, so the document's height says nothing about it: what
+ *  overflows is the panel's own scrolling body. The panel is a share of the
+ *  viewport (92dvh as a phone sheet, the full height on desktop), so its
+ *  overflow is divided by that share to give the viewport growth it needs.
+ *  The page underneath is cut at the viewport, which is what it looks like
+ *  behind an open sheet. Runs in the page. */
+function dialogHeightNeeded() {
+  const dialog = document.querySelector('[role="dialog"]')
+  const body = [...dialog.querySelectorAll('*')].find(
+    (el) => getComputedStyle(el).overflowY === 'auto',
+  )
+  const overflow = body.scrollHeight - body.clientHeight
+  const share = dialog.getBoundingClientRect().height / window.innerHeight
+  return Math.ceil(window.innerHeight + overflow / share)
+}
+
 async function capture(context, dir, kind) {
   await mkdir(dir, { recursive: true })
-  const page = await context.newPage()
   const errors = []
-  page.on('pageerror', (error) => errors.push(`${kind}: ${error}`))
   for (const shot of SHOTS) {
-    if (shot.before) {
-      await page.goto(`${BASE_URL}${shot.route}`, { waitUntil: 'domcontentloaded' })
-      await shot.before(page)
-    }
+    const page = await context.newPage()
+    page.on('pageerror', (error) => errors.push(`${kind}: ${error}`))
     await page.goto(`${BASE_URL}${shot.route}`, { waitUntil: 'domcontentloaded' })
     await settle(page)
     if (shot.prep) await shot.prep(page)
-    await captureWholePage(page, join(dir, `${shot.key}.png`))
+    await captureWholePage(page, join(dir, `${shot.key}.png`), shot.dialog)
     console.log(`  ${kind}/${shot.key}.png`)
     if (shot.then) {
       await shot.then.prep(page)
-      await captureWholePage(page, join(dir, `${shot.then.key}.png`))
+      await captureWholePage(page, join(dir, `${shot.then.key}.png`), shot.dialog)
       console.log(`  ${kind}/${shot.then.key}.png`)
     }
+    await page.close()
   }
-  await page.close()
   return errors
 }
 
@@ -519,8 +563,8 @@ async function capture(context, dir, kind) {
  *  tool should cost file size, not the whole run. */
 function compress(dir) {
   const keys = SHOTS.flatMap((shot) => (shot.then ? [shot.key, shot.then.key] : [shot.key]))
-  const files = keys.flatMap((key) =>
-    ['desktop', 'mobile'].map((kind) => join(dir, kind, `${key}.png`)),
+  const files = THEMES.flatMap((theme) =>
+    keys.flatMap((key) => ['desktop', 'mobile'].map((kind) => join(dir, theme, kind, `${key}.png`))),
   )
   try {
     execFileSync('pngquant', ['--quality=70-92', '--speed', '1', '--force', '--ext', '.png', ...files])
@@ -539,6 +583,7 @@ console.log(`seeded ${SEED_DAYS} days`)
 
 const status = await apiJson('/api/ai/status', { headers: { Authorization: `Bearer ${token}` } })
 const standIn = !status.body?.configured
+if (standIn) analysis = STAND_IN_ANALYSIS
 console.log(
   standIn
     ? 'no provider key on the backend — the two AI captures use a stand-in response'
@@ -551,18 +596,18 @@ const seenIds = (announcements.body?.items ?? []).map((item) => item.id)
 const chromium = await loadChromium()
 const browser = await chromium.launch({ executablePath: findExecutable() })
 
-const desktop = await newContext(browser, token, seenIds, DESKTOP, standIn)
-const desktopErrors = await capture(desktop, join(outDir, 'desktop'), 'desktop')
-await desktop.close()
-
-const mobile = await newContext(browser, token, seenIds, MOBILE, standIn)
-const mobileErrors = await capture(mobile, join(outDir, 'mobile'), 'mobile')
-await mobile.close()
+const errors = []
+for (const theme of THEMES) {
+  for (const [kind, viewport] of [['desktop', DESKTOP], ['mobile', MOBILE]]) {
+    const context = await newContext(browser, token, seenIds, viewport, theme)
+    errors.push(...(await capture(context, join(outDir, theme, kind), `${theme}/${kind}`)))
+    await context.close()
+  }
+}
 
 await browser.close()
 compress(outDir)
 
-const errors = [...desktopErrors, ...mobileErrors]
 if (errors.length) {
   console.error(`\n${errors.length} page errors:`)
   for (const error of errors) console.error(`  ${error}`)

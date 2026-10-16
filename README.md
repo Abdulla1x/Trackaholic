@@ -177,76 +177,76 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 
 ## 📸 Screenshots
 
-Every screen at both widths. Each image is one long capture of the **entire page**, top to bottom — not the part that happens to fit above the fold.
+Every screen at both widths, in light or dark to match your GitHub theme. Each image is one long capture of the **entire page**, top to bottom — not the part that happens to fit above the fold.
 
 > 🔍 **Click any screenshot to open it full size.**
 > Because each one is a whole page, it is scaled down to fit here and runs past the bottom of your screen. What you can see without scrolling is not the end of it.
 
-### Dashboard
+### Today
 
-Rings against your goals, then today's meals — the two things the page exists for, both on the first screen. The saved-meal and recently-logged shortcuts fold away above them, and the three daily trackers and the seven-day trend follow below.
+What's left of today's calories, protein, carbs and fat, then the meals you've logged. Below them: the week's review when it's ready, and the trackers you chose — weigh-in, water, steps, supplements.
 
 <table>
 <tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
 <tr>
-<td valign="top" align="center"><a href="screenshots/desktop/dashboard.png"><img src="screenshots/desktop/dashboard.png" alt="Dashboard in a desktop browser" width="620"></a></td>
-<td valign="top" align="center"><a href="screenshots/mobile/dashboard.png"><img src="screenshots/mobile/dashboard.png" alt="Dashboard on a phone" width="190"></a></td>
+<td valign="top" align="center"><a href="screenshots/light/desktop/today.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/today.png"><img src="screenshots/light/desktop/today.png" alt="Today in a desktop browser" width="620"></picture></a></td>
+<td valign="top" align="center"><a href="screenshots/light/mobile/today.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/today.png"><img src="screenshots/light/mobile/today.png" alt="Today on a phone" width="190"></picture></a></td>
 </tr>
 </table>
 
 <sub>Whole page, scaled down — click either image to view it full size.</sub>
 
-### AI meal analysis
+### Estimate a meal with AI
 
-Describe it, speak it or photograph it. The estimate comes back as a range with a confidence badge, per-ingredient confidence dots, every assumption listed and editable, and a one-tap save to your library for any ingredient you have not got saved yet.
+Log is a panel over whatever you're looking at. Describe the meal, speak it or photograph it. The estimate comes back as a range with how sure it is, each ingredient with its own confidence, and every assumption listed so you can correct it in your note. Save it in one tap, or check it first.
 
 <table>
 <tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
 <tr>
-<td valign="top" align="center"><a href="screenshots/desktop/ai-analysis.png"><img src="screenshots/desktop/ai-analysis.png" alt="AI meal analysis in a desktop browser" width="620"></a></td>
-<td valign="top" align="center"><a href="screenshots/mobile/ai-analysis.png"><img src="screenshots/mobile/ai-analysis.png" alt="AI meal analysis on a phone" width="190"></a></td>
+<td valign="top" align="center"><a href="screenshots/light/desktop/ai-analysis.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/ai-analysis.png"><img src="screenshots/light/desktop/ai-analysis.png" alt="An AI estimate in the Log panel in a desktop browser" width="620"></picture></a></td>
+<td valign="top" align="center"><a href="screenshots/light/mobile/ai-analysis.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/ai-analysis.png"><img src="screenshots/light/mobile/ai-analysis.png" alt="An AI estimate in the Log panel on a phone" width="190"></picture></a></td>
 </tr>
 </table>
 
 <sub>Whole page, scaled down — click either image to view it full size.</sub>
 
-### The estimate fills the meal editor
+### Check and edit first
 
-Nothing is saved until you have looked at it. Ingredients arrive as ordinary rows you can correct first.
+Nothing is saved until you've looked at it. The ingredients arrive as ordinary rows you can correct, and any of them can go into your food library for next time.
 
 <table>
 <tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
 <tr>
-<td valign="top" align="center"><a href="screenshots/desktop/ai-applied.png"><img src="screenshots/desktop/ai-applied.png" alt="The estimate fills the meal editor in a desktop browser" width="620"></a></td>
-<td valign="top" align="center"><a href="screenshots/mobile/ai-applied.png"><img src="screenshots/mobile/ai-applied.png" alt="The estimate fills the meal editor on a phone" width="190"></a></td>
+<td valign="top" align="center"><a href="screenshots/light/desktop/ai-applied.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/ai-applied.png"><img src="screenshots/light/desktop/ai-applied.png" alt="The estimate as editable ingredients in a desktop browser" width="620"></picture></a></td>
+<td valign="top" align="center"><a href="screenshots/light/mobile/ai-applied.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/ai-applied.png"><img src="screenshots/light/mobile/ai-applied.png" alt="The estimate as editable ingredients on a phone" width="190"></picture></a></td>
 </tr>
 </table>
 
 <sub>Whole page, scaled down — click either image to view it full size.</sub>
 
-### Log a meal
+### Enter it by hand
 
 Type an ingredient and your food library fills in the macros, with generic foods from the national food tables listed under it as you type, and an Open Food Facts lookup for packaged products.
 
 <table>
 <tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
 <tr>
-<td valign="top" align="center"><a href="screenshots/desktop/log-meal.png"><img src="screenshots/desktop/log-meal.png" alt="Log a meal in a desktop browser" width="620"></a></td>
-<td valign="top" align="center"><a href="screenshots/mobile/log-meal.png"><img src="screenshots/mobile/log-meal.png" alt="Log a meal on a phone" width="190"></a></td>
+<td valign="top" align="center"><a href="screenshots/light/desktop/log-meal.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/log-meal.png"><img src="screenshots/light/desktop/log-meal.png" alt="Entering a meal by hand in a desktop browser" width="620"></picture></a></td>
+<td valign="top" align="center"><a href="screenshots/light/mobile/log-meal.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/log-meal.png"><img src="screenshots/light/mobile/log-meal.png" alt="Entering a meal by hand on a phone" width="190"></picture></a></td>
 </tr>
 </table>
 
 <sub>Whole page, scaled down — click either image to view it full size.</sub>
 
-### Weight
+### Progress
 
-The trend line rather than the daily noise, with the weekly rate fitted over 28 days and a goal weight projected from that measured rate. The chart zooms from a week to everything; the two figures under it are measured over their own windows and deliberately do not move when it does.
+Weight as a trend line rather than daily noise, with the weekly rate and when you'll reach your goal at that rate. Then calories and each macro per day, and the daily burn measured from your own weigh-ins and logging.
 
 <table>
 <tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
 <tr>
-<td valign="top" align="center"><a href="screenshots/desktop/weight.png"><img src="screenshots/desktop/weight.png" alt="Weight in a desktop browser" width="620"></a></td>
-<td valign="top" align="center"><a href="screenshots/mobile/weight.png"><img src="screenshots/mobile/weight.png" alt="Weight on a phone" width="190"></a></td>
+<td valign="top" align="center"><a href="screenshots/light/desktop/progress.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/progress.png"><img src="screenshots/light/desktop/progress.png" alt="Progress in a desktop browser" width="620"></picture></a></td>
+<td valign="top" align="center"><a href="screenshots/light/mobile/progress.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/progress.png"><img src="screenshots/light/mobile/progress.png" alt="Progress on a phone" width="190"></picture></a></td>
 </tr>
 </table>
 
@@ -254,41 +254,41 @@ The trend line rather than the daily noise, with the weekly rate fitted over 28 
 
 ### Weekly review
 
-Eight computed checks. Each one names the number, what it is compared with, and how many days it was worked out from.
+A computed check for each thing you track. Each one names the number, what it's compared with, and how many days it was worked out from. The AI can put them into words, without adding numbers of its own.
 
 <table>
 <tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
 <tr>
-<td valign="top" align="center"><a href="screenshots/desktop/review.png"><img src="screenshots/desktop/review.png" alt="Weekly review in a desktop browser" width="620"></a></td>
-<td valign="top" align="center"><a href="screenshots/mobile/review.png"><img src="screenshots/mobile/review.png" alt="Weekly review on a phone" width="190"></a></td>
+<td valign="top" align="center"><a href="screenshots/light/desktop/review.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/review.png"><img src="screenshots/light/desktop/review.png" alt="Weekly review in a desktop browser" width="620"></picture></a></td>
+<td valign="top" align="center"><a href="screenshots/light/mobile/review.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/review.png"><img src="screenshots/light/mobile/review.png" alt="Weekly review on a phone" width="190"></picture></a></td>
 </tr>
 </table>
 
 <sub>Whole page, scaled down — click either image to view it full size.</sub>
 
-### Analytics
+### How your target is worked out
 
-Any date range: totals, per-day averages over the days you actually logged, and a chart per macro.
+Every step from your body to your daily target, with the arithmetic shown and the sources listed. Once there's enough data, the measured burn replaces the formula's guess.
 
 <table>
 <tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
 <tr>
-<td valign="top" align="center"><a href="screenshots/desktop/analytics.png"><img src="screenshots/desktop/analytics.png" alt="Analytics in a desktop browser" width="620"></a></td>
-<td valign="top" align="center"><a href="screenshots/mobile/analytics.png"><img src="screenshots/mobile/analytics.png" alt="Analytics on a phone" width="190"></a></td>
+<td valign="top" align="center"><a href="screenshots/light/desktop/target.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/target.png"><img src="screenshots/light/desktop/target.png" alt="How the target is worked out in a desktop browser" width="620"></picture></a></td>
+<td valign="top" align="center"><a href="screenshots/light/mobile/target.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/target.png"><img src="screenshots/light/mobile/target.png" alt="How the target is worked out on a phone" width="190"></picture></a></td>
 </tr>
 </table>
 
 <sub>Whole page, scaled down — click either image to view it full size.</sub>
 
-### Settings
+### You
 
-Five tabs, each with its own address, and a save bar that follows you between them.
+Targets, body and goal weight, trackers, your food library and saved meals, appearance, and your data, all on one page, each a tap away.
 
 <table>
 <tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
 <tr>
-<td valign="top" align="center"><a href="screenshots/desktop/settings.png"><img src="screenshots/desktop/settings.png" alt="Settings in a desktop browser" width="620"></a></td>
-<td valign="top" align="center"><a href="screenshots/mobile/settings.png"><img src="screenshots/mobile/settings.png" alt="Settings on a phone" width="190"></a></td>
+<td valign="top" align="center"><a href="screenshots/light/desktop/you.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/you.png"><img src="screenshots/light/desktop/you.png" alt="You in a desktop browser" width="620"></picture></a></td>
+<td valign="top" align="center"><a href="screenshots/light/mobile/you.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/you.png"><img src="screenshots/light/mobile/you.png" alt="You on a phone" width="190"></picture></a></td>
 </tr>
 </table>
 
@@ -452,7 +452,7 @@ Trackaholic
 │                                #   the photo-size A/B note, and the goal-setting rules
 ├── scripts/                     # check.sh (all six gates), dev.sh, review-changes.sh,
 │                                #   dom-snapshot.mjs (the refactor DOM-diff harness)
-├── screenshots/                 # desktop/ and mobile/ captures used by this README
+├── screenshots/                 # light/ and dark/, each desktop/ + mobile/, used by this README
 ├── .github/workflows/           # ci.yml (the same six gates), backup.yml (daily export)
 ├── .github/pull_request_template.md  # asks contributors to agree to CONTRIBUTING.md
 ├── legacy/                      # original Streamlit app (v1)
