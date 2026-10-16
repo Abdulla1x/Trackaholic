@@ -41,7 +41,7 @@
 // frontend started by hand).
 //
 // ⚠ Start the backend with ADMIN_EMAILS set to the account's address, or /admin
-// renders "Not found." instead of its two charts -- two of the five charts in
+// renders the 404 page instead of its two charts -- two of the five charts in
 // the app, silently missing from whatever the caller is measuring.
 //
 // ---------------------------------------------------------------------------
