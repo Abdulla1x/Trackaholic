@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../api/client'
+import { useLiveMessage } from '../../hooks/useLiveMessage'
 import { per100gSummary } from '../../lib/foodDensity'
 import { livePairs, readDismissed, writeDismissed } from '../../lib/foodDuplicates'
 import { SOURCE_NAME } from '../../lib/foodSources'
@@ -39,6 +40,7 @@ export default function FoodDuplicates({
   const [deleting, setDeleting] = useState<Food | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  useLiveMessage(error)
 
   // Refetched whenever the library changes identity, which the screen does on
   // every save and delete. An edit can make a pair stop being a duplicate, and
@@ -120,6 +122,7 @@ export default function FoodDuplicates({
           <p className="text-small text-ink-2">
             Each pair per 100 g, so they can be compared. Keep whichever is right, or keep both.
           </p>
+          {/* No role: useLiveMessage(error) already speaks it. */}
           {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
           {visible.map(({ key, a, b }) => (
             <section key={key} aria-label={`${a.name} and ${b.name}`} className="grid gap-2 border-t border-rule pt-3">
