@@ -28,7 +28,7 @@ export default function NotFound() {
         reporting. If you typed the address, check it for a typo.
       </p>
       <Button asChild>
-        <Link to="/">Back to the dashboard</Link>
+        <Link to="/">Back to Today</Link>
       </Button>
     </div>
   )
