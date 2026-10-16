@@ -8,6 +8,7 @@ from ..calculations import (
     KCAL_PER_G_CARB,
     KCAL_PER_G_FAT,
     KCAL_PER_G_PROTEIN,
+    MIN_FAT_G_PER_KG,
     max_protein_g,
 )
 from ..db import get_db
@@ -167,13 +168,17 @@ def _refuse_protein_that_does_not_fit(result: TargetsResult) -> None:
     """Typed protein that, with fat at its minimum, needs more than the
     worked-out calories. The caller decides when this applies."""
     protein = result.protein_g
+    protein_kcal = round(protein * KCAL_PER_G_PROTEIN)
+    # Shown in the sum, because protein's own kcal can be under the target
+    # and the refusal then reads as a contradiction.
+    fat_kcal = round(MIN_FAT_G_PER_KG * result.protein_reference_kg * KCAL_PER_G_FAT)
     raise HTTPException(
         status_code=422,
         detail=(
-            f"Protein at {round(protein):,} g needs "
-            f"{round(protein * KCAL_PER_G_PROTEIN):,} kcal. With fat at its "
-            f"minimum, that's more than your {round(result.target_calories):,} "
-            f"kcal target. Lower it to "
+            f"Protein at {round(protein):,} g ({protein_kcal:,} kcal) plus fat "
+            f"at its minimum ({fat_kcal:,} kcal) comes to "
+            f"{protein_kcal + fat_kcal:,} kcal, more than your "
+            f"{round(result.target_calories):,} kcal target. Lower it to "
             f"{max_protein_g(result.target_calories, result.protein_reference_kg):,} "
             f"g or less."
         ),
