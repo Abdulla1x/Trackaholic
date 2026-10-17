@@ -14,4 +14,11 @@ router = APIRouter(prefix="/api/announcements", tags=["announcements"])
 
 @router.get("", response_model=AnnouncementsResponse)
 def list_announcements():
-    return AnnouncementsResponse(banner=status_banner(), items=ANNOUNCEMENTS)
+    # Quiet notes are kept out of `items` rather than flagged inside it: an
+    # installed app still running an older build reads every item as a pop-up
+    # candidate, and such a build can stay in use for several opens.
+    return AnnouncementsResponse(
+        banner=status_banner(),
+        items=[note for note in ANNOUNCEMENTS if note.popup],
+        quiet=[note for note in ANNOUNCEMENTS if not note.popup],
+    )
