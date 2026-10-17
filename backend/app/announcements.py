@@ -27,7 +27,35 @@ STATUS_BANNER_ENV = "STATUS_BANNER"
 # the one to mark as seen". That has not been true for a long time — closing the
 # pop-up marks every unseen id, which is deliberate and is what stops a capped
 # pop-up becoming a dismiss-three-reload-repeat gauntlet.
+#
+# `popup=False` lists a note on What's new without ever popping it up. The
+# redesign's note is one: accounts from before it were already asked about it
+# by "The new Trackaholic" when they first opened Today.
 ANNOUNCEMENTS: list[Announcement] = [
+    Announcement(
+        id="2026-10-17-redesign",
+        date="2026-10-17",
+        title="Trackaholic, redesigned",
+        body=(
+            "**The whole app has been redesigned.** Three places instead of "
+            "six tabs: Today for the day you're logging, Progress for your "
+            "weight, food and weekly review, and You for your targets, "
+            "trackers and settings. Log sits in the middle on a phone and "
+            "opens over whichever page you're on.\n\n"
+            "**Make it yours.** Light or dark, or following your phone, in a "
+            "choice of colours, or Label, which draws every screen like the "
+            "label on a food pack. It's kept per device, in You, Appearance.\n\n"
+            "**Nothing was lost.** Your meals, foods, weigh-ins and settings "
+            "are where you left them. If the app on your home screen still "
+            "looks the same, close it fully and open it again: it can take a "
+            "few opens to update.\n\n"
+            "**Also new.** You can type your own protein while the calories "
+            "stay worked out, a few one-line tips point at things that are "
+            "easy to miss, and How Trackaholic works, in You, Help, explains "
+            "the rest."
+        ),
+        popup=False,
+    ),
     Announcement(
         id="2026-10-06-trackaholic",
         date="2026-10-06",

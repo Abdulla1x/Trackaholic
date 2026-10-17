@@ -1358,13 +1358,18 @@ class Announcement(BaseModel):
     date: date_type
     title: str
     body: str
+    # False keeps a note off the pop-up: it is listed on What's new only. Not
+    # sent to the client; the endpoint serves such notes under `quiet` instead.
+    popup: bool = Field(default=True, exclude=True)
 
 
 class AnnouncementsResponse(BaseModel):
     # `banner` is a live status/outage notice (env-driven, usually null);
-    # `items` are the committed release notes, newest first.
+    # `items` are the release notes the pop-up may show, newest first;
+    # `quiet` are the ones only What's new lists, newest first.
     banner: str | None = None
     items: list[Announcement]
+    quiet: list[Announcement] = []
 
 
 # --- Admin metrics -----------------------------------------------------------

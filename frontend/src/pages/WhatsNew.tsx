@@ -30,7 +30,11 @@ export default function WhatsNew() {
     return () => clearTimeout(timer)
   }, [announcements])
 
-  const items = announcements?.items ?? []
+  // Every note, the quiet ones too, back in date order. Dates are ISO, so
+  // they sort as strings; the sort is stable, so a day's notes keep their order.
+  const items = [...(announcements?.items ?? []), ...(announcements?.quiet ?? [])].sort((a, b) =>
+    b.date.localeCompare(a.date),
+  )
 
   return (
     <Screen>

@@ -10,7 +10,7 @@ import { CLOCK, dayDate, localIsoDate, parseIsoDate } from './dates.ts'
  *  an invented number, and DESIGN.md forbids those.
  *
  *  `target_set` missing means the response came from an API older than first
- *  use (the live one, until the revamp ships). Those accounts count as set,
+ *  use (the one live before the redesign shipped). Those accounts count as set,
  *  so nothing changes for them. */
 export function targetIsSet(settings: Pick<Settings, 'target_set'>): boolean {
   return settings.target_set !== false

@@ -60,7 +60,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **The day in detail**, one tap on the calories: eaten, target, left or over, and each macro against its goal, plus the way into calorie planning
 - **Meals open their own screen.** Each row is one large target with the time you logged it, the name, the macros you track and the kcal. The meal's screen has **Edit**, **Log it again** (a copy on today), **Share as a code**, **Keep as a saved meal** and **Delete**
 - **Delete with ten seconds to undo.** The meal's line is struck through in its own place, with Undo and a bar draining over ten seconds, and it leaves your totals at once. Nothing is sent to the server until the ten seconds are up, so Undo brings back exactly the meal you had, not a copy; leaving Today or switching apps sends it at once, so a deletion you walked away from still happens
-- **The logged time, only where it is honest.** The app records when a meal was logged, not when it was eaten, so the time shows only beside meals logged on the day they were eaten. It can be switched off in You → Appearance
+- **The logged time, only where it is honest.** The app records when a meal was logged, not when it was eaten, so the time shows only beside meals logged on the day they were eaten. Every name starts at the same place whether or not a time sits beside it. It can be switched off in You → Appearance
 - **Weigh in from Today.** A card with your latest weight prefilled, in kg or lb; once saved, it shows the weight with Edit. It carries the optional weigh-in reminder (below), and says when an automatic target is waiting for a weigh-in (none in 90 days)
 - **Your target moved, and why.** An automatic target changes a little with every weigh-in, which needs no comment. When something named moves it — your burn becoming measured, reaching your goal weight, or a limit starting or stopping deciding it — one line under the calories says so, with the numbers
 - **Water tracker** with configurable quick-add buttons and a goal derived from your trend weight — with the arithmetic one tap away, under "How is this worked out?", rather than always on the card
@@ -162,16 +162,18 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **Retention is frozen, not derived.** Every other figure on the page recounts the accounts that exist right now, so deleting one rewrites the past — which would make D7/D30 read *higher* the more people quit. A daily snapshot row carrying no `user_id` freezes each finished day instead, so a cohort's size is fixed while it was still whole and churn counts against retention rather than vanishing from it. A cohort still inside its window counts as nothing rather than as zero
 - **Signups are bucketed by local hour against the keep-warm window**, which is the only way to tell whether someone's first request met a sleeping free instance and a ~52 s cold start
 - **Feature adoption by distinct account** — how many people have *ever* used water, steps, supplements, plans, the library or AI. Worth as much for what it says to remove as for what it says to build
+- **Invisible to everyone else.** An account that isn't on the allowlist gets the same 404 page at `/admin` as at any wrong address, so the page doesn't give away that it exists
 - Still counts and dates only: no meal, food, weight or supplement content ever reaches the page, and the snapshot table holds nothing that belongs to a person
 
 ### ♿ Accessibility
 - **The food search works without a mouse.** Typing a name used to bring up a list of matches that arrow keys could not reach and Escape could not dismiss. It is a proper combobox: arrows move through the suggestions, Enter picks one, Escape closes it
 - **Every focused control shows a ring, text fields included.** Fields used to replace the focus ring with a 1 px border colour change, which misses the 3:1 contrast a focus indicator needs
 - **Everything the app tells you reaches a screen reader.** A save that failed, an import that was rejected, a password that changed — all of it used to appear as coloured text and be announced nowhere. Every one of those messages is now spoken
+- **Closing a dialog puts you back where you were.** Cancelling "Log out?", a delete or "Leave without saving?" used to drop keyboard focus at the top of the page; it now returns to the button that opened the dialog
 - **Icon-only buttons say what they do and which row they belong to** — a list of thirty weigh-ins no longer offers thirty controls all called the same thing
-- **Big enough to hit.** Each meal on Today is one 56 px row instead of three 12 px glyphs, and every control on the rebuilt Today and its screens clears WCAG 2.2's 24 px target size, checked with axe's 2.2 rules as well as the 2.1 ones
+- **Big enough to hit.** Each meal on Today is one 56 px row instead of three 12 px glyphs, and every control clears WCAG 2.2's 24 px target size: at 360 px the audit checks 456 of them across the signed-in screens and passes them all
 - Tables that scroll sideways on a phone are reachable with Tab, links inside a sentence are underlined rather than told apart by colour alone, and every colour pair clears WCAG AA contrast
-- **Measured, not asserted.** `scripts/a11y-audit.mjs` drives the real app through axe-core across all 37 routes at 360 px and 1280 px. It reports **zero WCAG 2.1 A/AA violations** — and the script's own header says why that number is a floor rather than a claim: an automated pass cannot see a wrong label, and three of the four real defects it found were ones a hand-written checklist had missed
+- **Measured, not asserted.** `scripts/a11y-audit.mjs` drives the real app through axe-core across all 37 routes at 360 px and 1280 px. It reports **zero WCAG 2.2 A/AA violations**, 2.1's rules included, — and the script's own header says why that number is a floor rather than a claim: an automated pass cannot see a wrong label, and three of the four real defects it found were ones a hand-written checklist had missed
 
 ---
 
@@ -410,7 +412,7 @@ Trackaholic
 │       ├── appearance/          # AppearanceContext — this device's theme, style and palette
 │       ├── analysis/            # AnalysisContext — the AI estimate, held for the whole session
 │       │                        #   so it keeps running while you move around the app
-│       ├── ui/                  # the redesign's components: shadcn/ui (Radix) restyled from
+│       ├── ui/                  # the app's components: shadcn/ui (Radix) restyled from
 │       │                        #   DESIGN.md (button, chip, field, toast), the segmented
 │       │                        #   gauge, rolling numbers, quiet blocks, rows and stats, skeletons, and icons
 │       │                        #   (Phosphor + the weigh-in scale)
@@ -457,7 +459,7 @@ Trackaholic
 ├── .github/pull_request_template.md  # asks contributors to agree to CONTRIBUTING.md
 ├── legacy/                      # original Streamlit app (v1)
 ├── PRODUCT.md                   # what the product is, who it serves, and what it must keep true
-├── DESIGN.md                    # the signed-off look for the UI revamp: colour tokens, palettes, type
+├── DESIGN.md                    # the app's look, as shipped in the redesign: colour tokens, palettes, type
 ├── CONTRIBUTING.md              # how to contribute, and the licence terms for contributions
 ├── LICENSE                      # MIT
 └── render.yaml                  # Render blueprint — documentation of intent, NOT synced with
@@ -816,7 +818,7 @@ only on the caller's data, except these public ones: `/api/health`,
 | GET | `/api/data/export/all` | Full JSON export of everything the account owns |
 | POST | `/api/data/export/ticket` | A one-minute link to either export, for a phone to download without the login header |
 | GET | `/api/data/export/file` | Follows that link: the CSV or the JSON as a download. Expired, tampered or pre-password-change links get a plain-text refusal |
-| GET | `/api/announcements` | Committed release notes + the status banner (public) |
+| GET | `/api/announcements` | Committed release notes (the ones the pop-up may show, and the ones only What's new lists) + the status banner (public) |
 | GET | `/api/health` | Liveness check (public). `?src=keepwarm` (cron-job.org) or `?src=homecron` (the home-machine cron) marks a request as a keep-warm ping |
 | GET | `/api/admin/stats` | Usage metrics, the funnel and frozen retention, behind the `ADMIN_EMAILS` allowlist |
 | GET | `/api/admin/users` | Per-account counts, presence and AI consumption; never meal or weight content |

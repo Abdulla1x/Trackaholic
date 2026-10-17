@@ -664,7 +664,11 @@ export interface Announcement {
 export interface Announcements {
   /** Live outage/maintenance notice from the server env; usually null. */
   banner: string | null
+  /** Release notes the pop-up may show, newest first. */
   items: Announcement[]
+  /** Notes only What's new lists, never the pop-up. Optional: a server
+   *  mid-deploy may not send it yet. */
+  quiet?: Announcement[]
 }
 
 /**
