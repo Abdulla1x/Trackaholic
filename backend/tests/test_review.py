@@ -292,6 +292,27 @@ def test_protein_reports_the_mean_and_the_day_count_because_they_disagree():
     assert "reaching it on 3 of the 6 days" in check.detail
 
 
+def test_the_figure_and_the_sentence_round_the_average_the_same_way():
+    """A 152.47 g average went out as 152.5, the page rounded that to 153, and
+    the sentence under it said 152. One rounding, used by both."""
+    week = [
+        DayIntake(date(2026, 9, 27 + n), kcal, protein)
+        for n, (kcal, protein) in enumerate(
+            [(2933.4, 152.4), (2933.5, 152.5), (2933.45, 152.51)]
+        )
+    ]
+
+    protein = protein_check(week, 127.0)
+    assert protein.value == 152
+    assert "averaged 152 g" in protein.detail
+
+    intake = intake_check(week, 3210.0, False)
+    assert intake.value == 2933
+    assert "averaged 2,933 kcal" in intake.detail
+    # The gap is taken from the rounded figure, so the two add up to the target.
+    assert "about 277 kcal a day under" in intake.detail
+
+
 def test_protein_counts_a_day_exactly_on_the_goal_as_reaching_it():
     assert protein_check(days(6, protein=150.0), 150.0).status == ON_TRACK
 

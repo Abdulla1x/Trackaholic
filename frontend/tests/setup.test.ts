@@ -162,4 +162,7 @@ test('the fastest pace is explained by whichever limit decided it', () => {
 test('a pace reads in the person’s unit', () => {
   assert.equal(paceText(-0.8, 'kg'), '0.8 kg')
   assert.equal(paceText(0.8, 'lb'), '1.8 lb')
+  // Two decimals in kg: the target page once showed a 0.35 pace as "0.3 kg"
+  // beside the kcal worked out from 0.35.
+  assert.equal(paceText(0.35, 'kg'), '0.35 kg')
 })

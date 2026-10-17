@@ -54,6 +54,11 @@ export default function MealList({
   // One column for the time only when some row has one, so a list without
   // any does not carry an empty gutter.
   const timed = times.some((time) => time !== null)
+  // Every distinct time sits invisibly in each row's time cell, so the column
+  // is as wide as the widest one and every name starts on the same line, a
+  // row without a time included. A fixed width can't do it: "6:41 AM",
+  // "12:01 PM" and "22:37" are all possible, depending on the phone's clock.
+  const labels = [...new Set(times.filter((time) => time !== null))]
 
   return (
     <Block
@@ -109,7 +114,14 @@ export default function MealList({
                   className="flex min-h-14 items-center gap-3 py-2 text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
                 >
                   {timed && (
-                    <span className="min-w-[3.2em] shrink-0 text-small whitespace-nowrap text-ink-2 tabular-nums">{times[index]}</span>
+                    <span className="grid shrink-0 text-small whitespace-nowrap text-ink-2 tabular-nums">
+                      {labels.map((label) => (
+                        <span key={label} aria-hidden="true" className="invisible [grid-area:1/1]">
+                          {label}
+                        </span>
+                      ))}
+                      <span className="[grid-area:1/1]">{times[index]}</span>
+                    </span>
                   )}
                   <span className="grid min-w-0 flex-1 gap-0.5">
                     <span className="truncate">{meal.name}</span>

@@ -8,7 +8,6 @@ from ..calculations import (
     KCAL_PER_G_CARB,
     KCAL_PER_G_FAT,
     KCAL_PER_G_PROTEIN,
-    MIN_FAT_G_PER_KG,
     max_protein_g,
 )
 from ..db import get_db
@@ -166,21 +165,19 @@ def _refuse_goals_that_cannot_add_up(settings: Settings) -> None:
 
 def _refuse_protein_that_does_not_fit(result: TargetsResult) -> None:
     """Typed protein that, with fat at its minimum, needs more than the
-    worked-out calories. The caller decides when this applies."""
-    protein = result.protein_g
-    protein_kcal = round(protein * KCAL_PER_G_PROTEIN)
-    # Shown in the sum, because protein's own kcal can be under the target
-    # and the refusal then reads as a contradiction.
-    fat_kcal = round(MIN_FAT_G_PER_KG * result.protein_reference_kg * KCAL_PER_G_FAT)
+    worked-out calories. The caller decides when this applies.
+
+    Short on purpose: the answer and the number to type, not the sum. The sum
+    (protein kcal plus the fat minimum) read as arithmetic on a phone, so it
+    was dropped after a ship-day check, accepting that "too much" can look odd
+    when protein alone is just under the target. The rule itself is in
+    docs/goal-setting-rules.md."""
     raise HTTPException(
         status_code=422,
         detail=(
-            f"Protein at {round(protein):,} g ({protein_kcal:,} kcal) plus fat "
-            f"at its minimum ({fat_kcal:,} kcal) comes to "
-            f"{protein_kcal + fat_kcal:,} kcal, more than your "
-            f"{round(result.target_calories):,} kcal target. Lower it to "
-            f"{max_protein_g(result.target_calories, result.protein_reference_kg):,} "
-            f"g or less."
+            f"Too much protein for your {round(result.target_calories):,} kcal "
+            f"target. The most it can be is "
+            f"{max_protein_g(result.target_calories, result.protein_reference_kg):,} g."
         ),
     )
 

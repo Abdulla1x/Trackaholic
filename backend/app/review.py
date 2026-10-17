@@ -312,7 +312,7 @@ def intake_check(
         return ReviewCheck(
             key="intake",
             status=UNKNOWN,
-            value=round(mean, 1),
+            value=round(mean),
             target=None,
             unit="kcal",
             sample_days=len(days),
@@ -322,13 +322,18 @@ def intake_check(
 
     difference = mean - daily_target
     within = abs(difference) <= daily_target * INTAKE_TOLERANCE_FRACTION
+    # Rounded once, and the figure, the sentence and the gap all use it. The
+    # value used to go out at one decimal and be rounded again on the page, so
+    # a 152.47 average read "153" above a sentence saying "152".
+    shown = round(mean)
     detail = (
-        f"You averaged {_kcal(mean)} kcal on the {_plural(len(days), 'day')} you "
+        f"You averaged {shown:,} kcal on the {_plural(len(days), 'day')} you "
         f"logged, against a target of {_kcal(daily_target)}."
     )
     if not within:
         direction = "over" if difference > 0 else "under"
-        detail += f" That is about {_kcal(abs(difference))} kcal a day {direction}."
+        gap = abs(shown - round(daily_target))
+        detail += f" That is about {gap:,} kcal a day {direction}."
     if plan_touched:
         # Named rather than folded in silently: a target that moved for a reason
         # the user chose should say so, or the comparison looks wrong to them.
@@ -336,7 +341,7 @@ def intake_check(
     return ReviewCheck(
         key="intake",
         status=ON_TRACK if within else OFF_TRACK,
-        value=round(mean, 1),
+        value=shown,
         target=round(daily_target, 1),
         unit="kcal",
         sample_days=len(days),
@@ -373,7 +378,7 @@ def protein_check(days: Sequence[DayIntake], goal: float) -> ReviewCheck:
         return ReviewCheck(
             key="protein",
             status=UNKNOWN,
-            value=round(mean, 1),
+            value=round(mean),
             target=None,
             unit="g",
             sample_days=len(days),
@@ -381,14 +386,16 @@ def protein_check(days: Sequence[DayIntake], goal: float) -> ReviewCheck:
             unavailable_reason="You have no protein target set to compare against.",
         )
     hits = sum(1 for day in days if day.protein >= goal)
+    # One rounding for the figure and the sentence, as in intake_check.
+    shown = round(mean)
     detail = (
-        f"You averaged {round(mean)} g of protein against a {round(goal)} g goal, "
+        f"You averaged {shown} g of protein against a {round(goal)} g goal, "
         f"reaching it on {hits} of the {_plural(len(days), 'day')} you logged."
     )
     return ReviewCheck(
         key="protein",
         status=ON_TRACK if hits >= len(days) * PROTEIN_HIT_FRACTION else OFF_TRACK,
-        value=round(mean, 1),
+        value=shown,
         target=round(goal, 1),
         unit="g",
         sample_days=len(days),
