@@ -57,6 +57,22 @@ range. `set` says what the reference is: T, logged from the saved library with
 no AI (a true value), or R, the value the user saved from an earlier AI estimate
 (so biased toward the model that made it, and reported apart from T).
 
+**Level mode (a manifest with a `level` column).** Each row is one case to
+send, exactly as written: `photos` (may be empty: a text-only case), `note` (may
+be empty: photo only), the `level` label it is reported under (e.g. full /
+partial / none, carried in the output's `variant` column), an optional `repeat`
+(default 1), and the reference. Rows run in FILE ORDER, so the file is also the
+priority: when a free-tier budget runs out mid-week, what ran is the top of it.
+
+**--interleave** alternates which model goes first from one case to the next.
+The models already run back to back on each case; alternating stops one of
+them always getting the earlier seconds of every minute. **--max-requests**
+caps the Google requests (attempts, not rows) each model may make in one run:
+failed attempts count against the per-day quota too, so it is what lets
+several runs a day share one day's allowance. Each row records the UTC time
+its first attempt started (`started_utc`), so speed and availability can be
+compared hour by hour.
+
 A refusal for the DAY retires that model for the rest of the run (see
 DailyQuotaReached); the other models carry on, since each has its own quota.
 
@@ -69,6 +85,7 @@ import os
 import statistics
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -87,7 +104,7 @@ FIELDS = [
     "meal", "variant", "model", "repeat", "bytes", "prompt_tokens",
     "output_tokens", "thinking_tokens",
     "kcal_low", "kcal", "kcal_high", "protein_low", "protein", "protein_high",
-    "confidence", "items", "seconds", "attempts", "error",
+    "confidence", "items", "seconds", "attempts", "error", "started_utc",
 ]
 # Reference mode's two conditions, carried in the `variant` column.
 CONDITIONS = ("photo", "note")
@@ -152,7 +169,10 @@ async def estimate(model: str, photos: list[Path], text: str | None = None) -> d
     config = meal_ai.analysis_config(
         types.HttpOptions(timeout=meal_ai.ANALYZE_TIMEOUT_MS)
     )
-    row: dict = {"bytes": sum(len(data) for data, _ in images)}
+    row: dict = {
+        "bytes": sum(len(data) for data, _ in images),
+        "started_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
     for attempt in range(1, MAX_ATTEMPTS + 1):
         started = time.monotonic()
         try:
@@ -282,6 +302,45 @@ def load_manifest(path: Path) -> dict[str, dict]:
         }
 
 
+def load_cases(path: Path) -> list[dict]:
+    """Level mode: every row is a case to send as written, kept in file order."""
+    with path.open() as handle:
+        cases = list(csv.DictReader(handle))
+    seen = set()
+    for case in cases:
+        case["repeat"] = (case.get("repeat") or "1").strip()
+        key = (case["meal"], case["level"], case["repeat"])
+        if key in seen:
+            sys.exit(f"{path}: {key} appears twice")
+        seen.add(key)
+        if not (case.get("photos") or "").strip() and not (case.get("note") or "").strip():
+            sys.exit(f"{path}: {key} has neither photos nor a note")
+        if not case.get("ref_kcal"):
+            sys.exit(f"{path}: {key} has no ref_kcal")
+    return cases
+
+
+def build_plan(
+    groups: list[tuple[str, str, str]],
+    models: list[str],
+    finished: set[tuple[str, str, str, str]],
+    interleave: bool,
+) -> list[tuple[str, str, str, str]]:
+    """(repeat, meal, variant, model) calls, in order, skipping finished ones.
+
+    All models run on one group before the next group starts. With
+    `interleave`, every other group runs them in reverse order.
+    """
+    plan = []
+    for index, (repeat, meal, variant) in enumerate(groups):
+        order = models[::-1] if interleave and index % 2 else models
+        plan.extend(
+            (repeat, meal, variant, model) for model in order
+            if (meal, variant, model, repeat) not in finished
+        )
+    return plan
+
+
 def against_reference(rows: list[dict], manifest: dict[str, dict]) -> None:
     """Error against the reference, and whether the stated range held it.
 
@@ -392,13 +451,28 @@ async def main() -> None:
     )
     parser.add_argument("--conditions", nargs="*", default=list(CONDITIONS),
                         choices=CONDITIONS, help="reference mode only")
+    parser.add_argument("--interleave", action="store_true",
+                        help="alternate which model goes first, case by case")
+    parser.add_argument("--max-requests", type=int,
+                        help="Google requests (attempts) each model may make in this run")
     args = parser.parse_args()
 
-    manifest = load_manifest(args.manifest) if args.manifest else None
-    if manifest is not None:
+    cases = None
+    if args.manifest:
+        with args.manifest.open() as handle:
+            header = next(csv.reader(handle), [])
+        if "level" in header:
+            cases = load_cases(args.manifest)
+    if cases is not None:
+        # Level mode reports through the reference path: one entry per case.
+        manifest = {case["meal"]: case for case in cases}
+        baseline = (args.models[0], cases[0]["level"])
+    elif args.manifest:
+        manifest = load_manifest(args.manifest)
         variants = args.conditions
         baseline = (args.models[0], "photo")
     else:
+        manifest = None
         variants = args.variants or sorted(p.name for p in args.photos.iterdir() if p.is_dir())
         baseline = (args.models[0], args.baseline)
 
@@ -421,7 +495,24 @@ async def main() -> None:
         for r in done if not r.get("error")
     }
 
-    if manifest is not None:
+    if cases is not None:
+        shrunk = photos_by_meal(args.photos)
+        by_key = {(case["meal"], case["level"]): case for case in cases}
+
+        def inputs(meal: str, level: str) -> tuple[list[Path], str | None] | None:
+            case = by_key[(meal, level)]
+            stems = [Path(name).stem for name in (case.get("photos") or "").split(";") if name.strip()]
+            if len(stems) > MAX_IMAGES:
+                sys.exit(f"{meal}: {len(stems)} photos, but the app sends at most "
+                         f"{MAX_IMAGES} (MAX_IMAGES)")
+            missing = [stem for stem in stems if stem not in shrunk]
+            if missing:
+                sys.exit(f"{meal}: no photo for {missing} in {args.photos}")
+            return [shrunk[stem] for stem in stems], (case.get("note") or "").strip() or None
+
+        groups = [(case["repeat"], case["meal"], case["level"]) for case in cases]
+        meals = [case["meal"] for case in cases]
+    elif manifest is not None:
         shrunk = photos_by_meal(args.photos)
 
         def inputs(meal: str, condition: str) -> tuple[list[Path], str | None] | None:
@@ -454,26 +545,27 @@ async def main() -> None:
     if not meals:
         sys.exit("No meal to run.")
 
-    # Interleaved: every meal and variant once, then the second repeat. A model
-    # that slows or degrades during the run then affects all variants alike
-    # instead of whichever one happened to run last.
-    plan = [
-        (repeat, meal, variant, model)
-        for repeat in range(1, args.repeats + 1)
-        for meal in meals
-        for variant in variants
-        for model in args.models
-        if (meal, variant, model, str(repeat)) not in finished
-        and inputs(meal, variant) is not None
-    ]
-    print(f"{len(meals)} meals x {len(variants)} variants x {len(args.models)} models "
-          f"x {args.repeats} repeats: {len(plan)} calls to make")
+    if cases is None:
+        # Interleaved: every meal and variant once, then the second repeat. A
+        # model that slows or degrades during the run then affects all variants
+        # alike instead of whichever one happened to run last.
+        groups = [
+            (str(repeat), meal, variant)
+            for repeat in range(1, args.repeats + 1)
+            for meal in meals
+            for variant in variants
+            if inputs(meal, variant) is not None
+        ]
+    plan = build_plan(groups, args.models, finished, args.interleave)
+    print(f"{len(groups)} cases x {len(args.models)} models: {len(plan)} calls to make")
 
     rows = [r for r in done if not r.get("error")]
     attempted = list(done)
     # Models Google has refused for the day. Each model has its own per-day
     # quota, so one running out is no reason to stop measuring the others.
     exhausted: set[str] = set()
+    # Requests spent per model in this run, to honour --max-requests.
+    spent: dict[str, int] = {}
     # Always rewritten under the current header, finished rows first. Appending
     # to a file written by an older version of this script would put new columns
     # under old headings and shift every value silently.
@@ -485,6 +577,12 @@ async def main() -> None:
         for index, (repeat, meal, variant, model) in enumerate(plan, 1):
             if model in exhausted:
                 continue
+            # MAX_ATTEMPTS ahead, so a call that needs its retry still fits.
+            if args.max_requests is not None and spent.get(model, 0) + MAX_ATTEMPTS > args.max_requests:
+                exhausted.add(model)
+                print(f"\n{model}: {spent.get(model, 0)} requests spent, the most this run "
+                      f"may use is {args.max_requests}. Skipping it for the rest of this run.\n")
+                continue
             try:
                 photos, text = inputs(meal, variant)
                 row = await estimate(model, photos, text)
@@ -494,6 +592,7 @@ async def main() -> None:
                       "the rest of this run; finish after midnight Pacific with "
                       "--resume.\n")
                 continue
+            spent[model] = spent.get(model, 0) + int(row.get("attempts") or MAX_ATTEMPTS)
             row.update(meal=meal, variant=variant, model=model, repeat=repeat)
             writer.writerow({field: row.get(field, "") for field in FIELDS})
             handle.flush()
