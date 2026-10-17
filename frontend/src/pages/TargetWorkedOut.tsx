@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { api } from '../api/client'
 import ScreenBar from '../components/shell/ScreenBar'
+import { paceText } from '../lib/setup'
 import { targetSum, type TargetSum } from '../lib/targetSum'
 import { targetIsSet } from '../lib/today'
 import { TDEE_MIN_LOGGED_FRACTION, TDEE_MIN_SPAN_DAYS, TDEE_MIN_WEIGH_INS } from '../lib/limits'
@@ -102,7 +103,9 @@ export default function TargetWorkedOut() {
 
 function Steps({ sum, unit }: { sum: TargetSum; unit: WeightUnit }) {
   const weight = `${formatWeight(sum.weightKg, unit)} ${unitLabel(unit)}`
-  const pace = `${formatWeight(Math.abs(sum.paceKg), unit)} ${unitLabel(unit)}`
+  // Not formatWeight: one decimal turned a 0.35 kg pace into "0.3 kg" beside
+  // the kcal worked out from 0.35. Setup shows the pace the same way.
+  const pace = paceText(sum.paceKg, unit)
   return (
     <>
       <Step title="1. What you burn at rest" sum={`${n(sum.rest)} kcal a day`}>
