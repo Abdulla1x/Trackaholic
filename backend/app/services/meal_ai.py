@@ -34,16 +34,22 @@ MODEL_ENV = "MEAL_AI_MODEL"
 FALLBACK_MODEL_ENV = "MEAL_AI_FALLBACK_MODEL"
 DEADLINE_ENV = "MEAL_AI_DEADLINE_S"
 MAX_ATTEMPTS_ENV = "MEAL_AI_MAX_ATTEMPTS"
-# Kept current deliberately: Google retires models on a schedule and a retired
-# id fails every request with a 4xx. Override with MEAL_AI_MODEL to switch
-# without a deploy.
-DEFAULT_MODEL = "gemini-3.5-flash"
-# Overload is per-model serving pool, so an older generation is usually still
-# answering while the newest one returns 503 — an estimate from a slightly
-# weaker model beats the "enter macros manually" dead end. Quotas are per model
-# too, so on the free tier every model in the chain is another day's allowance.
+# Kept current deliberately: Google retires models on a schedule. A retired id
+# either fails every request with a 4xx or, since 2026-10-10, is silently
+# redirected: Google retired gemini-3.5-flash and gemini-3.7-flash that day and
+# now answers them with 3.6 and 3.8, so an old id in the env no longer says
+# which model replied. Name the model Google actually serves. Override with
+# MEAL_AI_MODEL to switch without a deploy.
+DEFAULT_MODEL = "gemini-3.6-flash"
+# Overload is per-model serving pool, so another model is usually still
+# answering while one returns 503 — an estimate from a slightly different model
+# beats the "enter macros manually" dead end. Quotas are per model too, so on
+# the free tier every model in the chain is another day's allowance.
+# 2.5 Flash stays last: Google no longer offers it to new projects, but older
+# ones (production's) are still served, and on a project without it the 404 is
+# skipped (MealAIModelNotFound) rather than ending the call.
 # MEAL_AI_FALLBACK_MODEL takes a comma-separated list; set it empty to disable.
-DEFAULT_FALLBACK_MODEL = "gemini-2.5-flash"
+DEFAULT_FALLBACK_MODEL = "gemini-3.8-flash,gemini-2.5-flash"
 
 # Retries are bounded by the DEADLINE, not by an attempt count. Gemini's
 # overload 503 is an instant rejection — measured at ~150ms in production — so

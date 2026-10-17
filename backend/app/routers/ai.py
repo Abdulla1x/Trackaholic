@@ -70,11 +70,11 @@ DEFAULT_TRANSCRIBE_DAILY_LIMIT = 16
 # quota -- or, on a paid key, the money. It counts user actions, not provider
 # attempts, and the gap is real: on 2026-10-04, an overload day, Google counted
 # 22 requests for the 11 calls recorded here, because refused attempts count
-# against its quota but are refunded in this table. Production runs a
-# two-model chain (3.5 then 2.5 Flash, 40 requests a day between them), so on a
-# day like that Google's per-day refusal, not this cap, is what stops the app --
-# safely, with "daily limit reached". On a paid key it is also the spend
-# ceiling: 40 x ~2 cents is ~$0.80 a day at most.
+# against its quota but are refunded in this table. The default chain is three
+# models (3.6, 3.8, then 2.5 Flash: 60 free requests a day between them), and
+# on a day like that 40 actions need ~80 requests, so Google's per-day refusal,
+# not this cap, is what stops the app -- safely, with "daily limit reached". On
+# a paid key it is also the spend ceiling: 40 x ~2 cents is ~$0.80 a day at most.
 DEFAULT_GLOBAL_DAILY_LIMIT = 40
 
 KIND_ANALYSIS = "analysis"
