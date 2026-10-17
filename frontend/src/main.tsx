@@ -1,6 +1,5 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { registerSW } from 'virtual:pwa-register'
 // Self-hosted, because the site's Content-Security-Policy allows fonts only
 // from itself. Mona Sans with its width axis (75-125%), which the type scale
 // leans on; Libre Franklin for the wordmark and the Label style.
@@ -11,13 +10,15 @@ import App from './App.tsx'
 import { AppearanceProvider } from './appearance/AppearanceContext'
 import { AuthProvider } from './auth/AuthContext'
 import ErrorBoundary from './components/ErrorBoundary'
+import { startServiceWorker } from './lib/swUpdate'
 
 // Runs at module scope, before render, where no error boundary can reach it.
 // Service worker registration is an enhancement — offline caching and the
 // install prompt — and the app is fully usable without it, so a browser that
-// refuses it must not take the page down on the way in.
+// refuses it must not take the page down on the way in. New versions wait for
+// the user's go-ahead: see lib/swUpdate.ts.
 try {
-  registerSW()
+  startServiceWorker()
 } catch (err) {
   console.error('Service worker registration failed:', err)
 }

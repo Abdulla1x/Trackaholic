@@ -15,7 +15,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // A new version waits and the app offers to reload into it
+      // (lib/swUpdate.ts), rather than reloading the page by itself.
+      registerType: 'prompt',
       // App shell only. API responses are never cached: stale cross-user data
       // in a shared browser cache would undermine per-user isolation.
       workbox: {

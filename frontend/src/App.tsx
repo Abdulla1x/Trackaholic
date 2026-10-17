@@ -15,6 +15,7 @@ import Layout from './components/Layout'
 import LogRedirect from './components/log/LogRedirect'
 import RequireAdmin from './components/RequireAdmin'
 import RequireAuth from './components/RequireAuth'
+import UpdateReadyBar from './components/UpdateReadyBar'
 import SettingsRedirect from './components/you/SettingsRedirect'
 import ForgotPassword from './pages/ForgotPassword'
 import Login from './pages/Login'
@@ -194,6 +195,9 @@ export default function App() {
             house one: 240 ms on the exponential ease-out. */}
       <LazyMotion features={loadMotionFeatures} strict>
         <MotionConfig reducedMotion="user" transition={{ duration: DURATION.base, ease: EASE }}>
+          {/* Outside the router as well, so a waiting update is offered on
+              the sign-in screens too. */}
+          <UpdateReadyBar />
           <RouterProvider router={router} />
         </MotionConfig>
       </LazyMotion>
