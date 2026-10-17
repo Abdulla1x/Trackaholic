@@ -74,7 +74,7 @@ APP_BASE_URL_ENV = "APP_BASE_URL"
 # The real deployed frontend, not localhost: render.yaml is not synced to the
 # dashboard, so an unset variable must still produce a link that works rather
 # than one that silently points at the developer's machine.
-DEFAULT_APP_BASE_URL = "https://macros-calculator-mu.vercel.app"
+DEFAULT_APP_BASE_URL = "https://trackaholic.app"
 
 # Identical whether or not the address has an account. Signup's 409 already
 # leaks account existence and says so deliberately; that is a reason not to add
