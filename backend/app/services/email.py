@@ -1,20 +1,15 @@
-"""Transactional email via Brevo.
+"""Transactional email via Resend.
 
-This is the ONLY Brevo-aware module: callers depend on the provider-neutral
-EmailError hierarchy below, so switching providers later means rewriting this
-file and changing env vars, nothing else.
+This is the ONLY Resend-aware module: callers depend on the provider-neutral
+EmailError hierarchy below, so switching providers means rewriting this file
+and changing env vars, nothing else. (It replaced Brevo in exactly that way.)
 
-Brevo was chosen over Resend because it is the only free tier that will mail
-*arbitrary* recipients from a single verified sender address with no domain of
-our own — Resend without a verified domain can only send from onboarding@
-resend.dev, in practice only back to your own address. The cost of that choice:
-since the Gmail/Yahoo sender rules of Feb 2024, Brevo rewrites the From domain
-to @brevosend.com whenever the sending domain isn't authenticated, and a free
-provider domain (gmail.com and friends) cannot be authenticated at all. Mail
-still delivers — Brevo's own DKIM signs it — but the recipient sees an
-unfamiliar "via brevosend.com" sender, which is why the copy below leads with
-the app's name. Authenticating a real domain later changes EMAIL_SENDER_ADDRESS
-and nothing in this file.
+Resend sends from trackaholic.app, a domain authenticated with DKIM and SPF
+records at its DNS host, so the From line is the app's own address and is not
+rewritten. Two constraints decided the provider and still bind any successor:
+an HTTP API, because Render blocks outbound SMTP ports on free services; and a
+sender on a domain we own, because a new free account mailing from a gmail.com
+address is the profile free providers' fraud screening blocks.
 """
 import logging
 import os
@@ -26,14 +21,16 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-API_KEY_ENV = "BREVO_API_KEY"
+API_KEY_ENV = "RESEND_API_KEY"
 SENDER_EMAIL_ENV = "EMAIL_SENDER_ADDRESS"
 SENDER_NAME_ENV = "EMAIL_SENDER_NAME"
-# What the recipient sees as the display name. The address beside it is likely
-# to be rewritten (see the module docstring), so this name is doing real work.
+# What the recipient sees as the display name, beside EMAIL_SENDER_ADDRESS.
 DEFAULT_SENDER_NAME = "Trackaholic"
 
-BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+RESEND_API_URL = "https://api.resend.com/emails"
+# Resend refuses a request with no User-Agent (403). httpx sends its own by
+# default, but naming the app makes it not depend on that.
+USER_AGENT = "Trackaholic"
 
 # Without an explicit timeout httpx waits forever, which on a single free
 # instance means one unanswered connection pins a worker until the platform
@@ -48,10 +45,10 @@ class EmailError(Exception):
 
 
 class EmailRateLimited(EmailError):
-    """Provider quota or per-minute rate limit exhausted.
+    """Provider quota or rate limit exhausted.
 
-    On the free tier this is the 300-emails-a-day ceiling, which is shared with
-    marketing sends — so it can be exhausted by something that isn't this app.
+    On Resend's free plan that is 100 emails a day or 3,000 a month, or more
+    than 10 requests a second. Over a quota the send is refused, never billed.
     """
 
 
@@ -63,7 +60,7 @@ class EmailUnreachable(EmailError):
     """No answer at all: DNS, TCP, TLS, or our own timeout expired.
 
     Split from EmailUnavailable for the same reason meal_ai splits them: a 5xx
-    is Brevo's problem, this one is our network or a timeout we set too tight,
+    is Resend's problem, this one is our network or a timeout we set too tight,
     and folding them together turns a log line into a guess.
     """
 
@@ -71,9 +68,9 @@ class EmailUnreachable(EmailError):
 class EmailBadRequest(EmailError):
     """Provider rejected the request: bad key, unverified sender, bad payload.
 
-    Retrying won't help. The likeliest cause by far is EMAIL_SENDER_ADDRESS
-    naming an address that was never verified in the Brevo dashboard, which
-    Brevo refuses with a 400.
+    Retrying won't help. The likeliest causes: EMAIL_SENDER_ADDRESS on a domain
+    that isn't verified in Resend (403), or a wrong, revoked or wrongly-scoped
+    key (401/403).
     """
 
 
@@ -81,10 +78,13 @@ class EmailInternalError(EmailError):
     """Our own plumbing raised something we don't recognise."""
 
 
-# Note there is deliberately no EmailBadResponse, unlike meal_ai. There the
-# provider's reply had to parse into a MealAnalysis and could arrive unusable;
-# here a 2xx *is* the entire success signal and the body is discarded, so there
-# is no third state to name.
+class EmailBadResponse(EmailError):
+    """A 2xx that doesn't carry the message id Resend answers a send with.
+
+    Resend's success is 200 with {"id": ...}. Anything else in a 2xx (a proxy's
+    HTML page, an empty body) means we can't tell the mail was accepted, and
+    logging it as sent would hide the one failure nobody else would notice.
+    """
 
 
 def _env(name: str) -> str:
@@ -107,10 +107,10 @@ def is_configured() -> bool:
 def _provider_errors():
     """Translate provider exceptions into the neutral hierarchy, logging why.
 
-    This is the only place Brevo's own words are recorded — callers get an
+    This is the only place Resend's own words are recorded — callers get an
     EmailError with no httpx types attached, so the router stays
     provider-agnostic. The log prefixes are deliberately distinct and greppable
-    ("Brevo rejected", "Brevo server error", "Brevo unreachable"): a send
+    ("Resend rejected", "Resend server error", "Resend unreachable"): a send
     happens in a background task after the response has gone out, so these lines
     are the *only* record that a reset email failed.
     """
@@ -118,30 +118,30 @@ def _provider_errors():
         yield
     except httpx.HTTPStatusError as exc:
         status = exc.response.status_code
-        # Brevo's error body names the actual problem (unverified sender,
-        # invalid key, quota) and contains nothing of ours. Truncated because an
+        # Resend's error body names the actual problem (unverified domain,
+        # invalid key, which quota) and contains nothing of ours. Truncated because an
         # HTML error page from a proxy would otherwise flood the log.
         detail = exc.response.text[:300]
         if status == 429:
-            logger.error("Brevo rate limited the send (code=%s): %s", status, detail)
+            logger.error("Resend rate limited the send (code=%s): %s", status, detail)
             raise EmailRateLimited(detail) from exc
         if status >= 500:
-            logger.error("Brevo server error (code=%s): %s", status, detail)
+            logger.error("Resend server error (code=%s): %s", status, detail)
             raise EmailUnavailable(detail) from exc
-        logger.error("Brevo rejected the request (code=%s): %s", status, detail)
+        logger.error("Resend rejected the request (code=%s): %s", status, detail)
         raise EmailBadRequest(detail) from exc
     except (httpx.TransportError, ssl.SSLError, OSError) as exc:
         # Never got a reply. httpx.TransportError covers ConnectError,
         # ReadTimeout and the rest of that family in one line — including our
         # own SEND_TIMEOUT_S expiring — and OSError catches the socket-level
         # failures httpx doesn't wrap.
-        logger.error("Brevo unreachable (kind=%s): %s", type(exc).__name__, exc)
+        logger.error("Resend unreachable (kind=%s): %s", type(exc).__name__, exc)
         raise EmailUnreachable(f"{type(exc).__name__}: {exc}") from exc
     except EmailError:
         raise
     except Exception as exc:
         logger.exception(
-            "Brevo call raised an unexpected error (kind=%s)", type(exc).__name__
+            "Resend call raised an unexpected error (kind=%s)", type(exc).__name__
         )
         raise EmailInternalError(f"{type(exc).__name__}: {exc}") from exc
 
@@ -153,14 +153,15 @@ def _password_reset_body(reset_url: str, ttl_minutes: int) -> tuple[str, str]:
     SYSTEM_PROMPT: it is the payload, and splitting payload from the call that
     sends it is how the two drift.
 
-    Both parts are sent. A text/plain alternative is not decoration here — an
-    HTML-only message from an unauthenticated sender is a recognised spam
-    signal, and this sender is already starting from behind.
+    Both parts are sent. Without `text` Resend would generate one from the
+    HTML, and an HTML-only message is a spam signal; a new sending domain with
+    no history has no reputation to spare.
 
-    The app's name leads because the From line probably won't carry it (see the
-    module docstring), and "reset your password" from an unrecognised address is
-    exactly the shape of a phishing mail. The lifetime is interpolated from the
-    caller's value so the copy cannot drift from the token's real expiry.
+    The app's name leads the subject, the heading and the From name: "reset
+    your password" from an address the reader doesn't place is exactly the
+    shape of a phishing mail, and the name is what they signed up under. The
+    lifetime is interpolated from the caller's value so the copy cannot drift
+    from the token's real expiry.
     """
     text = (
         f"Trackaholic — password reset\n\n"
@@ -200,27 +201,39 @@ async def send_password_reset(
     closed properly.
     """
     text, html = _password_reset_body(reset_url, ttl_minutes)
+    sender_name = _env(SENDER_NAME_ENV) or DEFAULT_SENDER_NAME
     payload = {
-        "sender": {
-            "email": _env(SENDER_EMAIL_ENV),
-            "name": _env(SENDER_NAME_ENV) or DEFAULT_SENDER_NAME,
-        },
-        "to": [{"email": to_email}],
+        "from": f"{sender_name} <{_env(SENDER_EMAIL_ENV)}>",
+        "to": [to_email],
         "subject": "Reset your Trackaholic password",
-        "textContent": text,
-        "htmlContent": html,
+        "text": text,
+        "html": html,
     }
     with _provider_errors():
         async with httpx.AsyncClient(timeout=SEND_TIMEOUT_S) as client:
             response = await client.post(
-                BREVO_API_URL,
+                RESEND_API_URL,
                 headers={
-                    "api-key": _env(API_KEY_ENV),
-                    "accept": "application/json",
+                    "Authorization": f"Bearer {_env(API_KEY_ENV)}",
+                    "User-Agent": USER_AGENT,
                     "content-type": "application/json",
                 },
                 json=payload,
             )
-            # Brevo answers a successful send with 201, not 200 — never assert
-            # on 200 anywhere. raise_for_status covers both.
             response.raise_for_status()
+            # 200 means accepted for delivery, not delivered. The id is what
+            # Resend's Logs page is searched by, so it is the one thing worth
+            # keeping from a send that otherwise leaves no trace.
+            try:
+                body = response.json()
+            except ValueError:
+                body = None
+            message_id = body.get("id") if isinstance(body, dict) else None
+            if not message_id:
+                logger.error(
+                    "Resend answered %s without a message id: %s",
+                    response.status_code,
+                    response.text[:300],
+                )
+                raise EmailBadResponse(f"{response.status_code} without an id")
+            logger.info("Resend accepted the reset email (id=%s)", message_id)

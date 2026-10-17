@@ -1,6 +1,6 @@
-"""Password reset: enumeration uniformity, token lifecycle, and the Brevo seam.
+"""Password reset: enumeration uniformity, token lifecycle, and the Resend seam.
 
-Brevo is faked at two levels, mirroring test_meal_ai.py. Endpoint tests replace
+Resend is faked at two levels, mirroring test_meal_ai.py. Endpoint tests replace
 `email.send_password_reset` and assert on what the router asked for; the service
 tests replace httpx.AsyncClient and assert on what email.py actually sends and
 how it translates failures. Nothing here touches the network.
@@ -33,9 +33,9 @@ def configure_email(monkeypatch):
     """Seam 1: the service function, as the router reaches it.
 
     Returns the list the fake appends to. The autouse env fixture sets neither
-    Brevo variable, so every endpoint test must call this or get a 503.
+    Resend variable, so every endpoint test must call this or get a 503.
     """
-    monkeypatch.setenv("BREVO_API_KEY", "test-key")
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
     monkeypatch.setenv("EMAIL_SENDER_ADDRESS", "sender@example.com")
     sent: list[dict] = []
 
@@ -138,7 +138,7 @@ def test_the_address_is_normalised_before_lookup(anon_client, monkeypatch):
 def test_unconfigured_email_is_503_for_every_address(anon_client, monkeypatch):
     configure_email(monkeypatch)
     signup(anon_client)
-    monkeypatch.delenv("BREVO_API_KEY")
+    monkeypatch.delenv("RESEND_API_KEY")
     known = forgot(anon_client)
     unknown = forgot(anon_client, "nobody@example.com")
     assert known.status_code == unknown.status_code == 503
@@ -389,11 +389,11 @@ def test_the_reset_endpoints_are_rate_limited_per_ip(
 
 def test_a_failing_provider_still_answers_200(anon_client, monkeypatch, caplog):
     """The cost of sending in the background: only the log knows it failed."""
-    monkeypatch.setenv("BREVO_API_KEY", "test-key")
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
     monkeypatch.setenv("EMAIL_SENDER_ADDRESS", "sender@example.com")
 
     async def boom(*_args, **_kwargs):
-        raise email_service.EmailUnavailable("brevo is down")
+        raise email_service.EmailUnavailable("resend is down")
 
     monkeypatch.setattr(email_service, "send_password_reset", boom)
     signup(anon_client)
@@ -405,13 +405,15 @@ def test_a_failing_provider_still_answers_200(anon_client, monkeypatch, caplog):
 
 # --- Seam 2: what email.py actually sends ----------------------------------
 
-def _install_fake_brevo(monkeypatch, *, status=201, exc=None, capture=None):
+def _install_fake_resend(
+    monkeypatch, *, status=200, body=None, exc=None, capture=None
+):
     """Replace httpx.AsyncClient so email.py's own translation is exercised.
 
     Returns real httpx.Response objects so raise_for_status behaves exactly as
     it does in production.
     """
-    monkeypatch.setenv("BREVO_API_KEY", "test-key")
+    monkeypatch.setenv("RESEND_API_KEY", "test-key")
     monkeypatch.setenv("EMAIL_SENDER_ADDRESS", "sender@example.com")
 
     class FakeClient:
@@ -434,34 +436,38 @@ def _install_fake_brevo(monkeypatch, *, status=201, exc=None, capture=None):
             return httpx.Response(
                 status,
                 request=httpx.Request("POST", url),
-                json={"messageId": "<abc@brevo>"},
+                json={"id": "49a3999c-0ce1-4ea6-ab68-afcd6dc2e794"} if body is None else body,
             )
 
     monkeypatch.setattr(email_service.httpx, "AsyncClient", FakeClient)
 
 
-def test_a_successful_send_posts_to_brevo(monkeypatch):
+def test_a_successful_send_posts_to_resend(monkeypatch, caplog):
     capture: dict = {}
-    _install_fake_brevo(monkeypatch, capture=capture)
-    asyncio.run(
-        email_service.send_password_reset(
-            "someone@example.com",
-            "https://app.example/reset-password?token=abc",
-            60,
+    _install_fake_resend(monkeypatch, capture=capture)
+    with caplog.at_level(logging.INFO):
+        asyncio.run(
+            email_service.send_password_reset(
+                "someone@example.com",
+                "https://app.example/reset-password?token=abc",
+                60,
+            )
         )
-    )
-    assert capture["url"] == email_service.BREVO_API_URL
-    assert capture["headers"]["api-key"] == "test-key"
+    assert capture["url"] == email_service.RESEND_API_URL
+    assert capture["headers"]["Authorization"] == "Bearer test-key"
+    # Resend refuses a request without one (403).
+    assert capture["headers"]["User-Agent"] == "Trackaholic"
+    # The id is the only trace of an accepted send, so it reaches the log.
+    assert "49a3999c-0ce1-4ea6-ab68-afcd6dc2e794" in caplog.text
     # An explicit timeout: httpx has none by default, and an unanswered
     # connection would pin a worker on the free instance.
     assert capture["client_kwargs"]["timeout"] == email_service.SEND_TIMEOUT_S
 
     payload = capture["json"]
-    assert payload["to"] == [{"email": "someone@example.com"}]
-    assert payload["sender"]["email"] == "sender@example.com"
-    assert payload["sender"]["name"] == "Trackaholic"
+    assert payload["to"] == ["someone@example.com"]
+    assert payload["from"] == "Trackaholic <sender@example.com>"
     # Both parts, both carrying the link and the real expiry.
-    for part in (payload["textContent"], payload["htmlContent"]):
+    for part in (payload["text"], payload["html"]):
         assert "https://app.example/reset-password?token=abc" in part
         assert "60 minutes" in part
         assert "Trackaholic" in part
@@ -469,10 +475,10 @@ def test_a_successful_send_posts_to_brevo(monkeypatch):
 
 def test_the_sender_name_is_configurable(monkeypatch):
     capture: dict = {}
-    _install_fake_brevo(monkeypatch, capture=capture)
+    _install_fake_resend(monkeypatch, capture=capture)
     monkeypatch.setenv("EMAIL_SENDER_NAME", "My Tracker")
     asyncio.run(email_service.send_password_reset("a@b.com", "https://x/y", 30))
-    assert capture["json"]["sender"]["name"] == "My Tracker"
+    assert capture["json"]["from"] == "My Tracker <sender@example.com>"
 
 
 @pytest.mark.parametrize(
@@ -483,11 +489,25 @@ def test_the_sender_name_is_configurable(monkeypatch):
         (503, email_service.EmailUnavailable),
         (400, email_service.EmailBadRequest),
         (401, email_service.EmailBadRequest),
+        # An unverified sending domain, or a key scoped to another domain.
+        (403, email_service.EmailBadRequest),
+        (422, email_service.EmailBadRequest),
     ],
 )
 def test_provider_statuses_map_to_neutral_errors(monkeypatch, status, expected):
-    _install_fake_brevo(monkeypatch, status=status)
+    _install_fake_resend(monkeypatch, status=status)
     with pytest.raises(expected):
+        asyncio.run(email_service.send_password_reset("a@b.com", "https://x/y", 60))
+
+
+@pytest.mark.parametrize(
+    "body",
+    [{}, {"id": ""}, ["not", "an", "object"], "<html>proxy page</html>"],
+)
+def test_a_2xx_without_an_id_is_not_a_send(monkeypatch, body):
+    """200 is Resend's "accepted"; without the id we can't say it was."""
+    _install_fake_resend(monkeypatch, body=body)
+    with pytest.raises(email_service.EmailBadResponse):
         asyncio.run(email_service.send_password_reset("a@b.com", "https://x/y", 60))
 
 
@@ -500,25 +520,25 @@ def test_provider_statuses_map_to_neutral_errors(monkeypatch, status, expected):
     ],
 )
 def test_transport_failures_map_to_unreachable(monkeypatch, exc):
-    _install_fake_brevo(monkeypatch, exc=exc)
+    _install_fake_resend(monkeypatch, exc=exc)
     with pytest.raises(email_service.EmailUnreachable):
         asyncio.run(email_service.send_password_reset("a@b.com", "https://x/y", 60))
 
 
 def test_unexpected_errors_map_to_internal_error(monkeypatch):
-    _install_fake_brevo(monkeypatch, exc=RuntimeError("something else"))
+    _install_fake_resend(monkeypatch, exc=RuntimeError("something else"))
     with pytest.raises(email_service.EmailInternalError):
         asyncio.run(email_service.send_password_reset("a@b.com", "https://x/y", 60))
 
 
 def test_is_configured_needs_both_key_and_sender(monkeypatch):
-    monkeypatch.delenv("BREVO_API_KEY", raising=False)
+    monkeypatch.delenv("RESEND_API_KEY", raising=False)
     monkeypatch.delenv("EMAIL_SENDER_ADDRESS", raising=False)
     assert email_service.is_configured() is False
-    monkeypatch.setenv("BREVO_API_KEY", "k")
+    monkeypatch.setenv("RESEND_API_KEY", "k")
     assert email_service.is_configured() is False
     monkeypatch.setenv("EMAIL_SENDER_ADDRESS", "s@e.com")
     assert email_service.is_configured() is True
     # Values pasted into a dashboard often arrive quoted or newline-padded.
-    monkeypatch.setenv("BREVO_API_KEY", ' "k"\n')
+    monkeypatch.setenv("RESEND_API_KEY", ' "k"\n')
     assert email_service.is_configured() is True
