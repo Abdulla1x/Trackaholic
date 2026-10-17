@@ -111,7 +111,7 @@ lifter with almost no carbs at the protein they'd type. At 80 kg and
 | 250 g | 110 g | 40 g |
 | 300 g | 60 g | 40 g |
 | 360 g | 0 g | 40 g |
-| 361 g | refused: "Lower it to 360 g or less" | |
+| 361 g | refused: "The most it can be is 360 g" | |
 
 No carb minimum is applied. The IOM's 130 g a day is an RDA for the brain's
 glucose, not a training figure, and I decided against adding it.

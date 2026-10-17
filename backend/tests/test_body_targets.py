@@ -714,9 +714,8 @@ def test_typed_protein_that_does_not_fit_is_refused_on_save(client):
     refused = own_protein(client, most + 1)
     assert refused.status_code == 422
     assert refused.json()["detail"] == (
-        f"Protein at {most + 1:,} g ({(most + 1) * 4:,} kcal) plus fat at its "
-        f"minimum (360 kcal) comes to {(most + 1) * 4 + 360:,} kcal, more than "
-        f"your {round(calories):,} kcal target. Lower it to {most:,} g or less."
+        f"Too much protein for your {round(calories):,} kcal target. "
+        f"The most it can be is {most:,} g."
     )
     # Nothing from the refused save was kept.
     assert settings(client) == before
