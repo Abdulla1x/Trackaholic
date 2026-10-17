@@ -47,7 +47,7 @@ def test_the_meals_link_downloads_the_csv_without_a_login(client, anon_client):
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")
     assert response.headers["content-disposition"] == (
-        "attachment; filename=macros_backup.csv"
+        "attachment; filename=trackaholic_meals.csv"
     )
     # The same file the authenticated route gives.
     assert response.text == client.get("/api/data/export").text
@@ -62,7 +62,7 @@ def test_the_everything_link_downloads_the_same_json(client, anon_client):
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/json")
     assert response.headers["content-disposition"] == (
-        "attachment; filename=macros_full_export.json"
+        "attachment; filename=trackaholic_full_export.json"
     )
     downloaded = json.loads(response.text)
     fetched = client.get("/api/data/export/all").json()

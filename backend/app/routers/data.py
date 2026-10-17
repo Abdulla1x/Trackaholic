@@ -42,8 +42,8 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 
 CSV_COLUMNS = ["date", "name", "calories", "protein", "carbs", "fat"]
 ACCEPTED_DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y")
-MEALS_FILENAME = "macros_backup.csv"
-EVERYTHING_FILENAME = "macros_full_export.json"
+MEALS_FILENAME = "trackaholic_meals.csv"
+EVERYTHING_FILENAME = "trackaholic_full_export.json"
 MAX_IMPORT_BYTES = 1024 * 1024  # 1 MB — far beyond any realistic meal history
 
 
