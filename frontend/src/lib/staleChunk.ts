@@ -7,12 +7,12 @@
  * which names the new files, and that is the whole fix.
  *
  * Most tabs never get here. The service worker serves the old files from its
- * precache until the new version activates, and vite-plugin-pwa's autoUpdate
- * then reloads every tab it controls. What is left is a page the worker does
- * NOT control: the very first visit before it installs, a hard refresh (which
- * bypasses it), a browser or private window that blocks service workers, and
- * the moment between activation and that reload. Those fetch from the network
- * and meet the 404.
+ * precache, and a new version waits until the user reloads into it
+ * (swUpdate.ts) or every window is closed. What is left is a page the worker
+ * does NOT control: the very first visit before it installs, a hard refresh
+ * (which bypasses it), a browser or private window that blocks service
+ * workers, and the moment between activation and the reload that follows.
+ * Those fetch from the network and meet the 404.
  *
  * Reload at most once per 10 seconds, so a piece that is broken for some other
  * reason (offline, a real bug) cannot loop the tab; the second failure shows
