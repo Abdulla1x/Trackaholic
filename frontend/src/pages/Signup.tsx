@@ -68,12 +68,6 @@ export default function Signup() {
             className={FIELD}
           />
           <span className="text-small text-ink-2">At least 8 characters.</span>
-          {/* Password reset exists in the codebase but is not switched on:
-              sending email needs a provider we don't have yet. Until it is,
-              a forgotten password means emailing to be let back in, so say
-              that here rather than at the point someone is already locked
-              out. Delete this the day reset goes live. */}
-          <span className={AUTH_NOTE}>There's no password reset yet, so keep it somewhere safe.</span>
         </AuthField>
         {error && <p className={AUTH_NOTE}>{error}</p>}
         <Button type="submit" disabled={submitting} className="w-full">
