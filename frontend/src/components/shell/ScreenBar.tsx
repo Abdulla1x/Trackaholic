@@ -4,7 +4,10 @@ import { BackIcon } from '@/ui/icons'
 /** The top of a screen pushed from a tab (DESIGN.md: the day in detail, meal
  *  screens): back on the left, the screen's title in the middle. Back is a
  *  link to a fixed place rather than "history back", so it still leads
- *  somewhere sensible when the screen was opened from a bookmark or reload. */
+ *  somewhere sensible when the screen was opened from a bookmark or reload.
+ *  A title that doesn't fit wraps to a second line rather than being cut off:
+ *  "How your target is worked out" lost its last word on a phone, and a larger
+ *  system font size can do the same to any title. */
 export default function ScreenBar({ title, back, backLabel }: { title: string; back: string; backLabel: string }) {
   return (
     <header className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center border-b border-rule pb-1.5 label:border-b-[5px]">
@@ -15,7 +18,7 @@ export default function ScreenBar({ title, back, backLabel }: { title: string; b
       >
         <BackIcon size={22} />
       </Link>
-      <h1 className="truncate text-center text-title label:text-[18px] label:font-black label:tracking-[-0.01em]">{title}</h1>
+      <h1 className="text-center text-balance text-title label:text-[18px] label:font-black label:tracking-[-0.01em]">{title}</h1>
     </header>
   )
 }
