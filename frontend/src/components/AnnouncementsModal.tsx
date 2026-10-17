@@ -1,19 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { parseIsoDate } from '../lib/dates'
 import {
   hasEverSeenAnnouncements,
   markAnnouncementsSeen,
   seenAnnouncementIds,
 } from '../lib/dismissals'
 import type { Announcement } from '../types'
-import AnnouncementBody from './AnnouncementBody'
-import Modal from './ui/Modal'
-import Button from './ui/Button'
-
-// A + alias, not the bare personal address: inbound mail stays filterable, and
-// the address is disposable once scrapers find it in this very public DOM.
-const CONTACT_EMAIL = 'm.abdulla992003+macros@gmail.com'
+import { NoteList } from './AnnouncementBody'
+import { Button } from '@/ui/button'
+import Sheet from '@/ui/sheet'
+import { CONTACT_EMAIL } from '../lib/contact'
 
 // Rolling cap, and it has to stay rolling: every session that ships adds a note,
 // so an uncapped modal only ever grows. Measured before capping -- a fresh
@@ -23,27 +19,43 @@ const MAX_MODAL_NOTES = 3
 
 type View =
   | { kind: 'hidden' }
-  | { kind: 'welcome'; total: number }
   | { kind: 'notes'; shown: Announcement[]; pending: string[]; remaining: number }
 
 /** "What's new", shown once per release note per device.
  *
  * Dismissal is per-id rather than a single "last seen" marker so that adding an
- * older-dated note, or shipping two at once, can't silently skip one. */
-export default function AnnouncementsModal({ items }: { items: Announcement[] }) {
+ * older-dated note, or shipping two at once, can't silently skip one.
+ *
+ * Drawn as the one-time popup (DESIGN.md: Sheets and the one-time popup): a
+ * bottom sheet on phones, a 440px dialog in the middle on desktop. */
+export default function AnnouncementsModal({
+  items,
+  hold = false,
+  onShownChange,
+}: {
+  items: Announcement[]
+  /** True while the account has not chosen a target: someone getting started
+   *  sees no release notes. Nothing is marked seen meanwhile, so a note
+   *  published in that time still shows once they are set up. */
+  hold?: boolean
+  /** Told when the notes open and close, so a popup waiting behind them
+   *  opens only after. */
+  onShownChange?: (shown: boolean) => void
+}) {
   const [view, setView] = useState<View>({ kind: 'hidden' })
 
   useEffect(() => {
-    if (items.length === 0) return
+    if (items.length === 0 || hold) return
 
-    // First run on this device. Every note is marked seen without being shown:
-    // the backlog is history this account was not present for, and a changelog
-    // is the wrong first thing to meet. Capping the *display* while leaving the
-    // rest unseen would be worse than not capping -- the next reload would serve
-    // the next three, and the one after that the next three.
+    // First run on this device. Every note is marked seen, silently: the
+    // backlog is history this account was not present for, and a changelog is
+    // the wrong first thing to meet. It used to open a "Welcome" view saying
+    // so; a brand-new user now meets no popup at all (decided 2026-10-11).
+    // Capping the *display* while leaving the rest unseen would be worse than
+    // not capping -- the next reload would serve the next three, and the one
+    // after that the next three.
     if (!hasEverSeenAnnouncements()) {
       markAnnouncementsSeen(items.map((item) => item.id))
-      setView({ kind: 'welcome', total: items.length })
       return
     }
 
@@ -53,15 +65,14 @@ export default function AnnouncementsModal({ items }: { items: Announcement[] })
       setView({ kind: 'hidden' })
       return
     }
+    onShownChange?.(true)
     setView({
       kind: 'notes',
       shown: unseen.slice(0, MAX_MODAL_NOTES),
       pending: unseen.map((item) => item.id),
       remaining: Math.max(0, unseen.length - MAX_MODAL_NOTES),
     })
-  }, [items])
-
-  if (view.kind === 'hidden') return null
+  }, [items, hold, onShownChange])
 
   const close = () => {
     // Every unseen id, not only the ones displayed. Marking just the shown three
@@ -69,72 +80,38 @@ export default function AnnouncementsModal({ items }: { items: Announcement[] })
     // Nothing is lost by marking the rest: /whats-new keeps the full list.
     if (view.kind === 'notes') markAnnouncementsSeen(view.pending)
     setView({ kind: 'hidden' })
+    onShownChange?.(false)
   }
 
+  const open = view.kind === 'notes'
+  const shown = open ? view.shown : []
+  const remaining = open ? view.remaining : 0
+
   return (
-    <Modal label="What's new" onClose={close} panelClassName="max-h-[85vh] overflow-y-auto">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">
-          <span aria-hidden="true">✨</span>{' '}
-          {view.kind === 'welcome' ? 'Welcome' : 'What’s new'}
-        </h2>
-        <button onClick={close} aria-label="Close" className="text-ink-faint hover:text-slate-300">
-          ✕
-        </button>
-      </div>
-
-      {view.kind === 'welcome' ? (
-        <p className="text-sm text-slate-300">
-          You’re all set — there’s nothing to catch up on. The {view.total} release notes
-          written before you arrived are in{' '}
-          <Link to="/whats-new" className="text-emerald-400 underline hover:text-emerald-300">
-            What’s new
-          </Link>{' '}
-          if you ever want the history.
+    <Sheet open={open} onOpenChange={(next) => !next && close()} title="What's new" desk="center">
+      <div className="grid gap-4 py-2">
+        <NoteList heading="h3" items={shown} />
+        {remaining > 0 && (
+          <p className="text-center text-small text-ink-2">
+            and {remaining} older {remaining === 1 ? 'note' : 'notes'} in{' '}
+            <Link to="/whats-new" onClick={close} className={LINK}>
+              What's new
+            </Link>
+          </p>
+        )}
+        <Button onClick={close} className="w-full">
+          Got it
+        </Button>
+        <p className="text-center text-small text-ink-2">
+          Found a bug or want something?{' '}
+          <a href={`mailto:${CONTACT_EMAIL}`} className={LINK}>
+            {CONTACT_EMAIL}
+          </a>
         </p>
-      ) : (
-        <>
-          <ul className="space-y-4">
-            {view.shown.map((item) => (
-              <li key={item.id} className="rounded-control border border-line bg-slate-800/40 p-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-emerald-300">{item.title}</h3>
-                  <time dateTime={item.date} className="shrink-0 text-[11px] text-ink-faint">
-                    {parseIsoDate(item.date).toLocaleDateString(undefined, {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </time>
-                </div>
-                <AnnouncementBody text={item.body} />
-              </li>
-            ))}
-          </ul>
-          {view.remaining > 0 && (
-            <p className="mt-3 text-center text-xs text-ink-faint">
-              and {view.remaining} older {view.remaining === 1 ? 'note' : 'notes'} in{' '}
-              <Link to="/whats-new" className="text-emerald-400 underline hover:text-emerald-300">
-                What’s new
-              </Link>
-            </p>
-          )}
-        </>
-      )}
-
-      <Button
-        onClick={close}
-        className="mt-5 w-full px-5 py-2"
-      >
-        Got it
-      </Button>
-
-      <p className="mt-3 text-center text-xs text-ink-faint">
-        Found a bug or want something?{' '}
-        <a href={`mailto:${CONTACT_EMAIL}`} className="text-emerald-400 underline hover:text-emerald-300">
-          {CONTACT_EMAIL}
-        </a>
-      </p>
-    </Modal>
+      </div>
+    </Sheet>
   )
 }
+
+const LINK =
+  'font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action'

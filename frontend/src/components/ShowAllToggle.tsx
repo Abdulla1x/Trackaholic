@@ -8,12 +8,12 @@
  *
  * Shared rather than copied because the wording is the part that drifts. The
  * slicing is one `.slice()` per caller and stays there, so each section keeps
- * deciding for itself what "the list" is -- FoodLibrarySection caps the
+ * deciding for itself what "the list" is -- the food library caps the
  * *filtered* array, not the whole library, so a filter that already narrows to
  * three results is not then asked to expand.
  *
- * Not a components/ui/ primitive: those exist to settle colliding Tailwind
- * utilities behind variant props (see ui/Button.tsx), and this has none to
+ * Not a primitive in src/ui/: those exist to settle colliding Tailwind
+ * utilities behind variant props (see ui/button.tsx), and this has none to
  * settle. It is one button with one job in three files.
  *
  * It lived under components/settings/ until the Weight page's history list
@@ -59,9 +59,10 @@ export default function ShowAllToggle({
 
   return (
     <button
+      type="button"
       onClick={onToggle}
       aria-expanded={expanded}
-      className="mb-3 w-full rounded-control border border-dashed border-line-strong py-2 text-sm text-ink-muted hover:border-brand hover:text-brand"
+      className="min-h-11 w-full rounded-control border-[1.5px] border-dashed border-rule text-small font-semibold text-ink-2 hover:border-ink-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
     >
       {expanded
         ? 'Show fewer'

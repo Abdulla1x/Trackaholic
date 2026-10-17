@@ -8,8 +8,8 @@ way `calculations.py` and `calibration.py` are.
 
 That is not a stylistic preference, it is the whole reason this feature is
 shaped the way it is. Every safety guarantee in this app is a clamp on a
-computed number -- `MAX_GOAL_RATE_KG_PER_WEEK`, `MIN_TARGET_KCAL`,
-`MIN_TARGET_FRACTION_OF_TDEE`, `clamp_measured_tdee` -- and **there is no clamp
+computed number -- `MAX_LOSS_FRACTION_OF_WEIGHT`, `MIN_TARGET_KCAL`,
+`UNDERWEIGHT_BMI`, `clamp_measured_tdee` -- and **there is no clamp
 on prose**. A review that told someone what to eat would route around all of it
 in one sentence. So no string built here may contain a recommended intake, rate
 or target: every number in every sentence is one the app already computed *and*
@@ -49,6 +49,7 @@ an answer" beats a confident number built on four.
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date as date_type
+from datetime import timedelta
 from typing import NamedTuple
 
 from .calculations import RATE_MIN_POINTS, RATE_WINDOW_DAYS
@@ -71,14 +72,16 @@ REVIEW_WINDOW_DAYS = 7
 LOGGING_DENSE_DAYS = 5
 
 # POLICY. How far a weekly average may sit from the target and still read as
-# "on track", as a fraction of the target.
+# "on track", as a fraction of the target, either side.
 #
-# Five per cent of a 2000 kcal target is 100 kcal a day, which is smaller than
-# the error in estimating a single restaurant meal -- so a band narrower than
-# this would flag ordinary measurement noise as a miss, every week, and train
-# the reader to ignore the check. It is a presentation threshold and nothing
-# else: no target moves because of it.
-INTAKE_TOLERANCE_FRACTION = 0.05
+# Two per cent of a 2000 kcal target is 40 kcal a day. It is the same band
+# Today's calories headline uses to say "on target" (ON_TARGET_FRACTION in
+# frontend/src/lib/today.ts, which mirrors this value), so a week the review
+# calls on track is made of days the app already called on target. Decided
+# 2026-10-11, down from 5%: at 100 kcal a day, a steady surplus that moves the
+# scale over a few weeks still read as on track. It is a presentation
+# threshold and nothing else: no target moves because of it.
+INTAKE_TOLERANCE_FRACTION = 0.02
 
 # POLICY. What share of logged days have to reach the protein goal before
 # protein reads as "on track". Two thirds is a judgement about consistency
@@ -192,15 +195,40 @@ def _plural(count: int, noun: str) -> str:
     return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
-def logging_check(days: Sequence[DayIntake], window_end: date_type) -> ReviewCheck:
+def logging_check(
+    days: Sequence[DayIntake],
+    window_end: date_type,
+    first_logged_day: date_type | None = None,
+) -> ReviewCheck:
     """How much of the week is actually in the sample.
 
     First, and never absent, because it is the check that qualifies every other
-    one. It also never refuses: a week with nothing logged is a complete answer
-    to this question, and the only one where the rest of the review has nothing
-    to describe.
+    one. It refuses only before the account's first logged day (`None` means
+    nothing has ever been logged): a week before anything was logged is not a
+    week someone fell short in, and "Off target" there judged an account for
+    days it didn't exist. After that, a week with nothing logged is a complete
+    answer to this question, and the only one where the rest of the review has
+    nothing to describe.
     """
     logged = len(days)
+    if logged == 0 and (first_logged_day is None or first_logged_day > window_end):
+        # The review's window ends yesterday, so a day first appears in one
+        # the day after it is logged.
+        starts = (
+            "the day after you log your first meal"
+            if first_logged_day is None
+            else f"{_day_label(first_logged_day + timedelta(days=1))}, with your first logged day in it"
+        )
+        return ReviewCheck(
+            key="logging",
+            status=UNKNOWN,
+            value=None,
+            target=REVIEW_WINDOW_DAYS,
+            unit="days",
+            sample_days=REVIEW_WINDOW_DAYS,
+            detail="",
+            unavailable_reason=f"Your first review starts {starts}.",
+        )
     if logged == 0:
         return ReviewCheck(
             key="logging",
@@ -217,16 +245,16 @@ def logging_check(days: Sequence[DayIntake], window_end: date_type) -> ReviewChe
 
     detail = (
         f"You logged meals on {logged} of the {REVIEW_WINDOW_DAYS} days ending "
-        f"{_day_label(window_end)}."
+        f"{_day_label(window_end)}"
     )
     if logged < LOGGING_DENSE_DAYS:
         # Said once, here, rather than repeated as a caveat on every figure
         # below -- each of those already names its own denominator.
         detail += (
-            f" Everything below is averaged over "
-            f"{'that day' if logged == 1 else 'those days'}, so it describes "
-            f"{'it' if logged == 1 else 'them'} rather than the whole week."
+            ", so everything below describes "
+            f"{'that day' if logged == 1 else 'those days'}, not the whole week"
         )
+    detail += "."
     return ReviewCheck(
         key="logging",
         status=ON_TRACK if logged >= LOGGING_DENSE_DAYS else OFF_TRACK,
@@ -276,9 +304,11 @@ def intake_check(
 
     mean = sum(day.calories for day in days) / len(days)
     if daily_target <= 0:
-        # Unreachable through the API -- schemas.Settings requires a positive
-        # goal -- but a target of zero would make the tolerance band zero wide
-        # and every week read as a miss, so it refuses rather than divides.
+        # An account that never chose a target (settings.target_set) is passed
+        # in as zero: its stored 2,000 kcal is a signup default, and judging a
+        # week against it would be the review's first invented number. Zero
+        # would also make the tolerance band zero wide, so it refuses rather
+        # than divides.
         return ReviewCheck(
             key="intake",
             status=UNKNOWN,
@@ -337,6 +367,19 @@ def protein_check(days: Sequence[DayIntake], goal: float) -> ReviewCheck:
         )
 
     mean = sum(day.protein for day in days) / len(days)
+    if goal <= 0:
+        # No target chosen yet (settings.target_set): every day would "reach"
+        # a zero goal, so say there is nothing to compare against instead.
+        return ReviewCheck(
+            key="protein",
+            status=UNKNOWN,
+            value=round(mean, 1),
+            target=None,
+            unit="g",
+            sample_days=len(days),
+            detail="",
+            unavailable_reason="You have no protein target set to compare against.",
+        )
     hits = sum(1 for day in days if day.protein >= goal)
     detail = (
         f"You averaged {round(mean)} g of protein against a {round(goal)} g goal, "
@@ -462,7 +505,7 @@ def weight_check(
             f"Your trend weight is {_rate_phrase(rate_kg)}; you asked to "
             f"{_goal_phrase(goal_rate_kg)}. Fitted over "
             f"{_plural(weigh_ins, 'weigh-in')} across the last {window_days} days, "
-            f"not just this week — a seven-day slope is mostly day-to-day noise."
+            "because one week on its own is mostly noise."
         ),
     )
 
@@ -485,12 +528,12 @@ def targets_check(facts: TargetsFacts) -> ReviewCheck:
             unit="kcal",
             sample_days=0,
             detail="",
-            # Deliberately does not name the absent fields. The Settings card
+            # Deliberately does not name the absent fields. The Body screen
             # already names each one precisely, and a second copy of that list
             # is a second thing to fall out of step with the profile.
             unavailable_reason=(
                 "Your body profile is incomplete, so your daily burn cannot be "
-                "worked out yet. Settings → Body says which part is missing."
+                "worked out yet. You → Body and goal weight says which part is missing."
             ),
         )
 
@@ -595,8 +638,7 @@ def calibration_check(summary: CalibrationSummary | None) -> ReviewCheck | None:
         detail=(
             f"On the {_plural(macro.corrected, 'estimate')} you corrected, you "
             f"typically moved the calorie figure "
-            f"{'up' if moved >= 0 else 'down'} {round(abs(moved))}%. Saving an "
-            f"estimate unchanged measures nothing, so only corrections count here."
+            f"{'up' if moved >= 0 else 'down'} {round(abs(moved))}%."
         ),
     )
 
@@ -620,6 +662,7 @@ def summarise(
     calibration: CalibrationSummary | None = None,
     rate_window_days: int = RATE_WINDOW_DAYS,
     rate_min_points: int = RATE_MIN_POINTS,
+    first_logged_day: date_type | None = None,
 ) -> WeeklyReview:
     """Assemble the review. The router does the queries; this decides what is said.
 
@@ -636,7 +679,7 @@ def summarise(
     does track steps and had a bad week -- exactly the week worth reading.
     """
     checks: list[ReviewCheck] = [
-        logging_check(days, window_end),
+        logging_check(days, window_end, first_logged_day),
         intake_check(days, daily_calorie_target, plan_touched),
         protein_check(days, protein_goal),
         weight_check(

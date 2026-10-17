@@ -1,10 +1,9 @@
 import { useState } from 'react'
+import { NumberField } from '@/ui/number-field'
 import { goalWeightAdvice } from '../../lib/limits'
 import { num } from '../../lib/parse'
 import { kgToDisplay, displayToKg, unitLabel } from '../../lib/units'
 import type { Settings as SettingsType } from '../../types'
-import TextInput from '../ui/TextInput'
-import Field from '../ui/Field'
 
 /** The weight being aimed for, in whichever unit the weight preference implies.
  *
@@ -45,37 +44,24 @@ export default function GoalWeightField({
   const advice = goalWeightAdvice(stored, settings.height_cm)
 
   return (
-    <Field
-      label={<>Goal weight ({label})</>}
-      caption={
-        advice ?? (
-          <>
-            The weight you want to end up at. Leave it blank if you are not
-            aiming at one — the Weight page will work out when you would reach
-            it from the rate you are actually moving at.
-          </>
-        )
-      }
-    >
-      <TextInput
-        type="number"
-        step={0.1}
-        inputMode="decimal"
+    <div className="grid min-w-0 gap-1.5">
+      <NumberField
+        id="body-goal-weight"
+        label="Goal weight"
+        unit={label}
+        placeholder="None"
         value={typed ?? derived}
-        onChange={(event) => {
-          setTyped(event.target.value)
-          const entered = num(event.target.value)
-          update({
-            goal_weight_kg:
-              entered === null ? null : displayToKg(entered, unit),
-          })
+        onChange={(text) => {
+          setTyped(text)
+          const entered = num(text)
+          update({ goal_weight_kg: entered === null ? null : displayToKg(entered, unit) })
         }}
         onBlur={() => {
           setTyped(null)
           onBlur()
         }}
-        className="w-full"
       />
-    </Field>
+      {advice && <p className="text-small text-ink-2">{advice}</p>}
+    </div>
   )
 }

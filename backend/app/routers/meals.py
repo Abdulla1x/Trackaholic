@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import date as date_type
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,7 +9,7 @@ from ..auth.deps import get_current_user
 from ..db import get_db
 from ..models import Meal as MealRow
 from ..models import User, utcnow
-from ..schemas import Meal, MealCreate
+from ..schemas import Meal, MealCreate, RecentMeal
 
 router = APIRouter(prefix="/api/meals", tags=["meals"])
 
@@ -91,7 +92,7 @@ def _distinct_by_name(
     return (kept + held)[:limit]
 
 
-@router.get("/recent", response_model=list[Meal])
+@router.get("/recent", response_model=list[RecentMeal])
 def recent_meals(
     limit: int = Query(default=8, ge=1, le=50),
     demote_date: date_type | None = None,
@@ -135,7 +136,17 @@ def recent_meals(
     demoted = frozenset(
         row.name.strip().lower() for row in rows if row.date == demote_date
     ) if demote_date is not None else frozenset()
-    return _distinct_by_name(rows, limit, demoted)
+    # Counted over every scanned row, not inside the deduplication: that stops
+    # as soon as it has `limit` names, so it never sees the older logs of a
+    # name it already kept.
+    counts = Counter(row.name.strip().lower() for row in rows)
+    return [
+        RecentMeal(
+            **Meal.model_validate(row).model_dump(),
+            count=counts[row.name.strip().lower()],
+        )
+        for row in _distinct_by_name(rows, limit, demoted)
+    ]
 
 
 @router.post("", response_model=Meal, status_code=201)

@@ -1,672 +1,401 @@
-import { useEffect, useRef, useState } from 'react'
-import { api } from '../api/client'
-import { readNoteDraft, writeNoteDraft } from '../lib/draft'
-import type { AnalysisInputs } from '../lib/analysisInputs'
-import { sameInputs } from '../lib/analysisInputs'
-import { downscaleForUpload } from '../lib/photoDownscale'
+import { useEffect, useId, useRef, useState } from 'react'
+import { MAX_ATTACHED_FOODS, MAX_IMAGES, useAnalysis } from '../analysis/AnalysisContext'
 import type { LibraryContext } from '../lib/libraryMatch'
-import { matchItem, perPortion } from '../lib/libraryMatch'
-import { useAnalysisProgress } from '../hooks/useAnalysisProgress'
-import { useAudioRecorder, voiceNoteFilename } from '../hooks/useAudioRecorder'
-import type { Confidence, Food, MealAnalysisResponse, Settings } from '../types'
-import AnalysisProgress from './AnalysisProgress'
-import Card from './ui/Card'
+import type { MealAnalysisResponse } from '../types'
+import AiTips from './log/AiTips'
+import EstimateResult from './log/EstimateResult'
+import EstimateStages from './log/EstimateStages'
 import LibraryFoodPicker from './LibraryFoodPicker'
-import SaveIngredientToLibrary from './SaveIngredientToLibrary'
-import TextInput from './ui/TextInput'
-import Button from './ui/Button'
+import { Button, buttonVariants } from '@/ui/button'
+import { Chip } from '@/ui/chip'
+import Explainer from '@/ui/explainer'
+import { FIELD } from '@/ui/field'
+import Hint from '@/ui/hint'
+import { HIDDEN_EXTRAS, noteWithExtras, shouldAskAboutHidden } from '../lib/aiGuidance'
+import { dismissHint, isHintDismissed } from '../lib/dismissals'
+import { CloseIcon, EstimateIcon, PhotoIcon, VoiceIcon } from '@/ui/icons'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 interface Props {
-  settings: Settings | null
   // The library travels with the analysis because the page below has to resolve
   // the same matches this component displays, and re-fetching there would be a
   // second request for an answer already in memory.
   onApply: (analysis: MealAnalysisResponse, foods: LibraryContext) => void
+  /** Always shown, with no Hide: the Log panel puts AI first, so folding it
+   *  away behind a button would undo that. */
+  alwaysOpen?: boolean
+  /** Where "You can still log it" goes when an estimate fails: true for the
+   *  food search, false for typing the numbers. */
+  onOtherWays?: (search: boolean) => void
 }
 
-const confidenceBadge: Record<Confidence, string> = {
-  high: 'bg-emerald-500/15 text-emerald-300',
-  medium: 'bg-amber-500/15 text-amber-300',
-  low: 'bg-rose-500/15 text-rose-300',
-}
-
-const confidenceDots: Record<Confidence, string> = {
-  high: '●●●',
-  medium: '●●○',
-  low: '●○○',
-}
-
-const round = (value: number) => Math.round(value)
-
-// Mirrors MAX_IMAGES in backend/app/routers/ai.py, which is the real limit —
-// this copy exists only so the UI can stop you before a round trip does. If the
-// two ever disagree the server still wins, and it answers 422.
-const MAX_IMAGES = 4
-
-// Mirrors MAX_ATTACHED_FOODS in the same file, for the same reason and with the
-// same rule about who wins. Each attached food is prompt tokens on every
-// attempt, so this is a bill, not a preference.
-const MAX_ATTACHED_FOODS = 10
-
-export default function MealAnalyzer({ settings, onApply }: Props) {
-  // Seeded from the draft so a note survives a trip to another page and back.
-  // Expanded too when there is one, or the restored text would sit inside a
-  // collapsed panel and read as lost anyway.
-  const [note, setNote] = useState(readNoteDraft)
-  const [expanded, setExpanded] = useState(() => readNoteDraft() !== '')
-  const [files, setFiles] = useState<File[]>([])
-  const [previewUrls, setPreviewUrls] = useState<string[]>([])
-  const [analysis, setAnalysis] = useState<MealAnalysisResponse | null>(null)
-  const [analyzing, setAnalyzing] = useState(false)
-  const [transcribing, setTranscribing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+/** The AI box on the Log page. Every piece of its state -- the note, the
+ *  photos, the call in flight and its answer -- lives in AnalysisProvider, so
+ *  leaving the page no longer throws an estimate away; this component only
+ *  draws it. */
+export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays }: Props) {
+  const {
+    note,
+    setNote,
+    noteRef,
+    files,
+    previewUrls,
+    addFiles,
+    removeFile,
+    library,
+    loadLibrary,
+    attached,
+    attach,
+    detach,
+    analysis,
+    analyzing,
+    transcribing,
+    error,
+    estimateFailed,
+    unchangedRerun,
+    dismissUnchangedRerun,
+    progress,
+    audio,
+    analyze,
+    watch,
+  } = useAnalysis()
   useLiveMessage(error)
-  const [library, setLibrary] = useState<Food[]>([])
-  const [attached, setAttached] = useState<Food[]>([])
-  // What each saved item was stored as, keyed by the name the model gave it.
-  // The value is the name it went in under, which is not always the same one --
-  // renaming before saving is the point of the form.
-  //
-  // Kept here and NOT folded into `library`: that array is what onApply hands to
-  // LogMeal as `libraryFoods`, which is what drives the per-row "use your saved
-  // numbers" offer. Adding a food saved from this panel would make the page
-  // offer the estimate back to itself a moment later, dressed up as an
-  // independent source -- exactly the false provenance the library's own source
-  // badge exists to prevent.
-  const [savedToLibrary, setSavedToLibrary] = useState<Record<string, string>>({})
-  const noteRef = useRef<HTMLTextAreaElement>(null)
-  const libraryRequested = useRef(false)
+  const headingId = useId()
 
-  // What the estimate on screen was built from, and -- when a button was
-  // pressed with nothing changed since -- which one, so the question below can
-  // run it anyway. A ref for the first: it is bookkeeping, nothing renders it.
-  const lastSent = useRef<AnalysisInputs<File> | null>(null)
-  const [unchangedRerun, setUnchangedRerun] = useState<'again' | 'refine' | null>(null)
-  // Any edit answers the question by itself: the next press sends something new.
-  useEffect(() => {
-    setUnchangedRerun(null)
-  }, [note, files, attached])
+  // The hidden-extras question (UA-25): a photo-only estimate stops to ask
+  // what the photos cannot show before it is sent. Answering adds one line to
+  // the note; "No, that's it" sends it as it was.
+  const [asking, setAsking] = useState(false)
+  const [extras, setExtras] = useState<string[]>([])
+  const askId = useId()
+  useLiveMessage(asking ? 'Photos miss oil and sauces. Anything hidden?' : null)
+  // The saved-foods tip: for a meal described in words, with nothing attached
+  // yet, from someone who has saved foods to attach. Photos are left out so
+  // the tip never sits beside the hidden-extras question. Closing it or using
+  // its link hides it for good on this device; it never blocks Estimate.
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [savedFoodsTipClosed, setSavedFoodsTipClosed] = useState(() => isHintDismissed('saved_foods'))
+  const closeSavedFoodsTip = () => {
+    dismissHint('saved_foods')
+    setSavedFoodsTipClosed(true)
+  }
+  const offerSavedFoods =
+    !savedFoodsTipClosed &&
+    !pickerOpen &&
+    library.length > 0 &&
+    note.trim() !== '' &&
+    files.length === 0 &&
+    attached.length === 0
 
-  // Owns everything about the wait: how much of the body has been sent, whether
-  // the server turned out to be asleep, and when it is fair to say the model is
-  // slow. MealAnalyzer only says when a wait starts and when it ends.
-  const progress = useAnalysisProgress()
+  const send = (picks: string[]) => {
+    setAsking(false)
+    setExtras([])
+    void analyze(false, false, picks.length > 0 ? noteWithExtras(note, picks) : undefined)
+  }
 
-  const audio = useAudioRecorder()
-  const { blob: recording, durationMs, clear: clearRecording } = audio
+  // Open straight away when there is anything to show: a note, photos, an
+  // estimate on its way or one already back. Otherwise someone returning to a
+  // running estimate would find it folded away behind the button.
+  const [expandedByUser, setExpanded] = useState(
+    () => note !== '' || files.length > 0 || analyzing || analysis !== null,
+  )
+  const expanded = alwaysOpen || expandedByUser
+
+  // While this is on screen the provider knows an estimate that lands has been
+  // seen, so it neither shows a toast nor puts "Ready" on the Log button.
+  useEffect(watch, [watch])
+
+  // Leaving the page stops a recording in progress. The recorder lives in the
+  // provider, so without this the mic would stay live on the next page; stopped,
+  // what was said is transcribed into the note as usual.
+  const { stop: stopRecording } = audio
+  useEffect(() => stopRecording, [stopRecording])
 
   // Fetched when the panel is opened rather than on mount: /log should not pay
-  // for a request until the AI is actually in use. Once per mount, guarded by a
-  // ref — attaching changes nothing about the library, and a row that goes stale
-  // costs a refused id, which is a sentence rather than a wrong number.
-  //
-  // A failure is swallowed on purpose. The picker then has nothing to offer and
-  // says so, and every other part of the analyzer still works.
+  // for a request until the AI is actually in use. Once per mount, so foods
+  // saved elsewhere since the last visit show up.
+  const libraryRequested = useRef(false)
   useEffect(() => {
     if (!expanded || libraryRequested.current) return
     libraryRequested.current = true
-    api
-      .getFoods()
-      .then(setLibrary)
-      .catch(() => undefined)
-  }, [expanded])
-
-  // Mirrored to the draft on every keystroke rather than on unmount: a
-  // navigation can unmount this component without warning, and an effect
-  // cleanup that runs on every `note` change would be the same number of writes
-  // anyway.
-  useEffect(() => {
-    writeNoteDraft(note)
-  }, [note])
-
-  // Each photo's upload-sized copy, started the moment it is picked rather than
-  // when Analyze is pressed: the user is usually still typing or recording, so
-  // by the time they press it the work is done. Keyed by the File itself, which
-  // is also what makes a Refine re-run reuse it instead of shrinking again.
-  //
-  // Started from an effect, not from addFiles' state updater -- React runs
-  // updaters twice under StrictMode, and an updater is meant to be pure. The
-  // map makes the effect idempotent, and the same pass drops removed photos.
-  const prepared = useRef(new Map<File, Promise<File>>())
-  const preparedFor = (file: File) => {
-    let upload = prepared.current.get(file)
-    if (!upload) {
-      upload = downscaleForUpload(file)
-      prepared.current.set(file, upload)
-    }
-    return upload
-  }
-  useEffect(() => {
-    const map = prepared.current
-    for (const file of map.keys()) {
-      if (!files.includes(file)) map.delete(file)
-    }
-    files.forEach(preparedFor)
-    // preparedFor reads only the ref, so it cannot go stale.
-  }, [files])
-
-  // Every object URL created here must be revoked, or each re-pick leaks a
-  // blob for the lifetime of the tab. The cleanup closes over the exact array
-  // it created, so a fast second pick can't revoke the new URLs by mistake.
-  useEffect(() => {
-    const urls = files.map((item) => URL.createObjectURL(item))
-    setPreviewUrls(urls)
-    return () => urls.forEach(URL.revokeObjectURL)
-  }, [files])
-
-  // Transcribe the moment a recording lands, rather than sending the audio
-  // along with the analysis: the text drops into the box below where it can be
-  // corrected first, so a misheard ingredient is a typo to fix instead of a
-  // wrong number to notice afterwards.
-  //
-  // ⚠️ Each recording is sent exactly ONCE, enforced here rather than trusted to
-  // the dependency list. A re-render used to re-run this effect and POST the
-  // same audio a second time; every transcription is a Gemini call against a
-  // daily quota of 20, so a duplicate is not harmless (see useAudioRecorder's
-  // `clear`). For the same reason a re-run must not cancel the call already in
-  // flight -- that would discard the one transcript that was paid for -- so the
-  // only thing that drops a result is the component going away.
-  const sentRecording = useRef<Blob | null>(null)
-  const mounted = useRef(true)
-  useEffect(() => {
-    mounted.current = true
-    return () => {
-      mounted.current = false
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!recording || sentRecording.current === recording) return
-    sentRecording.current = recording
-
-    // An accidental tap on the mic produces a fraction of a second of silence,
-    // and the model will confidently transcribe that as a stray word rather
-    // than nothing. Cheaper to catch here than to send it and let the user
-    // wonder where "one" came from.
-    if (durationMs < 500) {
-      setError('That recording was too short — hold the button while you speak.')
-      clearRecording()
-      return
-    }
-
-    const transcribe = async () => {
-      setTranscribing(true)
-      setError(null)
-      try {
-        const form = new FormData()
-        form.append('audio', recording, voiceNoteFilename(recording.type))
-        const { transcript } = await api.transcribeVoiceNote(form)
-        if (!mounted.current) return
-        setNote((current) =>
-          current.trim() ? `${current.trim()} ${transcript}` : transcript,
-        )
-        noteRef.current?.focus()
-      } catch (err) {
-        if (mounted.current) {
-          setError(err instanceof Error ? err.message : 'Could not transcribe that')
-        }
-      } finally {
-        if (mounted.current) {
-          setTranscribing(false)
-          // Either way the recording is spent — dropping it lets the user just
-          // record again instead of having to discard a failed one first.
-          clearRecording()
-        }
-      }
-    }
-
-    void transcribe()
-  }, [recording, durationMs, clearRecording])
-
-  // Appended, not replaced: on a phone the gallery picker is usually opened
-  // once per photo, so replacing would make the second pick silently discard
-  // the first. Trimmed to the cap here rather than refusing the whole batch.
-  const addFiles = (picked: FileList | null) => {
-    // Copied out of the FileList *now*, not inside the state updater below.
-    // The change handler resets input.value so re-picking the same file still
-    // fires an event, and that reset empties the live FileList — by the time
-    // React ran the updater there was nothing left in it, so every selection
-    // silently vanished. An array snapshot is unaffected.
-    const chosen = picked ? Array.from(picked) : []
-    if (chosen.length === 0) return
-    setError(null)
-    setFiles((current) => {
-      const room = MAX_IMAGES - current.length
-      if (room <= 0) {
-        setError(`That's the limit — ${MAX_IMAGES} photos per analysis.`)
-        return current
-      }
-      const accepted = chosen.slice(0, room)
-      if (accepted.length < chosen.length) {
-        setError(`Only the first ${accepted.length} were added — ${MAX_IMAGES} photos max.`)
-      }
-      return [...current, ...accepted]
-    })
-  }
-
-  const removeFile = (index: number) => {
-    setFiles((current) => current.filter((_, position) => position !== index))
-    setError(null)
-  }
-
-  const analyze = async (refine: boolean, evenIfUnchanged = false) => {
-    if (files.length === 0 && !note.trim()) {
-      setError('Describe the meal, record a voice note, or add a photo first.')
-      return
-    }
-    // Pressing either button with nothing changed is a re-roll: one of the
-    // day's AI calls for an answer that moves by the model's own noise (~3% in
-    // the 2026-10-05 audit). Asked, not refused -- it is the user's call.
-    const inputs = { note, photos: files, foodIds: attached.map((food) => food.id) }
-    if (
-      !evenIfUnchanged &&
-      analysis &&
-      lastSent.current &&
-      sameInputs(inputs, lastSent.current)
-    ) {
-      setUnchangedRerun(refine ? 'refine' : 'again')
-      return
-    }
-    setUnchangedRerun(null)
-    setAnalyzing(true)
-    setError(null)
-    // Photos are what make a body worth showing a bar for. A note-only analysis
-    // uploads a few hundred bytes and goes straight to waiting on the model.
-    // Shrunk on this device first (lib/photoDownscale.ts). Usually already
-    // finished, since it started when each photo was picked; it never rejects,
-    // and anything it cannot shrink comes back as the original.
-    const uploads = await Promise.all(files.map(preparedFor))
-    const hooks = progress.start(uploads.length > 0)
-    try {
-      const form = new FormData()
-      // Repeated under one field name — the backend reads `image` as a list.
-      uploads.forEach((item) => form.append('image', item))
-      // Ids only: the server reads the macros out of the library itself, so a
-      // request cannot claim a saved food has numbers it does not have.
-      attached.forEach((food) => form.append('food_id', String(food.id)))
-      if (note.trim()) form.append('text', note.trim())
-      if (refine && analysis) form.append('prior_analysis', JSON.stringify(analysis))
-      setAnalysis(await api.analyzeMeal(form, hooks))
-      // Only an estimate that arrived counts: after a failure, trying again
-      // with the same inputs is exactly what the user should be able to do.
-      lastSent.current = inputs
-      // The items are all new, so the "saved ✓" marks against the old ones no
-      // longer describe anything on screen. Refining in particular re-portions
-      // and often renames, so even a name that survives is a different estimate.
-      setSavedToLibrary({})
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analysis failed')
-    } finally {
-      setAnalyzing(false)
-      progress.finish()
-    }
-  }
-
-  const correctAssumption = (assumption: string) => {
-    setNote((current) => {
-      const prefix = current.trim() ? `${current.trim()}\n` : ''
-      return `${prefix}Correction: ${assumption} → `
-    })
-    noteRef.current?.focus()
-  }
-
+    loadLibrary()
+  }, [expanded, loadLibrary])
 
   if (!expanded) {
     return (
       <button
         onClick={() => setExpanded(true)}
         aria-expanded={false}
-        className="w-full rounded-xl border border-dashed border-slate-700 py-3 text-sm text-slate-400 hover:border-emerald-500 hover:text-emerald-300"
+        className="flex min-h-[52px] w-full items-center gap-3 border-y border-rule text-left text-body focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
       >
-        <span aria-hidden="true">✨</span> Estimate macros with AI — describe it,
-        speak it, or snap a photo
+        <EstimateIcon size={18} aria-hidden className="text-ink-2" />
+        Estimate with AI: describe it, say it or snap it
       </button>
     )
   }
 
+  const busy = analyzing || transcribing
   return (
-    <Card as="section">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-semibold">AI meal analysis</h2>
+    <section aria-labelledby={headingId} className="grid grid-cols-[minmax(0,1fr)] gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <h3 id={headingId} className="text-field-label text-ink-2">
+          Estimate with AI
+        </h3>
         {/* The expand control and this one are never on screen together -- each
             branch renders one of them -- so each hard-codes the state it is in,
             the way SaveIngredientToLibrary's does. */}
-        <button
-          onClick={() => setExpanded(false)}
-          aria-expanded={true}
-          className="text-xs text-ink-faint hover:text-slate-300"
-        >
-          Hide
-        </button>
+        {!alwaysOpen && (
+          <button
+            onClick={() => setExpanded(false)}
+            aria-expanded={true}
+            className="min-h-11 px-1 text-small text-ink-2 underline underline-offset-3 hover:text-ink"
+          >
+            Hide
+          </button>
+        )}
       </div>
 
-      <p className="mb-3 text-xs text-slate-400">
-        A description or a photo is enough — combine them for a sharper estimate.
-        The mic writes into the description, so you can fix anything it mishears.
-      </p>
+      {alwaysOpen && <AiTips />}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-sm">
-          <span className="mb-1 block text-xs text-slate-400">Describe it</span>
-          <TextInput as="textarea"
-            ref={noteRef}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={4}
-            placeholder={'e.g. "Grilled chicken with ~1 tbsp olive oil, I only ate half the rice"'}
-            className="w-full"
+      <label className="grid gap-1">
+        <span className="text-small text-ink-2">Describe it, with weights if you have them</span>
+        <textarea
+          ref={noteRef}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={4}
+          placeholder={'e.g. "150 g chicken, 1 tbsp olive oil, half the rice"'}
+          className={`${FIELD} min-h-24 resize-y py-2.5`}
+        />
+      </label>
+
+      {offerSavedFoods && (
+        <Hint
+          action={{
+            label: 'Use my saved foods',
+            onClick: () => {
+              setPickerOpen(true)
+              closeSavedFoodsTip()
+            },
+          }}
+          onClose={closeSavedFoodsTip}
+        >
+          Logging something you've saved?
+        </Hint>
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {/* The mic writes into the description above rather than sending the
+            audio with the estimate, so a misheard word is a typo to fix first. */}
+        {audio.supported && (
+          <Button
+            type="button"
+            onClick={audio.toggle}
+            disabled={transcribing}
+            aria-pressed={audio.recording}
+            variant="secondary"
+            className={audio.recording ? 'border-action text-action' : undefined}
+          >
+            <VoiceIcon size={18} aria-hidden />
+            {audio.recording ? 'Stop recording' : 'Voice note'}
+          </Button>
+        )}
+        {/* A label styled as a button, around the real file input, so the
+            keyboard reaches the input itself and the OS chooser opens as it
+            always did.
+
+            No `capture` attribute, deliberately. It is not a hint: it tells
+            the browser to acquire from a camera and skip the file picker, so
+            on Android it made the gallery unreachable. `accept` alone gets the
+            OS chooser -- Camera, Gallery and Files -- so taking a photo still
+            works. */}
+        <label
+          className={buttonVariants({
+            variant: 'secondary',
+            className: `cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-action ${
+              files.length >= MAX_IMAGES ? 'pointer-events-none opacity-45' : ''
+            }`,
+          })}
+        >
+          <PhotoIcon size={18} aria-hidden />
+          Photos
+          <span className="font-normal text-ink-2 tabular-nums">
+            {files.length}/{MAX_IMAGES}
+          </span>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => {
+              addFiles(e.target.files)
+              // Cleared so picking the same file again still fires a change
+              // event -- otherwise removing a photo and re-adding it silently
+              // does nothing.
+              e.target.value = ''
+            }}
+            disabled={files.length >= MAX_IMAGES}
+            className="sr-only"
           />
         </label>
-
-        <div className="block text-sm">
-          <label className="block">
-            <span className="mb-1 block text-xs text-slate-400">
-              Meal photos{' '}
-              <span className="text-ink-faint">
-                ({files.length}/{MAX_IMAGES} — more angles sharpen the estimate)
-              </span>
-            </span>
-            {/* No `capture` attribute, deliberately. It is not a hint: it tells
-                the browser to acquire from a camera and skip the file picker,
-                so on Android it made the gallery unreachable. Desktop has no
-                capture flow to invoke and ignored it, which is why this looked
-                like a phone-only bug for months. `accept` alone gets the OS
-                chooser — Camera, Gallery and Files — so taking a photo still
-                works. */}
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => {
-                addFiles(e.target.files)
-                // Cleared so picking the same file again still fires a change
-                // event — otherwise removing a photo and re-adding it silently
-                // does nothing.
-                e.target.value = ''
-              }}
-              disabled={files.length >= MAX_IMAGES}
-              className="block w-full text-xs text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-2 file:text-xs file:text-slate-200 hover:file:bg-slate-700 disabled:opacity-50"
-            />
-          </label>
-          {previewUrls.length > 0 && (
-            <ul className="mt-2 flex flex-wrap gap-2">
-              {previewUrls.map((url, index) => (
-                <li key={url} className="relative">
-                  <img
-                    src={url}
-                    alt={`Meal photo ${index + 1}`}
-                    className="h-20 w-20 rounded-lg border border-slate-800 object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeFile(index)}
-                    aria-label={`Remove photo ${index + 1}`}
-                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-rose-500 hover:text-rose-400"
-                  >
-                    ✕
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
       </div>
+
+      {transcribing && (
+        <p className="text-small text-ink-2">Transcribing. The text lands in the box above, ready to fix.</p>
+      )}
+      {audio.error && <p className="border-l-2 border-ink pl-3 text-small">{audio.error}</p>}
+
+      {previewUrls.length > 0 && (
+        <ul className="flex flex-wrap gap-2">
+          {previewUrls.map((url, index) => (
+            <li key={url} className="relative">
+              <img
+                src={url}
+                alt={`Meal photo ${index + 1}`}
+                className="size-16 rounded-control border border-rule object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => removeFile(index)}
+                aria-label={`Remove photo ${index + 1}`}
+                className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-tag bg-ink text-ground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+              >
+                <CloseIcon size={14} aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <LibraryFoodPicker
         foods={library}
         attached={attached}
         max={MAX_ATTACHED_FOODS}
-        onAttach={(food) =>
-          setAttached((current) =>
-            current.length >= MAX_ATTACHED_FOODS || current.some((f) => f.id === food.id)
-              ? current
-              : [...current, food],
-          )
-        }
-        onDetach={(foodId) =>
-          setAttached((current) => current.filter((food) => food.id !== foodId))
-        }
+        onAttach={attach}
+        onDetach={detach}
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
       />
 
-      {audio.supported && (
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={audio.toggle}
-            disabled={transcribing}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm disabled:opacity-60 ${
-              audio.recording
-                ? 'animate-pulse border-rose-500/50 bg-rose-500/10 text-rose-300'
-                : 'border-slate-700 text-slate-300 hover:border-emerald-500 hover:text-emerald-300'
-            }`}
+      {asking ? (
+        <div role="group" aria-labelledby={askId} className="grid gap-2 border-l-2 border-ink pl-3">
+          <p id={askId} className="font-semibold">
+            Photos miss oil and sauces. Anything hidden?
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {HIDDEN_EXTRAS.map((extra) => (
+              <Chip
+                key={extra}
+                pressed={extras.includes(extra)}
+                onClick={() =>
+                  setExtras((current) =>
+                    current.includes(extra) ? current.filter((pick) => pick !== extra) : [...current, extra],
+                  )
+                }
+              >
+                {extra}
+              </Chip>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => send(extras)} disabled={busy || extras.length === 0} className="flex-1">
+              Estimate with these
+            </Button>
+            <Button variant="secondary" onClick={() => send([])} disabled={busy} className="flex-1">
+              No, that's it
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {/* Primary until there is an estimate; then saving it is the main
+              action and this steps back, so the panel never shows two. */}
+          <Button
+            variant={analysis ? 'secondary' : 'primary'}
+            onClick={() => (shouldAskAboutHidden(files.length, note) ? setAsking(true) : analyze(false))}
+            disabled={busy}
+            className="flex-1"
           >
-            <span aria-hidden="true">🎤</span>{' '}
-            {audio.recording ? 'Stop recording' : 'Record a voice note'}
-          </button>
-          {transcribing && (
-            <span className="text-xs text-slate-400">
-              Transcribing — the text will appear above, ready to edit…
-            </span>
+            {analyzing ? 'Estimating…' : analysis ? 'Estimate again' : 'Estimate'}
+          </Button>
+          {analysis && (
+            <Button variant="secondary" onClick={() => analyze(true)} disabled={busy} className="flex-1">
+              Refine with my note
+            </Button>
           )}
-          {audio.error && <span className="text-xs text-rose-400">{audio.error}</span>}
         </div>
       )}
-
-      <div className="mt-3 flex items-center gap-3">
-        <Button
-          onClick={() => analyze(false)}
-          disabled={analyzing || transcribing}
-          className="px-5 py-2"
-        >
-          {analyzing ? 'Analyzing…' : analysis ? 'Analyze again' : 'Analyze'}
-        </Button>
-        {analysis && (
-          <button
-            onClick={() => analyze(true)}
-            disabled={analyzing || transcribing}
-            className="rounded-lg border border-slate-700 px-5 py-2 text-sm text-slate-300 hover:border-emerald-500 hover:text-emerald-300 disabled:opacity-60"
-          >
-            Refine with my note
-          </button>
-        )}
-        <p className="text-xs text-ink-faint">
-          Estimates are approximate — review before saving.
-        </p>
-      </div>
-
       {analysis && (
-        <p className="mt-2 text-xs text-ink-faint">
-          <span className="text-slate-300">Refine</span> adjusts this estimate to your
-          note — use it after correcting an assumption.{' '}
-          <span className="text-slate-300">Analyze again</span> starts over — use it
-          after adding photos.
+        <p className="text-small text-ink-2">
+          Refine adjusts this estimate to your note. Estimate again starts over, for new photos.
         </p>
       )}
 
       {unchangedRerun && (
-        <div
-          role="status"
-          className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-300"
-        >
+        <div role="status" className="grid gap-2 border-l-2 border-ink pl-3 text-small">
           <p>
-            Nothing has changed since this estimate: same note, photos and saved
-            foods. Running it again uses one of today's AI estimates and usually
-            moves the numbers only a few percent.
+            Nothing has changed since this estimate, so running it again uses one of today's AI
+            estimates.
           </p>
-          <div className="mt-2 flex gap-3">
+          <Explainer label="Will it change much?">
+            Same note, photos and saved foods, so the numbers usually move only a few percent.
+          </Explainer>
+          <div className="flex flex-wrap gap-2">
             {/* Same rule as the buttons above: a voice note still transcribing
                 is about to change the note, so running now would send it without. */}
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={() => analyze(unchangedRerun === 'refine', true)}
-              disabled={analyzing || transcribing}
-              className="rounded-lg border border-amber-500/50 px-3 py-1.5 text-amber-200 hover:bg-amber-500/10 disabled:opacity-60"
+              disabled={busy}
             >
               Run it anyway
-            </button>
-            <button
-              type="button"
-              onClick={() => setUnchangedRerun(null)}
-              className="px-1 text-ink-faint hover:text-slate-300"
-            >
+            </Button>
+            <Button variant="ghost" onClick={dismissUnchangedRerun}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      <p className="mt-2 text-xs text-ink-faint">
-        Your photo, voice note, and description are sent to Google Gemini for analysis.
+      <EstimateStages
+        state={progress}
+        photos={files.length}
+        hasNote={note.trim() !== ''}
+        savedFoods={attached.length}
+      />
+
+      {/* Ink and words, never red (DESIGN.md, the No Red Rule). */}
+      {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
+      {/* A failed estimate is not a dead end, for anyone (decided 2026-10-11):
+          the AI's daily limit is shared by the whole app and can run out on
+          a busy day, and the server's message alone points nowhere useful. */}
+      {estimateFailed && onOtherWays && (
+        <div className="grid gap-2">
+          <p className="font-semibold">You can still log it.</p>
+          <p className="text-small text-ink-2">
+            Search a food to get its numbers, or type the calories and protein yourself.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => onOtherWays(true)}>
+              Search a food
+            </Button>
+            <Button variant="ghost" onClick={() => onOtherWays(false)}>
+              Enter it by hand
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <p className="text-small text-ink-2">
+        Your note, photos and voice notes go to Google Gemini to be estimated.
       </p>
 
-      <AnalysisProgress state={progress} />
-
-      {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
-
       {analysis && (
-        <div className="mt-4 rounded-lg border border-slate-800 bg-slate-800/40 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="font-semibold">{analysis.meal_name}</h3>
-            <span
-              className={`rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${confidenceBadge[analysis.confidence]}`}
-            >
-              {analysis.confidence} confidence
-            </span>
-          </div>
-
-          <p className="mt-2 text-sm">
-            <span className="font-semibold text-amber-400">
-              ~{round(analysis.calories.estimate)} kcal
-            </span>{' '}
-            <span className="text-xs text-ink-faint">
-              ({round(analysis.calories.low)}–{round(analysis.calories.high)})
-            </span>
-            <span className="mx-2 text-ink-faint">·</span>
-            <span className="font-semibold text-emerald-400">
-              ~{round(analysis.protein.estimate)} g protein
-            </span>{' '}
-            <span className="text-xs text-ink-faint">
-              ({round(analysis.protein.low)}–{round(analysis.protein.high)})
-            </span>
-            {settings?.track_carbs && analysis.carbs && (
-              <>
-                <span className="mx-2 text-ink-faint">·</span>
-                <span className="font-semibold text-sky-400">
-                  ~{round(analysis.carbs.estimate)} g carbs
-                </span>
-              </>
-            )}
-            {settings?.track_fat && analysis.fat && (
-              <>
-                <span className="mx-2 text-ink-faint">·</span>
-                <span className="font-semibold text-rose-400">
-                  ~{round(analysis.fat.estimate)} g fat
-                </span>
-              </>
-            )}
-          </p>
-
-          <p className="mt-2 text-xs text-slate-400">{analysis.explanation}</p>
-
-          {analysis.clarifying_question && (
-            <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-              <span aria-hidden="true">🤔</span> {analysis.clarifying_question} — answer in
-              the note and hit “Refine”.
-            </p>
-          )}
-
-          {analysis.assumptions.length > 0 && (
-            <div className="mt-3">
-              <p className="mb-1 text-xs text-ink-faint">
-                Assumed (tap one to correct it):
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {analysis.assumptions.map((assumption) => (
-                  <button
-                    key={assumption}
-                    onClick={() => correctAssumption(assumption)}
-                    className="rounded-full border border-slate-700 px-2.5 py-1 text-xs text-slate-300 hover:border-amber-400 hover:text-amber-300"
-                  >
-                    {assumption} <span aria-hidden="true">✎</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <ul className="mt-3 space-y-2">
-            {analysis.items.map((item) => {
-              // Matched against the attached foods only. The rest of the library
-              // is deliberately not consulted here: an item nobody attached is
-              // the model's own estimate, and quietly rewriting it because a name
-              // coincides would be the app deciding on the user's behalf. LogMeal
-              // offers that swap per row instead.
-              const matched = matchItem(item, attached)
-              // The library's figures where there are any, so this list and the
-              // rows the apply button produces cannot disagree about one
-              // ingredient.
-              const macros = matched ? perPortion(item, matched) : item
-              return (
-                <li key={item.name} className="text-sm text-slate-300">
-                  <div className="flex items-center justify-between gap-2">
-                    <span>
-                      {item.name}{' '}
-                      <span className="text-xs text-ink-faint">
-                        ({round(item.portion_grams)} g)
-                      </span>
-                      {matched && (
-                        <span className="ml-1.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] uppercase text-emerald-300">
-                          your library
-                        </span>
-                      )}
-                    </span>
-                    <span className="shrink-0 text-xs text-slate-400">
-                      {round(macros.calories)} kcal ·{' '}
-                      {Math.round(macros.protein * 10) / 10} g P{' '}
-                      <span
-                        title={`${item.confidence} confidence`}
-                        className={confidenceBadge[item.confidence].split(' ')[1]}
-                      >
-                        {confidenceDots[item.confidence]}
-                      </span>
-                    </span>
-                  </div>
-                  {/* Only for items the model estimated. A matched item is a
-                      library food already -- it is where these numbers came
-                      from -- so offering to save it would be offering to
-                      overwrite it with itself. */}
-                  {!matched && (
-                    <SaveIngredientToLibrary
-                      item={item}
-                      library={library}
-                      savedAs={savedToLibrary[item.name] ?? null}
-                      onSaved={(name) =>
-                        setSavedToLibrary((current) => ({ ...current, [item.name]: name }))
-                      }
-                    />
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-
-          {analysis.items.some((item) => matchItem(item, attached)) && (
-            <p className="mt-2 text-xs text-ink-faint">
-              Macros marked “your library” are your own saved numbers — only the
-              portion was estimated. The meal total above is the AI's own, so it
-              can differ from these by a little.
-            </p>
-          )}
-
-          <button
-            onClick={() => onApply(analysis, { attached, library })}
-            className="mt-4 w-full rounded-lg border border-emerald-500/50 bg-emerald-500/10 py-2.5 text-sm font-semibold text-emerald-300 hover:bg-emerald-500/20"
-          >
-            Use these ingredients ↓ (edit them below before saving)
-          </button>
-        </div>
+        <EstimateResult
+          analysis={analysis}
+          mode={alwaysOpen ? 'save' : 'apply'}
+          onApply={() => onApply(analysis, { attached, library })}
+        />
       )}
-    </Card>
+    </section>
   )
 }

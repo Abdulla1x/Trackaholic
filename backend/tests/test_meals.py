@@ -1,4 +1,7 @@
+from app.db import get_engine
+from app.models import Meal as MealRow
 from app.routers.meals import RECENT_SCAN_ROWS
+from sqlalchemy.orm import Session
 from conftest import post_raw_json
 
 
@@ -117,6 +120,29 @@ def test_editing_does_not_rewrite_when_the_meal_was_logged(client):
     assert exported_after["updated_at"] is not None
 
 
+def test_a_meal_says_when_it_was_logged_in_utc(client):
+    created = client.post("/api/meals", json=_sample()).json()
+    # Returned with its zone, so a browser reads the right instant; a bare
+    # timestamp would be taken as local time and shift by the UTC offset.
+    assert created["created_at"].endswith("Z")
+    listed = client.get("/api/meals", params={"date": "2026-07-01"}).json()
+    assert listed[0]["created_at"] == created["created_at"]
+
+    # An edit moves updated_at, never the time it was logged.
+    edited = client.put(f"/api/meals/{created['id']}", json=_sample(calories=610)).json()
+    assert edited["created_at"] == created["created_at"]
+
+
+def test_a_meal_from_before_the_column_has_no_logged_time(client):
+    created = client.post("/api/meals", json=_sample()).json()
+    # Rows written before migration 0006 have no created_at, and none is made up.
+    with Session(get_engine()) as session:
+        session.get(MealRow, created["id"]).created_at = None
+        session.commit()
+    listed = client.get("/api/meals", params={"date": "2026-07-01"}).json()
+    assert listed[0]["created_at"] is None
+
+
 def test_update_meal_validates_and_404s(client):
     meal_id = client.post("/api/meals", json=_sample()).json()["id"]
     assert client.put(f"/api/meals/{meal_id}", json=_sample(calories=-5)).status_code == 422
@@ -224,6 +250,42 @@ def test_recent_stops_at_the_scan_window(client):
 
     names = [m["name"] for m in client.get("/api/meals/recent").json()]
     assert names == ["Breakfast"]
+
+
+def test_recent_counts_each_name_across_case(client):
+    """`count` is how often the name was logged, the meal on offer included.
+
+    It feeds the copy form's saved-meal tip, so it has to treat names the way
+    the deduplication does: "Breakfast" and " breakfast" are one meal. Demoting
+    a name moves it, and must not change its count.
+    """
+    client.post("/api/meals", json=_sample(date="2026-07-01", name="Breakfast"))
+    client.post("/api/meals", json=_sample(date="2026-07-02", name=" breakfast"))
+    client.post("/api/meals", json=_sample(date="2026-07-03", name="BREAKFAST"))
+    client.post("/api/meals", json=_sample(date="2026-07-03", name="Tea"))
+
+    counts = {m["name"].strip().lower(): m["count"] for m in client.get("/api/meals/recent").json()}
+    assert counts == {"breakfast": 3, "tea": 1}
+
+    demoted = client.get("/api/meals/recent", params={"demote_date": "2026-07-02"}).json()
+    assert [(m["name"], m["count"]) for m in demoted] == [("Tea", 1), ("BREAKFAST", 3)]
+
+
+def test_recent_counts_only_inside_the_scan_window(client):
+    """A name logged on both sides of RECENT_SCAN_ROWS counts only the scanned logs.
+
+    The count may run low, never high, so the saved-meal tip can show later
+    than it might but never claims more logs than there were. The deduplication
+    stops early, which is why the count is taken over the whole window: here
+    "Porridge" is the last row scanned, after "Breakfast" was already kept.
+    """
+    client.post("/api/meals", json=_sample(date="2026-06-01", name="Porridge"))
+    client.post("/api/meals", json=_sample(date="2026-06-02", name="Porridge"))
+    for _ in range(RECENT_SCAN_ROWS - 1):
+        client.post("/api/meals", json=_sample(date="2026-07-01", name="Breakfast"))
+
+    counts = {m["name"]: m["count"] for m in client.get("/api/meals/recent").json()}
+    assert counts == {"Breakfast": RECENT_SCAN_ROWS - 1, "Porridge": 1}
 
 
 def test_recent_demotes_names_already_logged_on_the_viewed_day(client):

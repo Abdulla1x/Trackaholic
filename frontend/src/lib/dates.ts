@@ -74,3 +74,52 @@ export function daysBetween(from: string, to: string): number {
   const ms = parseIsoDate(to).getTime() - parseIsoDate(from).getTime()
   return Math.round(ms / 86_400_000)
 }
+
+// A date as people read it: "Sep 28", in the device's own language and order
+// (so "28 Sept" on a phone set to British English), with the year added only
+// when it is not this year's. Every list and chart label goes through here, so
+// no screen shows a raw "2026-09-28" or the "09-28" charts used to cut from it.
+//
+// Anything that is not a YYYY-MM-DD date is shown as it came rather than
+// thrown, unlike the rest of this module: chart tick formatters call this
+// inside render, where a throw takes the whole chart down, and a label that
+// reads oddly is a better failure than an empty card.
+//
+// `now` and `locale` exist for the tests; the app passes neither.
+export function shortDate(iso: string, now: Date = new Date(), locale?: string): string {
+  let date: Date
+  try {
+    date = parseIsoDate(iso)
+  } catch {
+    return iso
+  }
+  return date.toLocaleDateString(locale, {
+    month: 'short',
+    day: 'numeric',
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+  })
+}
+
+// A day with its weekday: "Sat, Oct 10", or "Sat 10 Oct" in British English.
+// The day chips, the date control, the calorie-plan lines and the nutrition
+// label all name a day this way, so they read alike.
+//
+// `locale` exists for the tests; the app doesn't pass it.
+export function dayDate(iso: string, locale?: string): string {
+  return parseIsoDate(iso).toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+// A stored "HH:MM" (24-hour, no timezone) as the device writes a time of day:
+// "8:00 PM" on a US phone, "20:00" on a British one. Meal times are written
+// the same way, so Today shows one clock, not two. Anything that isn't HH:MM
+// is shown as it came.
+//
+// `locale` exists for the tests; the app doesn't pass it.
+export function timeLabel(hhmm: string, locale?: string): string {
+  const match = /^(\d{2}):(\d{2})$/.exec(hhmm)
+  if (!match) return hhmm
+  return new Date(2000, 0, 1, Number(match[1]), Number(match[2])).toLocaleTimeString(locale, CLOCK)
+}
+
+/** The options every time of day on screen is written with. */
+export const CLOCK: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }

@@ -36,3 +36,15 @@ export function sameInputs<Photo>(
   const foods = new Set(a.foodIds)
   return foods.size === new Set(b.foodIds).size && b.foodIds.every((id) => foods.has(id))
 }
+
+/** What to say when a pick of photos only partly fits under the limit.
+ *
+ * `accepted` is how many of the picked photos were kept (at least one; a pick
+ * that fits nothing gets its own message). Only one fitting means photos were
+ * already attached, so it reads "Only 1 more photo fit": "the first photo was
+ * added" would sound like the only photo, and "the first 1 were" is wrong.
+ */
+export function photosCutMessage(accepted: number, max: number): string {
+  const kept = accepted === 1 ? 'Only 1 more photo fit.' : `Only the first ${accepted} were added.`
+  return `${kept} ${max} photos max.`
+}

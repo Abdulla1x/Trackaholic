@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { SharedMeal } from '../types'
-import Card from './ui/Card'
-import Button from './ui/Button'
+import { Button } from '@/ui/button'
+import Explainer from '@/ui/explainer'
+import { FIELD } from '@/ui/field'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 /** Paste a meal code someone sent you, and get their meal in this form.
@@ -22,10 +23,23 @@ import { useLiveMessage } from '../hooks/useLiveMessage'
  */
 export default function MealCodeInput({
   onLoaded,
+  startOpen = false,
+  onCancel,
 }: {
   onLoaded: (shared: SharedMeal, code: string) => void
+  /** Open on mount, for a screen that shows its own "Paste a meal code" row
+   *  and renders this only once that row is tapped. */
+  startOpen?: boolean
+  /** Called when the box is closed, so such a screen can show its row again. */
+  onCancel?: () => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(startOpen)
+  // Focus the box when it opens on a tap (startOpen): the tap was the request
+  // to paste, so the caret should already be there.
+  const box = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    if (startOpen) box.current?.focus()
+  }, [startOpen])
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   useLiveMessage(error)
@@ -35,6 +49,7 @@ export default function MealCodeInput({
     setOpen(false)
     setCode('')
     setError(null)
+    onCancel?.()
   }
 
   const load = async () => {
@@ -64,7 +79,7 @@ export default function MealCodeInput({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-sm text-slate-400 underline underline-offset-4 hover:text-slate-200"
+        className="min-h-11 text-small text-action underline underline-offset-3"
       >
         Got a meal code from someone? Paste it here
       </button>
@@ -72,38 +87,32 @@ export default function MealCodeInput({
   }
 
   return (
-    <Card as="section" pad="sm">
-      <h2 className="mb-1 text-sm font-semibold text-slate-300">Paste a meal code</h2>
-      <p className="mb-3 text-sm text-slate-400">
-        Codes are long — paste the whole thing. Nothing is sent to whoever gave it to
-        you, and they are not told you used it.
-      </p>
+    <section className="grid gap-2">
+      <h3 className="text-field-label text-ink-2">Paste a meal code</h3>
+      <p className="text-small text-ink-2">Paste the whole code.</p>
+      <Explainer label="Will they know?">
+        Nothing is sent to whoever gave it to you, and they aren't told you used it.
+      </Explainer>
       <textarea
+        ref={box}
         value={code}
         onChange={(event) => setCode(event.target.value)}
         rows={3}
         spellCheck={false}
+        aria-label="Meal code"
         placeholder="MC1..."
-        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-base break-all text-slate-200 sm:text-xs"
+        className={`${FIELD} py-2.5 font-mono break-all`}
       />
-      {error && <p className="mt-2 text-sm text-amber-300">{error}</p>}
-      <div className="mt-3 flex gap-2">
-        <Button
-          type="button"
-          onClick={load}
-          disabled={loading}
-          className="px-4 py-2"
-        >
+      {/* Ink and words, never red (DESIGN.md). */}
+      {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
+      <div className="flex gap-2">
+        <Button type="button" onClick={load} disabled={loading}>
           {loading ? 'Loading…' : 'Load meal'}
         </Button>
-        <button
-          type="button"
-          onClick={close}
-          className="rounded-lg border border-slate-700 px-4 py-2 text-sm"
-        >
+        <Button type="button" variant="ghost" onClick={close}>
           Cancel
-        </button>
+        </Button>
       </div>
-    </Card>
+    </section>
   )
 }

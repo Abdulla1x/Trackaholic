@@ -19,8 +19,8 @@ from app.calculations import (
     FAT_FRACTION_OF_CALORIES,
     KCAL_PER_G_CARB,
     KCAL_PER_G_FAT,
-    MIN_TARGET_FRACTION_OF_TDEE,
     MIN_TARGET_KCAL,
+    max_daily_deficit,
 )
 
 TODAY = date(2026, 8, 25)
@@ -48,6 +48,7 @@ def refusals(**overrides):
         goals=GOALS,
         sex="male",
         tdee=2400.0,
+        weight_kg=80.0,
     )
     kwargs.update(overrides)
     return validate_plan(kwargs.pop("entries"), **kwargs).refusals
@@ -131,17 +132,29 @@ def test_macros_floor_at_zero_rather_than_going_negative():
 # --- check_floor -------------------------------------------------------------
 
 
-def test_the_proportional_floor_binds_for_a_large_expenditure():
-    floor, unchecked = check_floor(3200.0, "male", 3200.0)
-    assert floor == 3200.0 * MIN_TARGET_FRACTION_OF_TDEE
-    assert floor > MIN_TARGET_KCAL["male"]
+def test_the_pace_limit_binds_for_a_large_expenditure():
+    # 1% of 80 kg a week is 880 kcal a day below the burn.
+    floor, unchecked = check_floor(3200.0, "male", 3200.0, 80.0)
+    assert floor == 3200.0 - max_daily_deficit(80.0) == 2320.0
     assert unchecked is None
 
 
 def test_the_absolute_floor_binds_for_a_small_expenditure():
-    floor, unchecked = check_floor(1400.0, "female", 1400.0)
+    floor, unchecked = check_floor(1400.0, "female", 1400.0, 60.0)
     assert floor == MIN_TARGET_KCAL["female"]
     assert unchecked is None
+
+
+def test_over_113_kg_the_floor_is_1500_for_anyone():
+    # NHLBI's weight-based guidance: 1,500 kcal or more from 250 lb.
+    floor, _ = check_floor(2000.0, "female", 2600.0, 120.0)
+    assert floor == 1500.0
+
+
+def test_without_a_weight_only_the_absolute_floor_is_checked_and_it_says_so():
+    floor, unchecked = check_floor(2000.0, "male", 2400.0, None)
+    assert floor == MIN_TARGET_KCAL["male"]
+    assert unchecked is not None
 
 
 def test_without_a_tdee_only_the_absolute_floor_is_checked_and_it_says_so():
@@ -212,24 +225,24 @@ def test_an_empty_plan_is_refused():
 
 
 def test_a_day_shaved_below_the_floor_is_refused_naming_the_day_and_the_floor():
-    # A 2400 TDEE puts the proportional floor at 1800, so a 2000 goal has
-    # exactly 200 kcal a day of shaving room: -200 lands on the floor and is
-    # allowed, -400 goes through it.
+    # 80 kg at a 2400 burn: the fastest planned loss is 0.8 kg a week, 880 kcal
+    # a day, so no day goes below 1520 and a 2000 goal has 480 kcal of room:
+    # -480 lands on the floor and is allowed, -500 goes through it.
     assert refusals(
-        entries=[PlanEntry(day(1), 400.0), PlanEntry(day(2), -200.0),
-                 PlanEntry(day(3), -200.0)],
+        entries=[PlanEntry(day(1), 960.0), PlanEntry(day(2), -480.0),
+                 PlanEntry(day(3), -480.0)],
         event_date=day(1),
     ) == []
 
     said = refusals(
-        entries=[PlanEntry(day(1), 800.0), PlanEntry(day(2), -400.0),
-                 PlanEntry(day(3), -400.0)],
+        entries=[PlanEntry(day(1), 1000.0), PlanEntry(day(2), -500.0),
+                 PlanEntry(day(3), -500.0)],
         event_date=day(1),
     )
     assert len(said) == 2
     assert any(day(2).isoformat() in r for r in said)
     assert any(day(3).isoformat() in r for r in said)
-    assert all(str(round(2400.0 * MIN_TARGET_FRACTION_OF_TDEE)) in r for r in said)
+    assert all("1520" in r for r in said)
 
 
 def test_every_breaching_day_is_reported_not_just_the_first():
@@ -376,23 +389,22 @@ def test_the_unchecked_note_is_not_itself_a_refusal():
     assert check.unchecked is not None
 
 
-def test_the_proportional_floor_is_what_binds_and_it_binds_hard():
-    """How much room a plan actually has, written down because it surprises.
+def test_the_pace_limit_is_what_binds_and_how_much_room_it_leaves():
+    """How much room a plan actually has, written down because it matters.
 
-    On a normal cut -- 2400 kcal expenditure, a 2000 kcal goal -- the floor
-    sits at 1800, leaving 200 kcal a day. That is the constraint users will
-    meet, not the 3000 kcal per-day cap, and it is why every floor refusal ends
-    by telling them to spread wider rather than just saying no.
+    On a normal cut -- 80 kg, 2400 kcal expenditure, a 2000 kcal goal -- a day
+    may go no lower than the fastest permanent target the app would set: 880
+    kcal under the burn, 1520. That leaves 480 kcal a day, so a 960 kcal night
+    out balances over two days and not over one.
     """
-    floor, _ = check_floor(2000.0, "male", 2400.0)
-    assert 2000.0 - floor == 200.0
+    floor, _ = check_floor(2000.0, "male", 2400.0, 80.0)
+    assert 2000.0 - floor == 480.0
 
-    # 600 kcal over three days fits exactly; over two it does not.
     assert refusals(
-        entries=[PlanEntry(day(i), -200.0) for i in (1, 2, 3)],
-        kind=KIND_COMPENSATING, event_date=day(-1), surplus_kcal=600.0,
+        entries=[PlanEntry(day(i), -480.0) for i in (1, 2)],
+        kind=KIND_COMPENSATING, event_date=day(-1), surplus_kcal=960.0,
     ) == []
     assert refusals(
-        entries=[PlanEntry(day(i), -300.0) for i in (1, 2)],
-        kind=KIND_COMPENSATING, event_date=day(-1), surplus_kcal=600.0,
+        entries=[PlanEntry(day(1), -960.0)],
+        kind=KIND_COMPENSATING, event_date=day(-1), surplus_kcal=960.0,
     ) != []

@@ -1,108 +1,23 @@
-import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../api/client'
-import StatusBanner from '../components/StatusBanner'
-import WarmupNotice from '../components/WarmupNotice'
-import { useAnnouncements } from '../hooks/useAnnouncements'
-import Card from '../components/ui/Card'
-import TextInput from '../components/ui/TextInput'
-import Field from '../components/ui/Field'
-import Button from '../components/ui/Button'
-import { useLiveMessage } from '../hooks/useLiveMessage'
+import AuthFrame, { AUTH_LINK, AUTH_TITLE } from '../components/auth/AuthFrame'
+import NoPasswordReset from '../components/auth/NoPasswordReset'
 
+/** No reset form until sending email is switched on: the form could only
+ *  ever answer "not available", after asking for an address. The form and
+ *  its "check your inbox" step are in git history, to bring back with the
+ *  email provider. */
 export default function ForgotPassword() {
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  useLiveMessage(error)
-  const [submitting, setSubmitting] = useState(false)
-  const announcements = useAnnouncements()
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
-    setError(null)
-    setSubmitting(true)
-    try {
-      await api.forgotPassword(email)
-      setSent(true)
-    } catch (err) {
-      // Only real failures land here — a 503 when email isn't configured, a 429,
-      // or the network. An address with no account still answers 200, by design.
-      setError(err instanceof Error ? err.message : 'Request failed')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center justify-center gap-2">
-          <img src="/favicon.svg" alt="" className="size-8 rounded-[5px]" />
-          <h1 className="text-xl font-bold tracking-tight">Trackaholic</h1>
-        </div>
-        <StatusBanner banner={announcements?.banner ?? null} />
-        {sent ? (
-          <Card pad="lg" className="space-y-3 text-sm">
-            <h2 className="text-lg font-semibold">Check your inbox</h2>
-            <p className="text-slate-400">
-              If an account exists for <span className="text-slate-200">{email}</span>,
-              a reset link is on its way. It works for one hour and can only be
-              used once.
-            </p>
-            {/* Written here rather than echoed from the API: this is a fact
-                about how the mail is delivered, not about the request. Our
-                sending address is rewritten by the email provider because we
-                don't own a domain yet, so the message genuinely looks like it
-                came from a stranger — saying so up front is the difference
-                between "check spam" and "report phishing". */}
-            <p className="text-ink-faint">
-              It arrives from <span className="text-slate-300">Trackaholic</span>{' '}
-              but at an unfamiliar <code className="text-slate-300">brevosend.com</code>{' '}
-              address, so check your spam folder if it isn't there in a few
-              minutes.
-            </p>
-            <p className="text-center text-slate-400">
-              <Link to="/login" className="text-emerald-400 underline hover:text-emerald-300">
-                Back to log in
-              </Link>
-            </p>
-          </Card>
-        ) : (
-          <Card as="form" pad="lg" className="space-y-4" onSubmit={handleSubmit}>
-            <h2 className="text-lg font-semibold">Reset your password</h2>
-            <p className="text-sm text-slate-400">
-              Enter your email and we'll send you a link to choose a new
-              password.
-            </p>
-            <Field label="Email">
-              <TextInput size="md"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full"
-              />
-            </Field>
-            {error && <p className="text-sm text-rose-400">{error}</p>}
-            <Button
-              type="submit"
-              disabled={submitting}
-              className="w-full px-5 py-2"
-            >
-              {submitting ? 'Sending…' : 'Send reset link'}
-            </Button>
-            <p className="text-center text-sm text-slate-400">
-              Remembered it?{' '}
-              <Link to="/login" className="text-emerald-400 underline hover:text-emerald-300">
-                Log in
-              </Link>
-            </p>
-          </Card>
-        )}
-        <WarmupNotice />
-      </div>
-    </div>
+    <AuthFrame>
+      <section className="grid gap-3.5">
+        <h1 className={AUTH_TITLE}>Forgot your password?</h1>
+        <NoPasswordReset />
+        <p className="text-center text-small text-ink-2">
+          <Link to="/login" className={AUTH_LINK}>
+            Back to log in
+          </Link>
+        </p>
+      </section>
+    </AuthFrame>
   )
 }

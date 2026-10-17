@@ -1,126 +1,356 @@
 @import "tailwindcss";
+/* The colour tokens for every palette and theme. Plain CSS custom properties,
+ * switched by attributes on <html>; the @theme inline block below maps them
+ * onto utilities. */
+@import "./theme.css";
 
-/* Semantic tokens over the palette the app already uses.
- *
- * Values are hex literals rather than var(--color-slate-*) indirection, and the
- * Tailwind name each one mirrors is in the comment. Two reasons: --color-ink-faint
- * is a measured custom value that is not on the slate scale at all, and a ramp
- * that mixes framework indirection with one hex outlier hides which is which.
- * This block is meant to be the single auditable record of the palette.
- *
- * Contrast ratios below are WCAG 2.1 relative-luminance figures against the
- * surface named. AA for normal text is 4.5:1; non-text (borders, rings) is 3:1.
- *
- * NEVER fix a contrast problem by redefining --color-slate-500 or any other
- * framework palette name. It happens to be safe today only because bg-slate-500,
- * border-slate-500 and ring-slate-500 have zero occurrences -- which is exactly
- * the trap. Redefining it silently poisons every future use of that name.
- */
+/* The Label style (DESIGN.md: Themes and palettes): `label:` applies a
+ * utility only while <html> has data-style="label". :where() adds no
+ * specificity, so `label:border-2` ties with the `border-[1.5px]` beside it
+ * and wins on order, because Tailwind writes variant utilities after plain
+ * ones. Each primitive carries its own label: utilities this way. */
+@custom-variant label (&:where([data-style="label"] *));
+
+/* The tokens that are not colours. The colours are all in theme.css, switched
+ * by attributes on <html>, and mapped onto utilities by @theme inline below.
+ * The old fixed dark tokens (surface, raised, line, ink-muted, ink-faint,
+ * brand and the per-macro hues) are gone. Tailwind does not fail on a class
+ * whose token is missing, it just emits nothing, so
+ * tests/noFixedColours.test.ts is what stops one coming back. */
 @theme {
-  /* Surfaces, by depth. app is the page ground, surface is a card, raised is
-   * something you type in or tap sitting on top of a card. */
-  --color-app: #020617;          /* slate-950 */
-  --color-surface: #0f172a;      /* slate-900 */
-  --color-raised: #1e293b;       /* slate-800 */
+  /* Radius for anything you tap or type in (DESIGN.md: Shapes). */
+  --radius-control: 5px;         /* DESIGN.md (was 0.5rem, rounded-lg) */
+  /* In this block, not @theme inline, so the utilities read var(): the Label
+   * style squares every corner by setting these to 0 (below). */
+  --radius-tag: 3px;
+  --radius-log: 7px;
+  --radius-sheet: 14px;
 
-  /* Lines. line is a hairline between sections; line-strong is an input border,
-   * which has to carry more weight because it defines a hit target. */
-  --color-line: #1e293b;         /* slate-800 */
-  --color-line-strong: #334155;  /* slate-700 */
+  /* DESIGN.md's one layout switch: under 900px a bottom tab bar, from 900px a
+   * side rail. `desk:` rather than md: (768px), which today's pages still use
+   * for their own inner layouts. */
+  --breakpoint-desk: 900px;
 
-  /* Ink, three steps.
-   *   ink        16.30:1 on surface -- body copy
-   *   ink-muted   6.96:1 on surface -- labels, secondary values
-   *   ink-faint   5.12:1 on surface -- captions, the honesty copy
-   *
-   * ink-faint replaces the old slate-500 caption colour, which measured 3.75:1 and
-   * failed AA at 94 caption sites.
-   *
-   * The value is chosen against the WORST background a caption actually sits on,
-   * not against surface. Nested cards (bg-slate-800/40 and /60 over surface)
-   * blend to #151e31 and #182234, where a token tuned to surface alone lands at
-   * 4.28 and 4.10 -- under AA, at four real sites. This value clears all of them
-   * (4.77 and 4.57) so "captions use ink-faint" is a rule with no exceptions.
-   *
-   * It is NOT slate-400 either: that would pass everywhere but sits 1.20x from
-   * ink-muted, flattening the caption/label hierarchy across the app. This keeps
-   * 1.36x, against the 1.86x slate-400/slate-500 had.
-   *
-   * ⚠ THE RULE IS ABOUT THE GROUND, NOT ABOUT PLACEHOLDERS. On --color-raised
-   * ink-faint is 4.19:1 and fails AA, so text there steps up to ink-muted
-   * (5.71:1) instead. One token genuinely cannot serve both.
-   *
-   * This note used to say "placeholder text lives on that background", naming
-   * the only thing that was true of at the time -- and six phases later a
-   * caption had appeared inside an OptionChip, whose ground is bg-raised, at
-   * exactly the 4.19 predicted here. Nothing caught it, because a caption and
-   * its ground are DIFFERENT ELEMENTS and no grep can join them. So: the rule is
-   * that anything on a ground lighter than --color-surface uses ink-muted, and
-   * scripts/a11y-audit.mjs is what enforces it now. The composited tinted
-   * grounds are worse still, not better -- ink-faint measures 4.06 on
-   * bg-emerald-500/15 and 3.74 on bg-sky-500/20. */
-  --color-ink: #f1f5f9;          /* slate-100 */
-  --color-ink-muted: #94a3b8;    /* slate-400 */
-  --color-ink-faint: #7c8aa3;    /* measured, between slate-500 and slate-400 */
+  /* The page changing: DESIGN.md's tab-change crossfade, 150ms. */
+  --animate-route-in: route-in 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* A screen pushed from a tab, and coming back from one (DESIGN.md: Screen
+   * push and back): 260ms, sliding 28px (lib/motion.ts SCREEN_SHIFT) from the
+   * right on push and from the left on back, fading in. */
+  --animate-screen-push: screen-push 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-screen-back: screen-back 260ms cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* Brand, and what goes ON brand. Pairing these is the point: the two
-   * emerald-600 buttons in the app set no text colour at all, inherited
-   * slate-100 from body, and landed at 3.44:1. brand-ink is 7.95:1. */
-  --color-brand: #10b981;        /* emerald-500 */
-  --color-brand-ink: #020617;    /* slate-950 */
+  /* DESIGN.md's catalogue, Today's two: a gauge segment lighting and a
+   * changed digit rolling into place (320ms, 0.45em, 40ms apart from the
+   * right). A gauge first drawn fades its segments in (220ms); one that grows
+   * afterwards sweeps: each new segment lights in the action colour and settles
+   * to its fill (760ms, 45ms apart), so a bright edge runs along the gauge and
+   * leaves the new total behind (picked from a prototype, after a phone
+   * test found the fade easy to miss). `backwards` keeps a delayed segment dark
+   * until its turn instead of flashing on first. */
+  --animate-segment-on: segment-on 220ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  --animate-segment-sweep: segment-sweep 760ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  --animate-roll-up: roll-up 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  --animate-roll-down: roll-down 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  /* Reaching the target on today (DESIGN.md: On target): the target tick
+   * lifts once in the action colour, then "On target" rolls up into place. */
+  --animate-tick-lift: tick-lift 620ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  --animate-words-in: roll-up 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 
-  /* The hues the app already assigns per macro and per tracker. Naming them here
-   * covers the utility-class uses only. The ring, chart and card colours are
-   * passed as recharts props and as plain `color` strings, where var() in an
-   * SVG presentation attribute is browser-dependent -- those now live in
-   * lib/chartTheme.ts, which mirrors these values by hand and says so.
-   *
-   * Change a hue and both files need it. Nothing asserts the pairing. */
-  --color-calories: #f59e0b;     /* amber-500 */
-  --color-protein: #34d399;      /* emerald-400 */
-  --color-carbs: #38bdf8;        /* sky-400 */
-  --color-fat: #fb7185;          /* rose-400 */
-  --color-water: #38bdf8;        /* sky-400 -- same hue as carbs, see chartTheme note */
-  --color-steps: #a78bfa;        /* violet-400 */
-  --color-supplements: #fbbf24;  /* amber-400 */
+  /* Delete and Undo (DESIGN.md): the strike draws across a deleted meal
+   * (350ms), the Undo bar drains linearly over the full 10 seconds (the
+   * hook's UNDO_MS), and the line folds closed when it is gone (280ms). */
+  --animate-strike: strike 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-drain: drain 10s linear both;
+  --animate-fold: fold 280ms cubic-bezier(0.4, 0, 1, 1) both;
 
-  /* Radius, as a rule rather than a habit: containers get rounded-card, anything
-   * you tap or type in gets rounded-control.
-   *
-   * The primitives in components/ui/ now own this. rounded-xl went from 52 sites
-   * to 5 and rounded-lg from 91 to 53 -- what is left is the one-off buttons and
-   * the dense list rows, which were never cards or controls and are deliberately
-   * not swept in. Change a radius here and every card, input, chip and button in
-   * the app follows; the leftovers do not, which is the honest state of it. */
-  --radius-card: 0.75rem;        /* was rounded-xl */
-  --radius-control: 0.5rem;      /* was rounded-lg */
+  /* Skeletons (DESIGN.md): a slow band of the ground colour passing over a
+   * track-coloured block while a data screen first loads. */
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
 
-  /* The only indeterminate animation in the app, used while the AI model is
-   * working and there is genuinely nothing to count. Registered here rather
-   * than written inline so it is `animate-indeterminate` like any other
-   * utility, and so `motion-reduce:` can switch it off the normal way.
-   *
-   * The segment is w-1/4 of its track, and translateX is a percentage of the
-   * SEGMENT, not the track -- so -100% parks it just off the left edge and
-   * 400% carries its leading edge just past the right one. */
-  --animate-indeterminate: indeterminate 1.4s ease-in-out infinite;
+  /* The weekly review's checks arriving one by one (DESIGN.md: 80ms apart;
+   * the delay is set per check). `backwards` keeps a waiting check hidden
+   * until its turn. */
+  --animate-rise: rise 300ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+
+  /* A locked Progress section replaced by its content (DESIGN.md: Unlock,
+   * 350ms); its trend line then draws itself over 1.1s, in the chart. */
+  --animate-unlock: unlock 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  /* Server waking (DESIGN.md): six segments light in turn where a spinner
+   * would be; each segment's delay is set where it is drawn. */
+  --animate-wake-segment: wake-segment 1.2s ease-in-out infinite;
+
+  /* First target (DESIGN.md): the gauge draws in from the left while the
+   * number counts up, over the same 900ms. */
+  --animate-gauge-draw: gauge-draw 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes indeterminate {
+@keyframes gauge-draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes wake-segment {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+@keyframes unlock {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes shimmer {
   from {
     transform: translateX(-100%);
   }
   to {
-    transform: translateX(400%);
+    transform: translateX(100%);
   }
 }
 
-/* Tells the browser to render built-in UI -- date pickers, select menus, time
- * inputs, scrollbars -- against a dark ground. Replaces five inline
- * style={{ colorScheme: 'dark' }} props that covered only three of the seven
- * date inputs, one select and one time input. */
+@keyframes strike {
+  from {
+    background-size: 0% 1.5px;
+  }
+  to {
+    background-size: 100% 1.5px;
+  }
+}
+@keyframes drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+@keyframes fold {
+  from {
+    max-height: 3.5rem;
+  }
+  to {
+    max-height: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes segment-on {
+  from {
+    opacity: 0;
+  }
+}
+/* No `to`: the segment settles to its own fill, whichever tone it is in. */
+@keyframes segment-sweep {
+  0% {
+    opacity: 0;
+    background-color: var(--color-action);
+  }
+  22% {
+    opacity: 1;
+    background-color: var(--color-action);
+  }
+}
+@keyframes roll-up {
+  from {
+    opacity: 0;
+    transform: translateY(0.45em);
+  }
+}
+@keyframes tick-lift {
+  40% {
+    transform: scaleY(2.1);
+    background-color: var(--color-action);
+  }
+}
+@keyframes roll-down {
+  from {
+    opacity: 0;
+    transform: translateY(-0.45em);
+  }
+}
+
+@keyframes route-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes screen-push {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+@keyframes screen-back {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+
+/* How much of the bottom of the screen the app shell covers, for anything
+ * pinned to the bottom of a page (Settings' Save bar) and for the page's own
+ * bottom padding. Phones: the tab bar, 64px plus its 1px top rule, plus the
+ * home-indicator inset. Desktop: nothing, the nav is a side rail. */
 :root {
-  color-scheme: dark;
+  --shell-bottom: calc(65px + env(safe-area-inset-bottom));
+}
+@media (width >= 900px) {
+  :root {
+    --shell-bottom: 0px;
+  }
+}
+
+/* Reduced motion keeps fades only, shorter (DESIGN.md, Motion). */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --animate-route-in: route-in 120ms linear;
+    --animate-screen-push: route-in 120ms linear;
+    --animate-screen-back: route-in 120ms linear;
+    /* A short fade with no stagger, and numbers that simply change. */
+    --animate-segment-on: segment-on 120ms linear;
+    --animate-segment-sweep: segment-on 120ms linear;
+    --animate-roll-up: none;
+    --animate-roll-down: none;
+    /* The tick stays put; the words fade in. */
+    --animate-tick-lift: none;
+    --animate-words-in: route-in 120ms linear backwards;
+    /* The strike is simply there. The drain stays: it is not decoration but
+     * the only sign of how long Undo lasts, and the window still applies. */
+    --animate-strike: none;
+    --animate-fold: none;
+    /* Loops stop: the block is simply there. */
+    --animate-shimmer: none;
+    --animate-wake-segment: none;
+    --animate-gauge-draw: route-in 120ms linear both;
+    --animate-rise: route-in 120ms linear backwards;
+    --animate-unlock: route-in 120ms linear both;
+  }
+}
+
+/* The redesign's tokens, from DESIGN.md. `inline` makes each utility read the
+ * variable itself (bg-ground -> var(--ground)) rather than a value frozen at
+ * build time, which is what lets one attribute on <html> switch palette or
+ * theme at runtime.
+ *
+ * Names follow DESIGN.md, with two exceptions where Tailwind would put two
+ * tokens on one class: the "label" TYPE style is text-field-label (the "label"
+ * colour already makes text-label), and the number styles are
+ * text-display-number / text-field-number / text-row-number (the "field"
+ * colour makes text-field). color-scheme now comes from theme.css, per theme. */
+@theme inline {
+  --color-ground: var(--ground);
+  --color-field: var(--field);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-rule: var(--rule);
+  --color-track: var(--track);
+  --color-fill: var(--fill);
+  --color-action: var(--action);
+  --color-action-ink: var(--action-ink);
+  --color-plan: var(--plan);
+  --color-label: var(--label);
+  --color-fact: var(--fact);
+  --color-band: var(--band);
+  --color-band-ink: var(--band-ink);
+  --color-band-ink-2: var(--band-ink-2);
+  --color-band-track: var(--band-track);
+  --color-band-fill: var(--band-fill);
+  --color-band-plan: var(--band-plan);
+  --color-band-rule: var(--band-rule);
+
+  /* Mona Sans does every job by changing width (DESIGN.md, Typography); the
+   * self-hosted variable font carries the width axis. Overriding --font-sans
+   * makes it the whole app's face, legacy pages included. */
+  --font-sans: "Mona Sans Variable", "Mona Sans", system-ui, sans-serif;
+  /* The nutrition-label face: the wordmark and the Label style only. */
+  --font-label: "Libre Franklin Variable", "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+
+  /* DESIGN.md Motion tokens, for CSS transitions; Motion code reads lib/motion.ts. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* DESIGN.md's type scale. Utilities rather than font-size tokens because each
+ * style is width + weight + spacing together, and Tailwind's font-size tokens
+ * cannot carry font-stretch. Numbers use tabular figures (the Fixed Digits
+ * Rule); that is set once on body below. */
+@utility text-display-number {
+  font-size: 92px;
+  font-weight: 820;
+  font-stretch: 75%;
+  line-height: 0.86;
+  letter-spacing: -0.02em;
+}
+@utility text-field-number {
+  font-size: 30px;
+  font-weight: 780;
+  font-stretch: 78%;
+  line-height: 1;
+}
+@utility text-row-number {
+  font-size: 20px;
+  font-weight: 760;
+  font-stretch: 80%;
+  line-height: 1.2;
+}
+@utility text-title {
+  font-size: 16px;
+  font-weight: 750;
+  font-stretch: 112%;
+  line-height: 1.25;
+  /* A user-named meal or food at 360px must not leave one word alone on
+     the last line (UA-35). */
+  text-wrap: pretty;
+}
+/* The pressed state's plumbing (UA-34): the browser's grey tap rectangle
+   ignores the radius and fights the control's own pressed tone, so it goes
+   wherever a control has one. Controls without a pressed tone keep it, so
+   nothing loses its only feedback. */
+@utility pressable {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+/* The reading measure (UA-37): prose past about 75 characters a line is hard
+   to track back to the next line's start. Applied from desk: only, since a
+   phone line is already under 50. */
+@utility measure {
+  max-width: 65ch;
+}
+@utility text-body {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+@utility text-small {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+@utility text-field-label {
+  font-size: 11px;
+  font-weight: 650;
+  font-stretch: 110%;
+  line-height: 1.3;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 @layer base {
@@ -130,20 +360,42 @@
    * border-colour swap that misses the 3:1 non-text minimum.
    *
    * :focus-visible, not :focus, so a mouse click on a button does not leave a
-   * ring behind. outline-offset puts the ring outside the control, so a brand
-   * ring on a brand-coloured button still reads (7.04:1 against surface).
+   * ring behind. outline-offset puts the ring outside the control, so an
+   * action-coloured ring still reads around an action-coloured button.
    *
    * NOTE this rule is beatable: a focus:outline-none utility outranks @layer base
    * regardless of specificity, and keys off :focus rather than :focus-visible.
    * Every such site was deleted; re-adding one silently removes its ring. */
   :focus-visible {
-    outline: 2px solid var(--color-brand);
+    outline: 2px solid var(--color-action);
     outline-offset: 2px;
+  }
+
+  /* No double-tap zoom on a control, so two quick taps are two taps and the
+   * browser doesn't hold each one back waiting for a second. Pinch zoom
+   * still works everywhere. */
+  :where(a, button, [role='button'], label, summary, select) {
+    touch-action: manipulation;
+  }
+
+  /* The Label style's two global changes: Libre Franklin everywhere, and no
+   * rounded corners anywhere. Everything else is a label: utility on the
+   * primitive it changes. */
+  :root[data-style="label"] {
+    font-family: var(--font-label);
+    --radius-control: 0px;
+    --radius-tag: 0px;
+    --radius-log: 0px;
+    --radius-sheet: 0px;
   }
 }
 
 body {
-  background-color: var(--color-app);
+  /* The theme's ground and ink. Every screen draws on these now. */
+  background-color: var(--color-ground);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
+  /* The Fixed Digits Rule: values change in place, nothing shifts sideways
+   * when a digit changes (UA-15 found tabular-nums used twice in the app). */
+  font-variant-numeric: tabular-nums;
 }

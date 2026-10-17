@@ -41,7 +41,7 @@
 // frontend started by hand).
 //
 // ⚠ Start the backend with ADMIN_EMAILS set to the account's address, or /admin
-// renders "Not found." instead of its two charts -- two of the five charts in
+// renders the 404 page instead of its two charts -- two of the five charts in
 // the app, silently missing from whatever the caller is measuring.
 //
 // ---------------------------------------------------------------------------
@@ -56,6 +56,15 @@
 //   SEED_DAYS     days of data to seed (default 14)
 //   SEED_TEMPLATES saved meals to seed  (default 8)
 //   SEED_FOODS    library foods to seed (default 8)
+//   THEME         auto | light | dark  (default: unset, so the app's own
+//                                       default, Automatic, which a headless
+//                                       browser resolves to light)
+//   PALETTE       daylight | ocean | teal | citrus | violet | berry | clay |
+//                 sand | ember        (default: unset, Daylight)
+//   STYLE         fields | label      (default: unset, Fields)
+//                 Any of the three is stored as this device's appearance
+//                 before each page loads, so public/theme-init.js paints it
+//                 from the first frame, exactly as a real choice would.
 
 import { readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -76,6 +85,27 @@ export const SEED_TEMPLATES = Number(process.env.SEED_TEMPLATES ?? 8)
 // compared. The fourth hole of this exact shape. Eight is more than
 // COLLAPSED_ROWS, so the rows and the control that expands them are both covered.
 export const SEED_FOODS = Number(process.env.SEED_FOODS ?? 8)
+
+/** The appearance to run in, as the app stores it, or null to leave the
+ *  device's storage empty. Values are passed through unchecked on purpose:
+ *  junk should load as the defaults, and a run can show that it does. */
+export const APPEARANCE =
+  process.env.THEME || process.env.PALETTE || process.env.STYLE
+    ? JSON.stringify({
+        theme: process.env.THEME ?? 'auto',
+        palette: process.env.PALETTE ?? 'daylight',
+        style: process.env.STYLE ?? 'fields',
+      })
+    : null
+
+/** A browser context with APPEARANCE stored before every load. */
+async function newContext(browser, viewport) {
+  const context = await browser.newContext({ viewport })
+  if (APPEARANCE) {
+    await context.addInitScript((value) => localStorage.setItem('trackaholic_appearance', value), APPEARANCE)
+  }
+  return context
+}
 
 /** The seeded library, as real foods rather than a counter.
  *
@@ -135,25 +165,58 @@ function seedFoods() {
 export const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password']
 
 // Everything behind RequireAuth. `/nope` is any unmatched address, which renders
-// NotFound inside the Layout. There are no parameterised routes in this app, so
-// this list is the whole surface.
+// NotFound inside the Layout.
 //
-// `/settings` is kept alongside its five panels on purpose: it is a redirect to
-// /settings/goals, and visiting it is what would catch the redirect quietly
-// breaking or landing somewhere else.
+// Two routes are parameterised since 2026-10-10, the day in detail and the meal
+// screen. The day is today's (the seed always logs a meal today); the meal
+// screen has no fixed address at all, since its id comes from the seed, so it
+// is reached the way a person reaches it: `/?meal` is Today with the first meal
+// row then opened by its expander, and audited as the meal screen it lands on.
+//
+// Two old Settings addresses are kept on purpose: they redirect to You and to
+// the planner on a day (query string kept), and visiting them is what would
+// catch a redirect quietly breaking or landing somewhere else.
 export const PRIVATE_ROUTES = [
   '/',
+  // The Log panel's start screen over Today (2026-10-10): the AI box, saved
+  // and recent meals. /log below redirects to the panel too, but its expanders
+  // walk on to the by-hand form, so this one keeps the start screen in view.
+  '/?log',
+  `/day/${isoDaysAgo(0)}`,
+  '/?meal',
   '/log',
-  '/weight',
-  '/analytics',
-  '/review',
+  // Progress (2026-10-11): on its default range, and on All, the range that
+  // draws the most bars and the only one whose start comes from the data.
+  '/progress',
+  '/progress?range=all',
+  '/progress/weigh-ins',
+  '/progress/days',
+  '/progress/review',
+  '/progress/accuracy',
+  // You (2026-10-12): the page of rows and every screen it pushes.
+  '/you',
+  '/you/targets',
+  '/you/plans',
+  '/you/body',
+  '/you/reminder',
+  '/you/water',
+  '/you/steps',
+  '/you/supplements',
+  '/you/library',
+  '/you/saved-meals',
+  '/you/appearance',
+  '/you/password',
+  '/you/delete',
+  '/you/contact',
   '/settings',
-  '/settings/goals',
-  '/settings/body',
-  '/settings/trackers',
-  '/settings/food',
-  '/settings/account',
+  `/settings/goals?plan=${isoDaysAgo(1)}&kind=compensating`,
   '/whats-new',
+  // First use (2026-10-11). Setup's first screen (the seeded account already
+  // has a target, so this is someone changing it), and the two guide pages,
+  // the second with the seeded account's own numbers.
+  '/setup',
+  '/how-it-works',
+  '/how-it-works/target',
   '/admin',
   '/nope',
 ]
@@ -229,7 +292,10 @@ export async function authenticate() {
  *  thing a determinism harness must not do. Found on a UTC+4 machine at 23:37
  *  UTC while verifying the weekly review, whose window was short a day for the
  *  same reason. */
-const isoDaysAgo = (days) => {
+//
+// A function declaration rather than a const, so PRIVATE_ROUTES above can use
+// it while the module is still loading.
+function isoDaysAgo(days) {
   const day = new Date()
   day.setDate(day.getDate() - days)
   const pad = (n) => String(n).padStart(2, '0')
@@ -261,7 +327,7 @@ const SEED_MEAL_NAMES = [
 ]
 
 /** Meals and weigh-ins for the last SEED_DAYS days, so every chart has
- *  something to draw, plus saved meals so the dashboard's Saved meals renders.
+ *  something to draw, plus saved meals so the Log panel's Saved meals renders.
  *  Values are a deterministic ramp, not random.
  *
  *  The templates matter as much as the charts: Saved meals is hidden entirely
@@ -358,6 +424,14 @@ export async function seed(token) {
       // readout in front of these scripts.
       goal_weight_kg: 85,
       targets_auto: false, steps_goal: 10000,
+      // The goals above ARE the signup defaults, so without this the account
+      // reads as never having chosen a target and every walk would audit
+      // first use instead of the screens it means to.
+      target_set: true,
+      // A new account shows only the weigh-in until it chooses more, so the
+      // seed chooses all three, or Water, Steps and Supplements would drop
+      // out of every comparison.
+      trackers: ['water', 'steps', 'supplements'],
     }),
   })
 }
@@ -365,16 +439,16 @@ export async function seed(token) {
 // Panels that render nothing until they are opened, and are therefore invisible
 // to anything that only visits a route in its default state.
 //
-// /log's AI analyzer is collapsed to a single button until it is clicked, so
-// its entire contents -- the description box, the photo picker, the library
+// /log's AI analyzer WAS collapsed to a single button until it was clicked
+// (it is always open in the Log panel now), so its entire contents -- the description box, the photo picker, the library
 // picker, the estimate card -- had never once been compared, and neither had
 // any change ever made to them. That is the same hole meal templates left
 // before this harness seeded them: an empty or collapsed state does not make a
 // section inert, it makes it unwatched. Check what a default state hides before
 // trusting any coverage claim made from these runs.
 //
-// A route may name several, applied in order -- /settings/food stacks two capped
-// lists and an add form, and one selector cannot reach all three.
+// A route may name several, applied in order -- /you/library stacks a capped
+// list and an add form, and one selector cannot reach both.
 //
 // An entry is either a selector to CLICK, or { fill, text } to type into. The
 // typing form exists because the food autocomplete's dropdown cannot be clicked
@@ -384,40 +458,44 @@ export async function seed(token) {
 // state has hidden a section here, and it was found the same way as the other
 // five: by noticing after the fact that a change had produced no diff.
 export const EXPAND_ON = {
-  // Both dashboard shortcut cards -- Saved meals and Recently logged -- collapse
-  // by default, so without these two clicks twelve tappable cells drop out of
-  // every snapshot and every axe run, and the a11y report comes back clean
-  // because it never saw them. Written in the same commit that collapsed them:
-  // the first entry in this map added BEFORE a missing diff pointed at it
-  // rather than after, which is the whole lesson the six above recorded.
-  //
-  // Matched on the headings, which carry a count that moves with the seed.
+  // A weigh-in opened for editing, then its delete confirm: the whole of a
+  // row's open state, which is where its controls are.
+  '/progress/weigh-ins': ['main li button[aria-expanded="false"]', 'button:has-text("Delete this weigh-in")'],
+  // Their "How is this worked out?" text is only in the DOM once opened.
+  '/progress/review': ['main button:has-text("How is this worked out?")'],
+  '/progress/accuracy': ['main button:has-text("How is this worked out?")'],
+  // Today's two shortcut cards (Saved meals, Recently logged) used to need a
+  // click each here. They moved into the Log panel on 2026-10-10, where both
+  // lists are open on the start screen. Since the P40 fixes each shows three
+  // rows: saved meals past three hide behind "Show all", recent ones behind
+  // "Show more".
+  '/?log': ['button:has-text("Show all")', 'button:has-text("Show more")'],
+  // The weigh-in card's edit form: the seed weighs in today, so the card shows
+  // the weight and Edit, and the field is otherwise never in the DOM.
+  // The water card's "How is this worked out?", closed by default since the
+  // P40 fixes: its text is otherwise never in the DOM.
   '/': [
-    'button:has-text("Saved meals")',
-    'button:has-text("Recently logged")',
+    'section[aria-label="Weigh-in"] button:has-text("Edit")',
+    'section[aria-label="Water"] button:has-text("How is this worked out?")',
   ],
+  // Opens the first meal of the day, then its share code: the meal screen and
+  // the code panel are both only reachable by tapping.
+  '/?meal': ['main a[href*="/meal/"]', 'button:has-text("Share as a code")'],
   '/log': [
-    'button:has-text("Estimate macros with AI")',
+    'button:has-text("Enter it by hand")',
     // "egg" matches exactly the two seeded egg rows, in a fixed order (neither
     // is a prefix match, so /api/foods/search falls through to name order), so
     // the panel is deterministic. Two characters is the threshold; this clears
     // it. ⚠ It matches the CATALOGUE, so a SEED_FOODS below 4 opens no panel.
     { fill: 'input[placeholder="Type a food name…"]', text: 'egg' },
   ],
-  // The weigh-in history caps at HISTORY_ROWS and hides the rest behind the
-  // same toggle the library lists use. Matched on the plural noun, not the full
-  // label, which carries a count that moves with SEED_DAYS.
-  '/weight': ['button:has-text("weigh-ins")'],
   // Both lists render their first COLLAPSED_ROWS entries and hide the rest, and
   // "+ Add a food" opens a form that is otherwise never in the DOM -- the same
   // form this route exists to make findable. Matched on the plural nouns rather
   // than the full label, which carries a count that moves with SEED_FOODS.
   // "+ Add a food" is singular, so it cannot collide with "...foods".
-  '/settings/food': [
-    'button:has-text("foods")',
-    'button:has-text("meals")',
-    'button:has-text("Add a food")',
-  ],
+  '/you/library': ['button:has-text("foods")', 'button:has-text("Add a food")'],
+  '/you/saved-meals': ['button:has-text("meals")'],
 }
 
 /** Open a page, walk `routes`, and hand each settled route to `onRoute`.
@@ -435,20 +513,39 @@ export async function visitRoutes(context, routes, onRoute) {
     // content; networkidle then covers the data each page fetches for itself.
     await page.waitForSelector('h1, h2', { timeout: 15_000 })
     await page.waitForLoadState('networkidle')
+    // A data screen holds its skeleton for at least 650 ms (DESIGN.md), which
+    // can outlast networkidle: without this, Progress was audited as its
+    // placeholder and the charts were never seen.
+    await page.waitForSelector('[aria-busy="true"]', { state: 'detached', timeout: 5_000 }).catch(() => undefined)
     const expanders = [EXPAND_ON[route] ?? []].flat()
     for (const expander of expanders) {
       const selector = typeof expander === 'string' ? expander : expander.fill
+      // A short wait first: an expander can reveal a screen whose code is
+      // fetched on demand (the Log panel's "Enter it by hand"), so the next
+      // selector may not exist for a moment. Absent after that means absent.
+      await page.locator(selector).first().waitFor({ timeout: 2_000 }).catch(() => undefined)
       // Guarded rather than asserted: a route legitimately has no expander
       // before its data is seeded, and a hard failure there would make the
       // harness unusable on a fresh account.
       if ((await page.locator(selector).count()) === 0) continue
       if (typeof expander === 'string') {
-        await page.locator(selector).click()
+        // The first match, like the wait above: "open a meal" matches every
+        // meal row, and an account with two meals today failed the whole run.
+        await page.locator(selector).first().click()
+        // A beat before networkidle below: at the instant of the click the
+        // network is still idle, because the request a click starts (a meal's
+        // share code) has not gone out yet, so networkidle returned at once
+        // and the page was audited without what the click was there to open.
+        await page.waitForTimeout(300)
       } else {
         // Typed rather than filled: the field debounces on change, and fill()
         // sets the value in one event that the debounce never sees.
         await page.locator(selector).click()
         await page.locator(selector).type(expander.text, { delay: 30 })
+        // The field waits for a pause in typing before it searches, so the
+        // network can look idle before the search has even started. Wait for
+        // the list itself; a typed expander exists only to open one.
+        await page.getByRole('listbox').first().waitFor({ timeout: 3_000 }).catch(() => undefined)
       }
       // /log's panel fetches the food library when it opens, and the
       // autocomplete fetches again when it has two characters -- so wait, or the
@@ -475,6 +572,7 @@ export async function visitRoutes(context, routes, onRoute) {
 export async function openSession({ log = console.log } = {}) {
   const { token, fresh } = await authenticate()
   log(`account ${EMAIL} (${fresh ? 'created' : 'existing'})`)
+  log(`appearance ${APPEARANCE ?? 'not stored (the app default)'}`)
   if (fresh) {
     await seed(token)
     log(
@@ -494,9 +592,9 @@ export async function openSession({ log = console.log } = {}) {
     browser,
     token,
     fresh,
-    anonymousContext: (viewport) => browser.newContext({ viewport }),
+    anonymousContext: (viewport) => newContext(browser, viewport),
     authedContext: async (viewport) => {
-      const context = await browser.newContext({ viewport })
+      const context = await newContext(browser, viewport)
       await context.addInitScript(
         ([sessionToken, ids]) => {
           localStorage.setItem('macros_token', sessionToken)

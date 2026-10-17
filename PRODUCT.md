@@ -41,11 +41,12 @@ It is also free and open source (MIT).
   - You holds every setting.
 - **How meals are logged:** AI estimates are about half of meals; saved meals and recent meals carry most of the rest. Manual entry, Open Food Facts lookup and meal codes remain.
 - **Trackers:**
-  - **On by default:** the weigh-in only.
-  - **Added by the user:** water, steps and supplements.
+  - **Always on:** the weigh-in. It is the first weigh-in at setup and feeds the automatic target and the weight trend.
+  - **Chosen by the user:** water, steps and supplements, picked in setup or with "Add or remove trackers" at the bottom of Today (one name for it everywhere). Accounts from before the choice keep their cards and are asked once, in "The new Trackaholic". (Revised 2026-10-11; 0a had new accounts start with the weigh-in only and add the rest later.)
   - **No users yet:** steps and calorie plans have never been used on any account, so they stay out of the way.
 - **Macros:** calories and protein are always tracked. Carbs and fat are opt-in, asked once at setup, and invisible when off.
-- **First-use setup:** height, birth year, today's weight (which counts as the first weigh-in), and a goal (lose, maintain or gain). For lose or gain it asks how fast: 0.25, 0.5 or 0.75 kg a week, or the user's own figure. Goal weight is optional. A live line shows the resulting daily calories before the user confirms.
+- **First-use setup** (one question per screen, with Back): today's weight (which counts as the first weigh-in; kg or lb from the phone's region), height, date of birth, sex, activity in workouts a week, and a goal (lose, maintain or gain). For lose or gain it asks how fast: gently, steadily, faster, as fast as it plans for this person, or their own figure; the choices above that person's limit grey out, with the reason. Optional extras: goal weight, carbs and fat, trackers, a weigh-in reminder. The resulting target shows live from the server's own calculation before the user confirms. "I have my own numbers" skips the questions. Every rule behind the target has a source: [docs/goal-setting-rules.md](docs/goal-setting-rules.md).
+- **Teaching the app:** a Getting started card on Today (set a target, log a first meal; "Not now" shrinks it), then a short "what's next", and an optional "How Trackaholic works" page. No tour, and no popup for a brand-new user: release notes are held until a target is set.
 - **No invented numbers:** no target is shown until the user sets one. Features that need history show how close they are to unlocking instead of an empty chart.
 - **Appearance:** light and dark follow the phone by default, with an Automatic / Light / Dark choice. There are eight colour palettes, and a second style, **Label**, which turns every screen into a black-and-white nutrition label.
 - **Weigh-ins are editable:** today's from the Today card, any day's from the weigh-in history in Progress.

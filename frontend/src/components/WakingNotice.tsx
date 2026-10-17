@@ -26,7 +26,7 @@ import { useWakeProgress } from '../hooks/useWakeProgress'
  * keep filling in the form); everything before it is shared. */
 export default function WakingNotice({
   children,
-  className = 'mt-4 text-center text-xs text-ink-faint',
+  className = 'mt-4 text-center text-small text-ink-2',
   startedAt,
 }: {
   children?: ReactNode
@@ -37,7 +37,7 @@ export default function WakingNotice({
 
   return (
     <p className={className}>
-      <span className="animate-pulse text-amber-500">●</span> Waking the
+      <span aria-hidden="true" className="animate-pulse text-action motion-reduce:animate-none">●</span> Waking the
       free-tier server — it sleeps when idle, so this can take up to a minute.
       {children}
       {progress !== null && (
@@ -56,15 +56,15 @@ export default function WakingNotice({
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(progress * 100)}
-          className="mt-2 block h-1 overflow-hidden rounded-full bg-amber-500/20"
+          className="mt-2 block h-1 overflow-hidden bg-track"
         >
-          {/* Amber, matching the pulsing dot that already means "waiting" here.
+          {/* The action colour, matching the pulsing dot that means "waiting" here.
               motion-reduce drops the tween but keeps the steps: the movement is
               information, only its smoothing is decoration. The duration equals
               the hook's tick, so each step is still travelling when the next
               one arrives and the bar reads as continuous. */}
           <span
-            className="block h-full rounded-full bg-amber-500 transition-[width] duration-[250ms] ease-linear motion-reduce:transition-none"
+            className="block h-full bg-action transition-[width] duration-[250ms] ease-linear motion-reduce:transition-none"
             style={{ width: `${progress * 100}%` }}
           />
         </span>

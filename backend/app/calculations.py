@@ -1,3 +1,4 @@
+import math
 from collections.abc import Sequence
 from datetime import date as date_type
 from datetime import timedelta
@@ -265,17 +266,27 @@ MIFFLIN_HEIGHT_COEFFICIENT = 6.25
 MIFFLIN_AGE_COEFFICIENT = 5.0
 MIFFLIN_SEX_OFFSET = {"male": 5.0, "female": -161.0}
 
-# CONVENTION. The activity multipliers handed down with the Harris-Benedict
-# equation. They are round numbers someone chose decades ago, they differ
-# between sources, and a real person's true multiplier sits somewhere in a wide
-# band around them. They are here because a day-one estimate needs *something*,
-# not because they are accurate.
+# SOURCE. Physical activity levels (PAL = total burn / basal burn) measured with
+# doubly labelled water: FAO/WHO/UNU, Human energy requirements (2001
+# consultation, published 2004), Table 5.3 -- "sedentary or light activity"
+# 1.40-1.69 (their example: male office workers), "active or moderately
+# active" 1.70-1.99, "vigorous" 2.00-2.40. The five levels sit inside those
+# bands: the two lightest at the bottom and middle of the first, the next two
+# at the bottom and middle of the second, the most active at the start of the
+# third.
+#
+# Until 2026-10 these were the Harris-Benedict-era round numbers (1.2, 1.375,
+# 1.55, 1.725, 1.9). Measured data puts an office worker at 1.40 or more, so
+# 1.2 set desk workers' day-one targets too low -- the risky direction, since
+# an underestimated burn plans a bigger cut than the pace asked for. They are
+# still estimates for one person; the measured burn replaces them once there
+# is data (targets._measure_tdee).
 ACTIVITY_MULTIPLIERS = {
-    "sedentary": 1.2,      # desk job, little or no deliberate exercise
-    "light": 1.375,        # light exercise 1-3 days a week
-    "moderate": 1.55,      # moderate exercise 3-5 days a week
-    "active": 1.725,       # hard exercise 6-7 days a week
-    "very_active": 1.9,    # physical job, or training twice a day
+    "sedentary": 1.40,     # mostly sitting: desk or home, no workouts
+    "light": 1.55,         # 1-2 workouts a week, or on your feet part of the day
+    "moderate": 1.70,      # 3-5 workouts a week, or on your feet most of the day
+    "active": 1.85,        # 6-7 workouts a week, or a physical job
+    "very_active": 2.00,   # training twice a day, or a physical job plus workouts
 }
 
 # APPROXIMATION. The energy in a kilogram of body mass, used to turn a desired
@@ -290,23 +301,69 @@ KCAL_PER_G_PROTEIN = 4.0
 KCAL_PER_G_CARB = 4.0
 KCAL_PER_G_FAT = 9.0
 
-# CONVENTION. Protein scales with body weight, not with the calorie target --
-# that is the whole reason this app does not use a fixed percentage split. 1.8
-# g/kg sits inside the range usually recommended for someone in a deficit
-# trying to keep muscle; 1.6-2.2 would all be defensible. Fat then takes a
-# quarter of calories (20-35% is the usual band) and carbohydrate is whatever
-# is left, because carbohydrate is the macro with no established minimum.
+# SOURCE. Protein scales with body weight, not with the calorie target -- that
+# is the whole reason this app does not use a fixed percentage split. How much
+# per kg depends on the goal and on "What matters most?" (settings.
+# protein_focus), as (target, low, high):
+#   * keeping muscle while losing: 2.2 (1.8-2.6). Helms, Aragon & Fitschen
+#     2014 and the ISSN position stand (Jäger et al. 2017): 2.3-3.1 g per kg
+#     of LEAN mass for trained people in a deficit, which is 1.8-2.6 per kg
+#     of body weight at 15-25% body fat;
+#   * building muscle, at maintenance or above: 1.9 (1.6-2.2). Iraki et al.
+#     2019: "1.6-2.2 g/kg/day"; Morton et al. 2018 found no further gain in
+#     lean mass past 1.62;
+#   * just the scale: 1.4 (1.2-1.6). Leidy et al. 2015 (AJCN): 1.2-1.6 g/kg a
+#     day improves appetite and weight management;
+#   * not answered: 1.8 (1.6-2.2), the value every account had before the
+#     question; inside the ISSN's 1.4-2.0 for exercisers and Iraki's range.
+# Fat then takes a quarter of calories (IOM AMDR 20-35%) and carbohydrate is
+# whatever is left, because carbohydrate is the macro with no established
+# minimum.
 PROTEIN_G_PER_KG = 1.8
+PROTEIN_UNANSWERED = (PROTEIN_G_PER_KG, 1.6, 2.2)
+PROTEIN_MUSCLE_LOSING = (2.2, 1.8, 2.6)
+PROTEIN_MUSCLE = (1.9, 1.6, 2.2)
+PROTEIN_SCALE = (1.4, 1.2, 1.6)
+# SOURCE. Weijs 2024 (Curr Opin Clin Nutr Metab Care 28(1)): during weight
+# loss, "at least 1.2 g/kg body weight per day with a maximum weight of BMI
+# 30". Fat mass needs no protein, so above BMI 30 protein -- and the fat
+# minimum below -- is worked out from the weight at BMI 30 for the height.
+# Lean, heavy lifters rarely pass BMI 30 by muscle alone; anyone with a coach's
+# numbers types their own.
+PROTEIN_REFERENCE_MAX_BMI = 30.0
 FAT_FRACTION_OF_CALORIES = 0.25
+# SOURCE. Iraki, Fitschen, Espinar & Helms 2019 (Sports 7:154): fat at "0.5-1.5
+# g/kg/day". The quarter of calories above stays the rule, but never below the
+# bottom of that range: at a 1,200 kcal floor a quarter is only 33 g.
+MIN_FAT_G_PER_KG = 0.5
 
-# POLICY. Refusals, not science. The rate cap stops a typo like "-5" becoming a
-# starvation target; the two floors stop an aggressive but legal rate doing the
-# same thing more slowly. The absolute floors are the commonly cited "do not go
-# below without supervision" numbers; the fractional floor is ours, and exists
-# because a floor in absolute kcal is far too permissive for a large person.
-MAX_GOAL_RATE_KG_PER_WEEK = 1.0
+# SOURCE. How fast a plan may lose. Helms, Aragon & Fitschen 2014 (JISSN 11:20):
+# "approximately 0.5 to 1%/wk to maximize muscle retention"; CDC: "about 1 to 2
+# pounds a week" (0.45-0.9 kg). The cap is the top of Helms's range and never
+# more than 1 kg a week, whether the burn is estimated or measured: nothing
+# trusted supports planning faster without medical supervision.
+MAX_LOSS_FRACTION_OF_WEIGHT = 0.01
+MAX_LOSS_KG_PER_WEEK = 1.0
+# SOURCE. How fast a plan may gain. Iraki et al. 2019: "~0.25-0.5% of
+# bodyweight/week" for novice and intermediate lifters; the cap is the top.
+# Below a healthy BMI the NHS's advice for underweight adults is larger and
+# wins: "adding around 300 to 500 extra calories a day". Never over 1 kg.
+MAX_GAIN_FRACTION_OF_WEIGHT = 0.005
+MAX_GAIN_KG_PER_WEEK = 1.0
+UNDERWEIGHT_SURPLUS_KCAL = 500.0
+# SOURCE. WHO BMI classification: under 18.5 is underweight. No loss is planned
+# below it; maintaining or gaining still is.
+UNDERWEIGHT_BMI = 18.5
+# CONVENTION, then SOURCE. The lowest target set without a clinician: 1,200
+# kcal for women and 1,500 for men, widely attributed to Harvard Health (the
+# original could not be checked, and secondary sources disagree on the men's
+# figure). NHLBI's guidance sets targets by weight instead -- 1,500-1,800 kcal
+# at 250 lb (113.4 kg) or more -- so from there the floor is 1,500 for anyone.
+# Under 800 kcal is a very-low-calorie diet, which needs supervision (NIH Task
+# Force on the Prevention and Treatment of Obesity, JAMA 1993).
 MIN_TARGET_KCAL = {"male": 1500.0, "female": 1200.0}
-MIN_TARGET_FRACTION_OF_TDEE = 0.75
+HEAVY_WEIGHT_KG = 113.4
+HEAVY_MIN_TARGET_KCAL = 1500.0
 
 # POLICY. How much logging is enough before an energy-balance TDEE is allowed to
 # drive a target. All three are refusals, chosen against real data rather than
@@ -351,6 +408,16 @@ class TargetCalories(NamedTuple):
 
     calories: float
     clamped_reason: str | None
+    # The same story as data, so a screen can say it in its own words: the
+    # pace asked for and the pace planned (kg a week, signed), the fastest
+    # this person can be planned to lose or gain, and the lowest target set
+    # for them.
+    requested_rate: float = 0.0
+    applied_rate: float = 0.0
+    max_loss_kg_per_week: float = 0.0
+    max_gain_kg_per_week: float = 0.0
+    floor_kcal: float = 0.0
+    loss_refused: bool = False
 
 
 def age_years(birth_date: date_type, on: date_type | None = None) -> int:
@@ -521,38 +588,130 @@ def clamp_measured_tdee(
     return PlausibleTDEE(calories=float(round(tdee)), clamped_reason=None)
 
 
+def target_floor(sex: str | None, weight_kg: float | None) -> float:
+    """The lowest calorie target set for this person (see MIN_TARGET_KCAL).
+
+    An unrecognised or missing sex falls back to the lower of the two: a floor
+    too permissive for this person still beats no floor at all.
+    """
+    floor = MIN_TARGET_KCAL.get(sex or "", min(MIN_TARGET_KCAL.values()))
+    if weight_kg is not None and weight_kg >= HEAVY_WEIGHT_KG:
+        floor = max(floor, HEAVY_MIN_TARGET_KCAL)
+    return floor
+
+
+def max_daily_deficit(weight_kg: float) -> float:
+    """The loss cap as kcal a day below the burn: 1% of body weight a week,
+    never more than 1 kg. Calorie banking holds a single day to this too."""
+    kg = min(MAX_LOSS_FRACTION_OF_WEIGHT * weight_kg, MAX_LOSS_KG_PER_WEEK)
+    return kg * KCAL_PER_KG / 7
+
+
+def protein_g_per_kg(
+    focus: str | None, applied_rate_kg_per_week: float
+) -> tuple[float, float, float]:
+    """(target, low, high) grams per kg for the answer and the planned pace."""
+    if focus == "muscle":
+        return PROTEIN_MUSCLE_LOSING if applied_rate_kg_per_week < 0 else PROTEIN_MUSCLE
+    if focus == "scale":
+        return PROTEIN_SCALE
+    return PROTEIN_UNANSWERED
+
+
+def protein_reference_weight(weight_kg: float, height_cm: float) -> float:
+    """The weight protein and the fat minimum are worked out from: body weight,
+    or the weight at BMI 30 for this height if that is lower (Weijs 2024)."""
+    return min(weight_kg, PROTEIN_REFERENCE_MAX_BMI * (height_cm / 100) ** 2)
+
+
+def _floor_applies_to(sex: str | None, weight_kg: float) -> str:
+    """Who the binding floor is set for, in the words a refusal uses."""
+    sex_floor = MIN_TARGET_KCAL.get(sex or "", min(MIN_TARGET_KCAL.values()))
+    if weight_kg >= HEAVY_WEIGHT_KG and sex_floor < HEAVY_MIN_TARGET_KCAL:
+        return "anyone over 113 kg"
+    return {"male": "men", "female": "women"}.get(sex or "", "you")
+
+
+def _kg(value: float) -> str:
+    return f"{round(value, 2):g}"
+
+
 def target_calories(
     tdee: float,
     goal_rate_kg_per_week: float,
     sex: str,
-    max_rate: float = MAX_GOAL_RATE_KG_PER_WEEK,
-    min_kcal: dict[str, float] = MIN_TARGET_KCAL,
-    min_fraction: float = MIN_TARGET_FRACTION_OF_TDEE,
+    weight_kg: float,
+    height_cm: float,
 ) -> TargetCalories:
-    """Daily calories for a requested rate of weight change, with safety clamps.
+    """Daily calories for a requested rate of weight change, within the limits.
 
-    Two independent clamps apply, and both report themselves. The rate cap
-    catches an implausible request outright; the floor catches a request that
-    is individually legal but lands somewhere nobody should eat. Both can fire
-    at once, in which case both are reported -- the user asked for a rate and
-    got neither it nor the target it implies, and needs to know that twice over.
+    Every limit that changes the answer says so with its numbers: what was
+    asked, what is planned, and which limit decided it (the constants above,
+    each with its source). A target that silently disagrees with the rate the
+    user chose is worse than no target, because the user goes on believing the
+    rate.
     """
-    reasons: list[str] = []
+    floor = target_floor(sex, weight_kg)
+    bmi_now = weight_kg / (height_cm / 100) ** 2
+    underweight = bmi_now < UNDERWEIGHT_BMI
 
-    rate = goal_rate_kg_per_week
-    if abs(rate) > max_rate:
-        rate = max_rate if rate > 0 else -max_rate
+    by_weight = min(MAX_LOSS_FRACTION_OF_WEIGHT * weight_kg, MAX_LOSS_KG_PER_WEEK)
+    by_floor = max(0.0, (tdee - floor) * 7 / KCAL_PER_KG)
+    max_loss = min(by_weight, by_floor)
+    max_gain = min(MAX_GAIN_FRACTION_OF_WEIGHT * weight_kg, MAX_GAIN_KG_PER_WEEK)
+    if underweight:
+        max_gain = min(
+            max(max_gain, UNDERWEIGHT_SURPLUS_KCAL * 7 / KCAL_PER_KG),
+            MAX_GAIN_KG_PER_WEEK,
+        )
+
+    reasons: list[str] = []
+    asked = goal_rate_kg_per_week
+    rate = asked
+    loss_refused = False
+    if asked < 0 and underweight:
+        rate = 0.0
+        loss_refused = True
         reasons.append(
-            f"Rate limited to {max_rate:g} kg/week (you asked for "
-            f"{goal_rate_kg_per_week:g})."
+            "Your weight is below the healthy range for your height (a BMI "
+            "under 18.5), so this plans to maintain rather than lose."
+        )
+    elif asked < 0 and -asked > max_loss + 1e-9:
+        rate = -max_loss
+        if by_floor < by_weight:
+            why = (
+                f"any faster would take you below {round(floor):,} kcal a day, "
+                f"the lowest target set for {_floor_applies_to(sex, weight_kg)}"
+            )
+        elif by_weight < MAX_LOSS_KG_PER_WEEK:
+            why = "1% of your body weight a week is the most it plans"
+        else:
+            why = "1 kg a week is the most it plans"
+        reasons.append(
+            f"You asked to lose {_kg(-asked)} kg a week; {why}, so it plans "
+            f"{_kg(max_loss)} kg."
+        )
+    elif asked > 0 and asked > max_gain + 1e-9:
+        rate = max_gain
+        why = (
+            "an extra 500 kcal a day is the most it plans below a healthy weight"
+            if underweight and max_gain > MAX_GAIN_FRACTION_OF_WEIGHT * weight_kg
+            else "half a percent of your body weight a week is the most it plans"
+            if max_gain < MAX_GAIN_KG_PER_WEEK
+            else "1 kg a week is the most it plans"
+        )
+        reasons.append(
+            f"You asked to gain {_kg(asked)} kg a week; {why}, so it plans "
+            f"{_kg(max_gain)} kg."
         )
 
     calories = tdee + (rate * KCAL_PER_KG) / 7
-    floor = max(min_kcal.get(sex, min(min_kcal.values())), tdee * min_fraction)
     if calories < floor:
+        # Only when the estimated burn itself is below the floor: the floor
+        # then means eating slightly above it.
         reasons.append(
-            f"Raised to {round(floor):g} kcal — the floor for your estimated "
-            f"expenditure. Losing faster than this needs medical supervision."
+            f"Raised to {round(floor):,} kcal, the lowest target set for you; "
+            f"your estimated burn of {round(tdee):,} kcal is below it."
         )
         calories = floor
 
@@ -561,6 +720,12 @@ def target_calories(
         # a formula with a several-hundred-kcal error bar.
         calories=float(round(calories)),
         clamped_reason=" ".join(reasons) if reasons else None,
+        requested_rate=asked,
+        applied_rate=round(rate, 3),
+        max_loss_kg_per_week=round(max_loss, 3),
+        max_gain_kg_per_week=round(max_gain, 3),
+        floor_kcal=floor,
+        loss_refused=loss_refused,
     )
 
 
@@ -569,7 +734,8 @@ def macro_targets(
     weight_kg: float,
     protein_g_per_kg: float = PROTEIN_G_PER_KG,
     fat_fraction: float = FAT_FRACTION_OF_CALORIES,
-) -> dict[str, float]:
+    protein_g: float | None = None,
+) -> dict[str, float | bool]:
     """Split a calorie target into protein / carbs / fat, in whole grams.
 
     Protein comes off body weight and fat off total calories, so carbohydrate
@@ -577,22 +743,58 @@ def macro_targets(
     would make protein *fall* as the calorie target falls, which is backwards
     during a cut, when protein matters most and calories least.
 
-    Carbohydrate floors at zero. At a very low target, protein and fat alone
-    can exceed the budget -- the split then no longer sums to `calories`, and
-    the caller should treat that as the sign it is, not paper over it.
+    `protein_g` is protein the user typed instead. Calories stay worked out
+    and the same rule fills the rest, with one addition: protein above the
+    worked-out amount comes out of fat first, down to MIN_FAT_G_PER_KG, before
+    carbohydrate loses anything, because carbohydrate is what fuels training.
+    Protein typed below it leaves fat at its quarter and carbohydrate gains.
+    Decided 2026-10-13 after a prototype: taking it from carbohydrate first
+    left almost no carbohydrate at the protein a lifter types.
+
+    Fat never drops below MIN_FAT_G_PER_KG, so at a low target it can take
+    more than a quarter of calories. If carbohydrate would still go below zero
+    with fat at its quarter, fat drops to that minimum first; past that,
+    protein and the fat minimum alone exceed the budget. Carbohydrate is then
+    zero, the split no longer sums to `calories`, and `fits` is False so the
+    caller can say so rather than paper over it.
     """
-    protein_g = protein_g_per_kg * weight_kg
-    fat_g = (fat_fraction * calories) / KCAL_PER_G_FAT
-    remaining = calories - protein_g * KCAL_PER_G_PROTEIN - fat_g * KCAL_PER_G_FAT
-    carbs_g = max(remaining / KCAL_PER_G_CARB, 0.0)
+    auto_g = protein_g_per_kg * weight_kg
+    protein = auto_g if protein_g is None else protein_g
+    min_fat_g = MIN_FAT_G_PER_KG * weight_kg
+    normal_fat_g = max((fat_fraction * calories) / KCAL_PER_G_FAT, min_fat_g)
+    extra_kcal = max(0.0, protein - auto_g) * KCAL_PER_G_PROTEIN
+    fat_g = max(min_fat_g, normal_fat_g - extra_kcal / KCAL_PER_G_FAT)
+
+    def carbs_left(fat: float) -> float:
+        return (
+            calories - protein * KCAL_PER_G_PROTEIN - fat * KCAL_PER_G_FAT
+        ) / KCAL_PER_G_CARB
+
+    carbs_g = carbs_left(fat_g)
+    if carbs_g < 0:
+        fat_g = min_fat_g
+        carbs_g = carbs_left(fat_g)
+    # A hair of slack: at exactly the largest protein that fits, float error
+    # can leave carbohydrate a billionth of a gram below zero.
+    fits = carbs_g > -1e-6
 
     # Whole grams, for the same reason calories are whole: the inputs do not
     # support a decimal place.
     return {
-        "protein": float(round(protein_g)),
-        "carbs": float(round(carbs_g)),
+        "protein": float(round(protein)),
+        "carbs": float(round(max(carbs_g, 0.0))),
         "fat": float(round(fat_g)),
+        "fits": fits,
     }
+
+
+def max_protein_g(calories: float, weight_kg: float) -> int:
+    """The most protein that fits a calorie target: everything but the fat
+    minimum, with carbohydrate at zero. What a refusal tells you to lower to."""
+    return math.floor(
+        (calories - MIN_FAT_G_PER_KG * weight_kg * KCAL_PER_G_FAT)
+        / KCAL_PER_G_PROTEIN
+    )
 
 
 # CONVENTION. Millilitres of water per kilogram of body weight per day. The

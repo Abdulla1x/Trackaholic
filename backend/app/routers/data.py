@@ -5,14 +5,18 @@ import json
 import math
 from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth.deps import get_current_user
+from ..auth.security import create_export_ticket, decode_export_ticket
 from ..db import get_db
 from ..models import (
     AIAnalysis,
@@ -38,11 +42,84 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 
 CSV_COLUMNS = ["date", "name", "calories", "protein", "carbs", "fat"]
 ACCEPTED_DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y")
+MEALS_FILENAME = "macros_backup.csv"
+EVERYTHING_FILENAME = "macros_full_export.json"
 MAX_IMPORT_BYTES = 1024 * 1024  # 1 MB — far beyond any realistic meal history
 
 
 @router.get("/export")
 def export_csv(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _attachment(_meals_csv(user, db), "text/csv", MEALS_FILENAME)
+
+
+@router.get("/export/all")
+def export_all(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Everything the account owns, as JSON (data portability)."""
+    return _everything(user, db)
+
+
+class ExportTicketRequest(BaseModel):
+    kind: Literal["meals", "all"]
+
+
+class ExportTicket(BaseModel):
+    # A path on this server, to be followed by the browser itself.
+    url: str
+
+
+@router.post("/export/ticket", response_model=ExportTicket)
+def export_ticket(
+    body: ExportTicketRequest, user: User = Depends(get_current_user)
+) -> ExportTicket:
+    """A one-minute link to either export, for the browser to download itself.
+
+    The two routes above answer an authenticated fetch, and the app used to turn
+    the answer into a file on the page. In the app installed from Huawei Browser
+    on a P40 that file went nowhere: the phone's downloader fetches a real
+    address and can't reach one that lives only in the page. A link it can
+    follow without the login header is what this is for (auth/security.py).
+    """
+    ticket = create_export_ticket(user.id, body.kind)
+    return ExportTicket(url=f"/api/data/export/file?ticket={ticket}")
+
+
+@router.get("/export/file")
+def export_file(ticket: str, db: Session = Depends(get_db)):
+    try:
+        user_id, kind, issued_at = decode_export_ticket(ticket)
+    except jwt.InvalidTokenError:
+        return _expired_link()
+    user = db.get(User, user_id)
+    if user is None or kind not in ("meals", "all"):
+        return _expired_link()
+    # Changing the password revokes links issued before it, as it does logins.
+    if user.password_changed_at is not None and issued_at < user.password_changed_at:
+        return _expired_link()
+    if kind == "meals":
+        return _attachment(_meals_csv(user, db), "text/csv", MEALS_FILENAME)
+    body = json.dumps(jsonable_encoder(_everything(user, db)), indent=2)
+    return _attachment(body, "application/json", EVERYTHING_FILENAME)
+
+
+def _expired_link() -> Response:
+    # Plain text rather than the usual JSON error: if the phone shows anything
+    # for a refused link it shows it in a browser tab, to a person.
+    return Response(
+        content="This download link has expired. Export again from the app.",
+        status_code=403,
+        media_type="text/plain",
+    )
+
+
+def _attachment(text: str, media_type: str, filename: str) -> Response:
+    return Response(
+        content=text,
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def _meals_csv(user: User, db: Session) -> str:
     rows = db.scalars(
         select(Meal).where(Meal.user_id == user.id).order_by(Meal.date, Meal.id)
     ).all()
@@ -54,18 +131,10 @@ def export_csv(user: User = Depends(get_current_user), db: Session = Depends(get
         (row.date.isoformat(), row.name, row.calories, row.protein, row.carbs, row.fat)
         for row in rows
     )
-    buffer.seek(0)
-
-    return StreamingResponse(
-        iter([buffer.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=macros_backup.csv"},
-    )
+    return buffer.getvalue()
 
 
-@router.get("/export/all")
-def export_all(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Everything the account owns, as JSON (data portability)."""
+def _everything(user: User, db: Session) -> dict:
     meals = db.scalars(
         select(Meal).where(Meal.user_id == user.id).order_by(Meal.date, Meal.id)
     ).all()
@@ -171,6 +240,22 @@ def export_all(user: User = Depends(get_current_user), db: Session = Depends(get
             # is never null and is kept even while the reminder is off.
             "weigh_in_reminder_time": setting.weigh_in_reminder_time,
             "weigh_in_reminder_days": setting.weigh_in_reminder_days,
+            # Whether Today shows the time each meal was logged. Never null.
+            "show_meal_times": setting.show_meal_times,
+            # Whether a target was ever chosen, or the shipped 2000 is still
+            # standing in. Never null.
+            "target_set": setting.target_set,
+            # A fifth meaning for null in this block: not answered, which
+            # keeps the protein every account had before the question existed.
+            "protein_focus": setting.protein_focus,
+            # Whether protein is typed while calories stay worked out. Never
+            # null.
+            "protein_own": setting.protein_own,
+            # Exported as the list the API speaks. Null means not chosen yet.
+            "trackers": (
+                None if setting.trackers_json is None
+                else json.loads(setting.trackers_json)
+            ),
         },
         "meals": [
             # `date` is when it was eaten, `created_at` when it was logged,

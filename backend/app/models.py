@@ -578,12 +578,54 @@ class Setting(Base):
     weigh_in_reminder_days: Mapped[int] = mapped_column(
         Integer, default=1, server_default="1"
     )
+    # Whether Today's meal rows show the time each meal was logged. On by
+    # default, the design's meal row. NOT NULL with a server_default, the
+    # targets_auto pairing: it is a plain on/off with no third state, and the
+    # server_default backfills every account that predates it.
+    show_meal_times: Mapped[bool] = mapped_column(
+        default=True, server_default=sa_true()
+    )
+    # Whether this account has ever chosen a target. The four goals above are
+    # NOT NULL and start at 2000/150/250/70 on every signup, so without this
+    # nothing can tell a number somebody picked from one nobody did -- and the
+    # app must not show a target nobody set. False for a new account; set by
+    # the server, never cleared: when the formula first writes the goals
+    # (apply_auto_targets), when a save changes a goal, or when a client says
+    # so explicitly (typing exactly 2,000 by hand is still a choice).
+    # NOT NULL with a server_default, the show_meal_times pairing; migration
+    # 0020 backfilled every account that had touched anything as set.
+    target_set: Mapped[bool] = mapped_column(
+        default=False, server_default=sa_false()
+    )
+    # What matters most for protein, from first-use setup: 'muscle' (keeping or
+    # building it) or 'scale' (just the number). NULL means not answered, which
+    # keeps 1.8 g/kg, the protein every account had before this existed. It
+    # moves only the protein target (calculations.protein_g_per_kg), and it is
+    # stored because automatic targets are recomputed on every weigh-in.
+    protein_focus: Mapped[str | None] = mapped_column(String(6), default=None)
+    # Protein typed by the user while calories stay worked out. Only means
+    # anything with targets_auto on: protein_goal is then kept on every
+    # recompute and carbs and fat are split around it (targets.
+    # apply_auto_targets). The targets_auto pairing: NOT NULL, server_default.
+    protein_own: Mapped[bool] = mapped_column(
+        default=False, server_default=sa_false()
+    )
+    # Which trackers Today shows besides the weigh-in (always on): a JSON list
+    # from "water", "steps", "supplements". A fifth meaning for an empty
+    # settings column: NULL is "not chosen yet" -- every account from before
+    # this existed keeps the cards it sees and is asked once -- while a new
+    # signup starts at "[]" and chooses during setup. `_json` for the reason
+    # water_quick_adds_json gives.
+    trackers_json: Mapped[str | None] = mapped_column(Text, default="[]")
 
     __table_args__ = (
         CheckConstraint(
             "weight_unit IN ('kg', 'lb')", name="ck_settings_weight_unit"
         ),
         CheckConstraint("sex IN ('male', 'female')", name="ck_settings_sex"),
+        CheckConstraint(
+            "protein_focus IN ('muscle', 'scale')", name="ck_settings_protein_focus"
+        ),
         CheckConstraint(
             "activity_level IN "
             "('sedentary', 'light', 'moderate', 'active', 'very_active')",

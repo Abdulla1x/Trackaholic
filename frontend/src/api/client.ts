@@ -22,6 +22,7 @@ import type {
   MealTemplateCreate,
   MessageResponse,
   OFFProduct,
+  RecentMeal,
   ReferenceFood,
   PlanDay,
   Settings,
@@ -36,6 +37,7 @@ import type {
   User,
   Supplement,
   SupplementDay,
+  TargetPreviewRequest,
   WaterDay,
   WaterEntry,
   WeightEntry,
@@ -124,10 +126,16 @@ function parseJson(text: string): unknown {
   }
 }
 
-/** The error for a response that arrived and was not ok. */
+/** The error for a response that arrived and was not ok.
+ *
+ * Our API always sends a `detail`. A response without one came from something
+ * in front of it (a proxy's error page, say), so the user gets a plain line
+ * and the status goes to the console for whoever is debugging. "Request
+ * failed (503)" told users nothing they could act on. */
 function errorFrom(status: number, body: unknown): ApiError {
-  let detail = `Request failed (${status})`
+  let detail = 'The server had a problem. Try again in a moment.'
   const reported = (body as { detail?: unknown } | null)?.detail
+  if (reported === undefined) console.warn(`API error ${status} with no detail`)
   if (typeof reported === 'string') {
     detail = reported
   } else if (Array.isArray(reported)) {
@@ -164,9 +172,8 @@ function errorFrom(status: number, body: unknown): ApiError {
 function transportError(timedOut: boolean): ApiError {
   return new ApiError(
     timedOut
-      ? 'That took too long — the server may be waking up. Try again.'
-      : 'Could not reach the server. It may be temporarily unavailable — ' +
-        'check your connection, or try again in a few minutes.',
+      ? 'That took too long. The server may be waking up, so try again.'
+      : "Couldn't reach the server. Check your connection, or try again in a few minutes.",
     0,
   )
 }
@@ -342,7 +349,7 @@ export const api = {
     if (limit) query.set('limit', String(limit))
     if (demoteDate) query.set('demote_date', demoteDate)
     const suffix = query.toString()
-    return request<Meal[]>(`/api/meals/recent${suffix ? `?${suffix}` : ''}`)
+    return request<RecentMeal[]>(`/api/meals/recent${suffix ? `?${suffix}` : ''}`)
   },
   createMeal: (meal: MealCreate) =>
     request<Meal>('/api/meals', { method: 'POST', body: JSON.stringify(meal) }),
@@ -376,8 +383,8 @@ export const api = {
       body: JSON.stringify({ code }),
     }),
 
-  // The whole library, unbounded and sorted by name -- what the Settings
-  // editor lists. searchFoods below is the autocomplete's query and caps at 10,
+  // The whole library, unbounded and sorted by name -- what the food library
+  // on You lists. searchFoods below is the autocomplete's query and caps at 10,
   // which is right for a dropdown and wrong for "show me everything I have".
   getFoods: () => request<Food[]>('/api/foods'),
   searchFoods: (q: string) =>
@@ -507,7 +514,7 @@ export const api = {
     })
   },
 
-  // The management list, paused ones included — the Settings editor is the
+  // The management list, paused ones included — the Supplements screen on You is the
   // only place a paused supplement can be brought back.
   getSupplements: () => request<Supplement[]>('/api/supplements'),
   createSupplement: (body: Omit<Supplement, 'id' | 'created_at'>) =>
@@ -525,6 +532,12 @@ export const api = {
 
   getSettings: () => request<Settings>('/api/settings'),
   getBodyTargets: () => request<BodyTargets>('/api/settings/targets'),
+  /** The target setup's answers would give, without saving anything. */
+  previewTargets: (answers: TargetPreviewRequest) =>
+    request<BodyTargets>('/api/settings/targets/preview', {
+      method: 'POST',
+      body: JSON.stringify(answers),
+    }),
   updateSettings: (settings: Settings) =>
     request<Settings>('/api/settings', {
       method: 'PUT',
@@ -580,32 +593,15 @@ export const api = {
       body: JSON.stringify({ meal_id: mealId }),
     }),
 
-  // A plain <a href> can't carry the Authorization header, so the CSV export
-  // is fetched with auth and handed to the browser as a blob download.
-  downloadExport: async () => {
-    const token = getToken()
-    const response = await fetch(`${API_BASE}/api/data/export`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+  // A download is a link the browser follows itself, which can't carry the
+  // Authorization header, so the server first signs a one-minute link to the
+  // file (backend app/routers/data.py). lib/downloadExport.ts follows it.
+  exportLink: async (kind: 'meals' | 'all'): Promise<string> => {
+    const { url } = await request<{ url: string }>('/api/data/export/ticket', {
+      method: 'POST',
+      body: JSON.stringify({ kind }),
     })
-    if (!response.ok) throw new ApiError(`Export failed (${response.status})`, response.status)
-    const url = URL.createObjectURL(await response.blob())
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'macros_backup.csv'
-    link.click()
-    URL.revokeObjectURL(url)
-  },
-  downloadExportAll: async () => {
-    const data = await request<unknown>('/api/data/export/all')
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json',
-    })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'macros_full_export.json'
-    link.click()
-    URL.revokeObjectURL(url)
+    return `${API_BASE}${url}`
   },
   importCsv: (file: File) => {
     const form = new FormData()

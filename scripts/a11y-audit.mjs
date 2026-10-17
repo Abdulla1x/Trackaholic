@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 //
 // Run axe-core over every route in the app, at both widths, and report what
-// fails WCAG 2.1 A and AA.
+// fails WCAG 2.2 A and AA.
 //
 // WHY THIS EXISTS RATHER THAN A ONE-OFF AUDIT. The accessibility pass this
 // script was written for found two things the roadmap had recorded as open and
@@ -98,19 +98,22 @@ const AXE_SOURCE = fileURLToPath(new URL('../node_modules/axe-core/axe.min.js', 
 
 /** Inject axe and run it against the whole document.
  *
- *  `runOnly` on the four WCAG tags rather than axe's whole rule set: the rest
+ *  `runOnly` on the six WCAG tags rather than axe's whole rule set: the rest
  *  are best-practice rules that are opinions, not conformance, and mixing them
  *  in means the number cannot be read as "does this conform".
  *
+ *  The 2.2 tags add target size (2.5.8, at least 24 px or enough room around
+ *  it). Before them, tap-target size was only ever checked by eye.
+ *
  *  The result is mapped down INSIDE the browser. axe's raw output carries the
  *  full element handle and every check's data for every node, which is
- *  megabytes on a page like /settings/food and serialises slowly across the
+ *  megabytes on a page like /you/library and serialises slowly across the
  *  bridge for information nothing here reads. */
 async function runAxe(page) {
   await page.addScriptTag({ path: AXE_SOURCE })
   return page.evaluate(async () => {
     const results = await window.axe.run(document, {
-      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa'] },
       resultTypes: ['violations'],
     })
     return results.violations.map((violation) => ({
@@ -174,13 +177,16 @@ for (const { width, route, violations } of findings) {
   }
 }
 
+// Counted, not written in: the route list grows (the Log panel added /?log on
+// 2026-10-10), and a hard-coded 18 then reports routes it never visited.
+const ROUTE_COUNT = PUBLIC_ROUTES.length + PRIVATE_ROUTES.length
 const totalNodes = [...byRule.values()].reduce((total, rule) => total + rule.nodes.length, 0)
 
 console.log(`\n${'='.repeat(72)}`)
 if (byRule.size === 0) {
-  console.log('No WCAG 2.1 A/AA violations across 18 routes at both widths.')
+  console.log(`No WCAG 2.2 A/AA violations across ${ROUTE_COUNT} routes at both widths.`)
 } else {
-  console.log(`${byRule.size} rules violated, ${totalNodes} nodes, across 18 routes at both widths\n`)
+  console.log(`${byRule.size} rules violated, ${totalNodes} nodes, across ${ROUTE_COUNT} routes at both widths\n`)
   const ranked = [...byRule.entries()].sort((a, b) => b[1].nodes.length - a[1].nodes.length)
   for (const [id, rule] of ranked) {
     console.log(`\n▶ ${id}  (${rule.impact}, ${rule.nodes.length} nodes)`)

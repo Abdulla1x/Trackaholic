@@ -4,11 +4,10 @@
 // Safari's private mode raises — a failed dismissal should re-show a note, never
 // break the page.
 
-import { readLocal, writeLocal } from './storage'
+import { readLocal, writeLocal } from './storage.ts'
 
 const SEEN_KEY = 'macros_seen_announcements'
 const BANNER_KEY = 'macros_dismissed_banner'
-const WEIGH_IN_KEY = 'macros_dismissed_weigh_in'
 
 export function seenAnnouncementIds(): string[] {
   const raw = readLocal(SEEN_KEY)
@@ -37,6 +36,17 @@ export function hasEverSeenAnnouncements(): boolean {
   return readLocal(SEEN_KEY) !== null
 }
 
+/** Whether the release-notes popup has something to show on this device:
+ *  any note not yet seen. A device's first run shows none (they are marked
+ *  seen silently). Read synchronously, so a popup that must not open on top
+ *  of the notes can wait for them first. */
+export function announcementsWaiting(items: readonly { id: string }[]): boolean {
+  if (items.length === 0) return false
+  if (!hasEverSeenAnnouncements()) return false
+  const seen = seenAnnouncementIds()
+  return items.some((item) => !seen.includes(item.id))
+}
+
 export function markAnnouncementsSeen(ids: string[]) {
   const merged = new Set([...seenAnnouncementIds(), ...ids])
   writeLocal(SEEN_KEY, JSON.stringify([...merged]))
@@ -53,15 +63,64 @@ export function dismissBanner(banner: string) {
   writeLocal(BANNER_KEY, banner)
 }
 
-// Keyed by the date it was dismissed for, exactly as the banner above is keyed
-// by its own text. That is what makes "once a day" need no new storage concept
-// and no cleanup: tomorrow's date does not match the stored one, so yesterday's
-// dismissal expires by itself. A set of dismissed dates would grow forever and
-// would still need this comparison.
-export function isWeighInNudgeDismissed(isoDate: string): boolean {
-  return readLocal(WEIGH_IN_KEY) === isoDate
+// The AI box's tip card (UA-25): shown until dismissed, then never again on
+// this device. A failed read shows it again, which is the harmless direction.
+const AI_TIPS_KEY = 'trackaholic_ai_tips_dismissed'
+
+export function areAiTipsDismissed(): boolean {
+  return readLocal(AI_TIPS_KEY) !== null
 }
 
-export function dismissWeighInNudge(isoDate: string) {
-  writeLocal(WEIGH_IN_KEY, isoDate)
+export function dismissAiTips() {
+  writeLocal(AI_TIPS_KEY, '1')
+}
+
+// Today's weekly review card: hidden on this device after its close button or
+// after the review is opened, until the next week. The key holds the end date
+// of the week that was hidden, so a new week has a different end and the card
+// comes back by itself, with nothing to clear.
+const REVIEW_KEY = 'trackaholic_review_hidden'
+
+export function reviewHidden(weekEnd: string): boolean {
+  return readLocal(REVIEW_KEY) === weekEnd
+}
+
+export function hideReview(weekEnd: string) {
+  writeLocal(REVIEW_KEY, weekEnd)
+}
+
+// The one-line tips (ui/hint): each is hidden on this device for good once it
+// is closed or its link is used. A failed read shows the tip again, which is
+// the harmless direction.
+export type HintKey = 'steps' | 'saved_foods'
+
+const hintKey = (hint: HintKey) => `trackaholic_hint_${hint}`
+
+export function isHintDismissed(hint: HintKey): boolean {
+  return readLocal(hintKey(hint)) !== null
+}
+
+export function dismissHint(hint: HintKey) {
+  writeLocal(hintKey(hint), '1')
+}
+
+// The saved-meal tip is about one meal, so closing it for "Porridge" must not
+// close it for "Chicken rice". Names are kept trimmed and lower-cased, matching
+// how the server treats a meal's name as one name across case.
+const SAVED_MEAL_HINT_KEY = 'trackaholic_hint_saved_meal'
+
+export function dismissedSavedMeals(): string[] {
+  const raw = readLocal(SAVED_MEAL_HINT_KEY)
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((name) => typeof name === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export function dismissSavedMeal(name: string) {
+  const merged = new Set([...dismissedSavedMeals(), name.trim().toLowerCase()])
+  writeLocal(SAVED_MEAL_HINT_KEY, JSON.stringify([...merged]))
 }

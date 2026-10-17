@@ -1,4 +1,4 @@
-import type { FoodSource, ReferenceSource } from './lib/foodSources'
+import type { FoodSource, ReferenceSource } from './lib/foodSources.ts'
 
 export interface User {
   id: number
@@ -103,6 +103,27 @@ export interface Settings {
    *  it cannot express "off", which is what keeps it from contradicting the
    *  field above. Kept while the reminder is off. */
   weigh_in_reminder_days: number
+  /** Whether Today's meal rows show the time each meal was logged. */
+  show_meal_times: boolean
+  /** Whether a target has ever been chosen; the four goals above start at
+   *  2000/150/250/70 on every signup, so they can't say. Server-owned: a save
+   *  can turn it on, never off. Optional because the live API predates it: a
+   *  response without it is an account from before first use existed, which
+   *  counts as set. */
+  target_set?: boolean
+  /** "What matters most to you?" from setup: it moves only the protein
+   *  target. null = not answered (1.8 g/kg, as before). Optional for the
+   *  same reason as target_set. */
+  protein_focus?: 'muscle' | 'scale' | null
+  /** Protein is the user's own protein_goal while calories stay worked out;
+   *  only means anything with targets_auto on. Optional: the live API on the
+   *  preview predates it, and a save without it leaves it alone. */
+  protein_own?: boolean
+  /** Which trackers Today shows besides the weigh-in, which is always on.
+   *  null = not chosen yet (an account from before the choice existed: it
+   *  keeps the old cards and is asked once); [] = the weigh-in only. Absent
+   *  on the live API, which predates it: the old cards, and no question. */
+  trackers?: ('water' | 'steps' | 'supplements')[] | null
 }
 
 /** One logged drink. */
@@ -158,6 +179,9 @@ export interface StepDay {
   date: string
   steps: number
   logged: boolean
+  /** Any day on the account has a count, not just this one. Optional because
+   *  the API only started sending it with the import tip: absent, no tip. */
+  ever_logged?: boolean
   goal: number | null
   burn_kcal: number | null
   burn_weight_kg: number | null
@@ -247,6 +271,54 @@ export interface BodyTargets {
   /** The formula's answer, kept even when measurement won, so both can show. */
   tdee_estimated: number | null
   tdee_basis: TdeeBasis | null
+  /** The pace limits as data, so a screen can explain a target in its own
+   *  words: the pace planned (signed kg a week), the fastest loss and gain
+   *  this person can be planned, the lowest target set for them, and whether
+   *  a loss was refused below a healthy BMI. Optional: the live API predates
+   *  them. */
+  applied_rate_kg_per_week?: number | null
+  max_loss_kg_per_week?: number | null
+  max_gain_kg_per_week?: number | null
+  floor_kcal?: number | null
+  loss_refused?: boolean
+  /** The weight trend reached the goal weight, so the plan maintains. */
+  goal_reached?: boolean
+  /** Protein's g/kg for the goal, the range around the target, and the weight
+   *  it is worked out from (capped at BMI 30). */
+  protein_g_per_kg?: number | null
+  protein_low_g?: number | null
+  protein_high_g?: number | null
+  protein_reference_kg?: number | null
+  /** False when protein and the fat minimum alone need more than the
+   *  calories: carbs are 0 and the split overshoots. */
+  protein_fits?: boolean
+  /** What each answer to "What matters most?" would give. Optional: the live
+   *  API predates it. */
+  protein_by_focus?: Record<ProteinFocusKey, ProteinOption> | null
+}
+
+/** An answer to "What matters most?", with not answered as its own key. */
+export type ProteinFocusKey = 'muscle' | 'scale' | 'unanswered'
+
+/** One answer's protein: grams worked out and the range around it. */
+export interface ProteinOption {
+  g: number
+  low_g: number
+  high_g: number
+}
+
+/** Setup's answers, sent before anything is saved
+ *  (POST /api/settings/targets/preview). The reply is a BodyTargets worked
+ *  out the same way a save would be, so the number shown is the number kept. */
+export interface TargetPreviewRequest {
+  weight_kg: number
+  height_cm: number
+  birth_date: string
+  sex: Sex
+  activity_level: ActivityLevel
+  /** Signed: negative to lose. */
+  goal_rate_kg_per_week: number
+  protein_focus: 'muscle' | 'scale' | null
 }
 
 export interface WeightEntry {
@@ -313,9 +385,18 @@ export interface Meal {
    * silently make this a required field on every create form.
    */
   updated_at: string | null
+  /** When the meal was LOGGED (ISO, UTC), which is not when it was eaten:
+   *  only the day it was eaten is recorded. Null for meals logged before the
+   *  server kept this. Server-set, so omitted below too. */
+  created_at: string | null
 }
 
-export type MealCreate = Omit<Meal, 'id' | 'updated_at'>
+/** A "recently logged" meal. `count` is how often its name was logged within
+ *  the server's scan window, this one included. Optional because the API
+ *  only started sending it with the saved-meal tip: no count, no tip. */
+export type RecentMeal = Meal & { count?: number }
+
+export type MealCreate = Omit<Meal, 'id' | 'updated_at' | 'created_at'>
 
 /** One ingredient row inside a saved template. */
 export interface TemplateItem {

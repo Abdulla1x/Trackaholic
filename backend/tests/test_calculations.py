@@ -24,10 +24,13 @@ from app.calculations import (
     estimated_tdee,
     goal_projection,
     macro_targets,
+    max_protein_g,
     measured_tdee,
     scale_macros,
     steps_burn,
     water_goal,
+    protein_g_per_kg,
+    protein_reference_weight,
     target_calories,
     total_macros,
     weekly_rate,
@@ -223,46 +226,120 @@ def test_activity_multiplier_raises_rather_than_defaulting_to_sedentary():
 
 
 def test_estimated_tdee_is_bmr_times_the_multiplier():
-    # 1755 * 1.55 (moderate) = 2720.25
+    # 1755 * 1.70 (moderate) = 2983.5
     assert estimated_tdee(80, 180, 35, "male", "moderate") == pytest.approx(
-        2720.25, abs=0.1
+        2983.5, abs=0.1
     )
+
+
+@pytest.mark.parametrize(
+    ("level", "low", "high"),
+    [
+        # FAO/WHO/UNU 2001, Table 5.3: measured physical activity levels.
+        ("sedentary", 1.40, 1.69),
+        ("light", 1.40, 1.69),
+        ("moderate", 1.70, 1.99),
+        ("active", 1.70, 1.99),
+        ("very_active", 2.00, 2.40),
+    ],
+)
+def test_each_activity_level_sits_inside_its_measured_band(level, low, high):
+    """The multipliers are sourced, not tuned: moving one out of its band
+    means the comment above ACTIVITY_MULTIPLIERS is no longer true."""
+    assert low <= activity_multiplier(level) <= high
+
+
+def test_the_activity_levels_rise_in_order():
+    levels = ["sedentary", "light", "moderate", "active", "very_active"]
+    values = [activity_multiplier(level) for level in levels]
+    assert values == sorted(values) and len(set(values)) == len(values)
 
 
 def test_target_calories_applies_the_requested_rate_when_it_is_reasonable():
     # -0.5 kg/week * 7700 kcal/kg / 7 days = -550 kcal/day, off a 3000 TDEE.
-    result = target_calories(3000, -0.5, "male")
+    result = target_calories(3000, -0.5, "male", 80, 180)
     assert result.calories == 2450
     assert result.clamped_reason is None
+    assert result.applied_rate == -0.5
 
 
-def test_target_calories_reports_both_clamps_when_both_fire():
-    """Asking for -5 kg/week trips the rate cap, and the result trips the floor.
-
-    The rate is capped at -1 kg/week, giving 3000 - 1100 = 1900; the floor is
-    max(1500 absolute, 0.75 * 3000 = 2250), so 1900 is raised again. The user
-    asked for a rate and got neither it nor the target it implies, and needs
-    telling twice over.
-    """
-    result = target_calories(3000, -5, "male")
-    assert result.calories == 2250
-    assert "Rate limited" in result.clamped_reason
-    assert "Raised to" in result.clamped_reason
+def test_loss_is_capped_at_one_percent_of_body_weight_a_week():
+    """Helms 2014: 0.5-1% of body weight a week. 1% of 80 kg is 0.8 kg."""
+    result = target_calories(3000, -1, "male", 80, 180)
+    assert result.applied_rate == -0.8
+    assert result.calories == 3000 - 880
+    assert "1% of your body weight" in result.clamped_reason
+    assert "0.8 kg" in result.clamped_reason
 
 
-def test_target_calories_never_returns_below_the_floor():
-    """A legal rate can still land somewhere nobody should eat."""
-    result = target_calories(2000, -1, "female")
-    # 2000 - 1100 = 900, below both the 1200 absolute floor and the 1500
-    # fractional one (0.75 * 2000). The higher of the two wins.
+def test_loss_is_never_more_than_one_kilo_a_week_however_heavy():
+    # 1% of 130 kg would be 1.3 kg; the cap is 1 kg, measured burn or not.
+    result = target_calories(3500, -1.5, "male", 130, 185)
+    assert result.applied_rate == -1.0
+    assert result.calories == 3500 - 1100
+    assert "1 kg a week is the most" in result.clamped_reason
+
+
+def test_the_floor_limits_the_pace_and_says_which_floor():
+    # 62 kg on a 1600 burn: 1% would be 0.62 kg, but anything past 400 kcal a
+    # day (0.36 kg a week) goes under the 1,200 kcal floor for women.
+    result = target_calories(1600, -1, "female", 62, 165)
+    assert result.calories == 1200
+    assert result.max_loss_kg_per_week == pytest.approx(0.364, abs=0.001)
+    assert "below 1,200 kcal a day, the lowest target set for women" in (
+        result.clamped_reason
+    )
+
+
+def test_over_113_kg_the_floor_is_1500_for_anyone():
+    # NHLBI's weight-based guidance: 1,500 kcal or more from 250 lb.
+    result = target_calories(2400, -1, "female", 120, 170)
+    assert result.floor_kcal == 1500
     assert result.calories == 1500
-    assert "Raised to" in result.clamped_reason
+    assert "anyone over 113 kg" in result.clamped_reason
 
 
-def test_target_calories_leaves_a_surplus_alone():
-    result = target_calories(2500, 0.25, "male")
+def test_no_loss_is_planned_below_a_healthy_bmi():
+    # 50 kg at 178 cm is a BMI of 15.8: the plan maintains instead.
+    result = target_calories(2000, -0.5, "female", 50, 178)
+    assert result.loss_refused is True
+    assert result.applied_rate == 0
+    assert result.calories == 2000
+    assert "18.5" in result.clamped_reason
+
+
+def test_gain_is_capped_at_half_a_percent_of_body_weight_a_week():
+    """Iraki 2019: about 0.25-0.5% of body weight a week."""
+    result = target_calories(2500, 1, "male", 80, 180)
+    assert result.applied_rate == 0.4
+    assert result.calories == 2500 + 440
+    assert "half a percent" in result.clamped_reason
+
+
+def test_below_a_healthy_bmi_a_gain_may_add_up_to_500_kcal_a_day():
+    """NHS, underweight adults: around 300 to 500 extra calories a day."""
+    result = target_calories(2000, 1, "female", 50, 178)
+    assert result.calories == 2500
+    assert "500 kcal" in result.clamped_reason
+
+
+def test_a_burn_below_the_floor_is_raised_to_it_and_says_so():
+    result = target_calories(1100, 0, "female", 45, 150)
+    assert result.calories == 1200
+    assert "Raised to 1,200" in result.clamped_reason
+
+
+def test_target_calories_leaves_a_reasonable_surplus_alone():
+    result = target_calories(2500, 0.25, "male", 80, 180)
     assert result.calories == pytest.approx(2775, abs=1)
     assert result.clamped_reason is None
+
+
+def test_the_limits_are_reported_as_data_not_only_as_prose():
+    result = target_calories(3000, -0.5, "male", 80, 180)
+    assert result.max_loss_kg_per_week == 0.8
+    assert result.max_gain_kg_per_week == 0.4
+    assert result.floor_kcal == 1500
 
 
 def test_macro_targets_sum_back_to_the_calorie_target():
@@ -292,12 +369,101 @@ def test_macro_targets_scale_protein_with_body_weight_not_calories():
     assert cutting["protein"] == maintaining["protein"]
 
 
+@pytest.mark.parametrize(
+    ("focus", "rate", "expected"),
+    [
+        ("muscle", -0.5, (2.2, 1.8, 2.6)),  # Helms 2014 / ISSN 2017, in a deficit
+        ("muscle", 0.0, (1.9, 1.6, 2.2)),   # Iraki 2019
+        ("muscle", 0.3, (1.9, 1.6, 2.2)),
+        ("scale", -0.5, (1.4, 1.2, 1.6)),   # Leidy 2015
+        ("scale", 0.3, (1.4, 1.2, 1.6)),
+        (None, -0.5, (1.8, 1.6, 2.2)),      # unanswered: today's value
+    ],
+)
+def test_protein_per_kilo_follows_the_goal_and_what_matters_most(focus, rate, expected):
+    assert protein_g_per_kg(focus, rate) == expected
+
+
+def test_protein_is_worked_out_from_weight_capped_at_bmi_30():
+    """Weijs 2024: a maximum weight of BMI 30. 30 x 1.8^2 = 97.2 kg."""
+    assert protein_reference_weight(200, 180) == pytest.approx(97.2)
+    # At or under BMI 30 it is simply the body weight.
+    assert protein_reference_weight(80, 180) == 80
+    # The 200 kg test case: 136 g just for the scale, 214 g keeping muscle.
+    assert round(1.4 * protein_reference_weight(200, 180)) == 136
+    assert round(2.2 * protein_reference_weight(200, 180)) == 214
+
+
+def test_fat_never_drops_below_half_a_gram_per_kilo():
+    """Iraki 2019: 0.5-1.5 g/kg. A quarter of 1,200 kcal is only 33 g."""
+    assert macro_targets(1200, 80)["fat"] == 40
+    # Above the minimum, fat stays a quarter of calories.
+    assert macro_targets(2400, 80)["fat"] == round(2400 * 0.25 / 9)
+
+
 def test_macro_targets_floor_carbs_at_zero_rather_than_going_negative():
     # 200 kg of body weight against a 1200 kcal target: protein alone is 360 g
     # = 1440 kcal, already over budget before fat is counted.
     macros = macro_targets(1200, 200)
     assert macros["carbs"] == 0
     assert macros["protein"] > 0
+    assert macros["fits"] is False
+
+
+# The worked example the rule was decided on: 80 kg, 1,800 kcal, keeping
+# muscle while losing (2.2 g/kg, so 176 g worked out). Fat's quarter is 50 g
+# and its minimum 40 g.
+@pytest.mark.parametrize(
+    ("typed", "carbs", "fat"),
+    [(200, 160, 40), (250, 110, 40), (300, 60, 40), (360, 0, 40)],
+)
+def test_typed_protein_comes_out_of_fat_before_carbs(typed, carbs, fat):
+    macros = macro_targets(1800, 80, protein_g_per_kg=2.2, protein_g=typed)
+    assert (macros["protein"], macros["carbs"], macros["fat"]) == (typed, carbs, fat)
+    assert macros["fits"] is True
+
+
+def test_fat_gives_way_gradually_not_only_at_the_edge():
+    """Carbs keep every gram until fat reaches its minimum. 9 g more protein
+    is 36 kcal, which is 4 g of fat, and carbs do not move."""
+    auto = macro_targets(1800, 80, protein_g_per_kg=2.2)
+    typed = macro_targets(1800, 80, protein_g_per_kg=2.2, protein_g=185)
+    assert typed["fat"] == auto["fat"] - 4
+    assert typed["carbs"] == auto["carbs"]
+
+
+def test_typed_protein_that_does_not_fit_is_flagged():
+    macros = macro_targets(1800, 80, protein_g_per_kg=2.2, protein_g=361)
+    assert macros["fits"] is False
+    assert (macros["carbs"], macros["fat"]) == (0, 40)
+    assert max_protein_g(1800, 80) == 360
+
+
+def test_typed_protein_below_the_worked_out_amount_goes_to_carbs():
+    auto = macro_targets(1800, 80, protein_g_per_kg=2.2)
+    typed = macro_targets(1800, 80, protein_g_per_kg=2.2, protein_g=150)
+    assert typed["fat"] == auto["fat"] == 50
+    # 26 g less protein is 104 kcal, which is 26 g more carbs.
+    assert typed["carbs"] == auto["carbs"] + 26
+
+
+@pytest.mark.parametrize("calories", range(1000, 4001, 200))
+@pytest.mark.parametrize("weight", [50, 65, 80, 97.2, 120, 200])
+@pytest.mark.parametrize("per_kg", [1.4, 1.8, 1.9, 2.2, 2.6])
+def test_automatic_protein_split_is_unchanged(calories, weight, per_kg):
+    """The rule before 2026-10-13: fat at a quarter (never under the minimum),
+    carbs the rest, floored at zero. Fat giving way first changes nothing for
+    worked-out protein, overshoots included: overshooting with fat still at a
+    quarter would need protein above three times the fat minimum, over
+    3.4 g/kg, and the most the app works out is 2.6."""
+    protein = per_kg * weight
+    fat = max(calories * 0.25 / 9, 0.5 * weight)
+    carbs = (calories - protein * 4 - fat * 9) / 4
+    macros = macro_targets(calories, weight, protein_g_per_kg=per_kg)
+    assert (macros["protein"], macros["carbs"], macros["fat"]) == (
+        round(protein), round(max(carbs, 0)), round(fat)
+    )
+    assert macros["fits"] is (carbs >= 0)
 
 
 # --- measured TDEE (energy balance) ------------------------------------------

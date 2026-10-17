@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { dismissHint, isHintDismissed } from '../lib/dismissals'
 import { MAX_STEPS_PER_DAY } from '../lib/limits'
-import { trackerHues } from '../lib/chartTheme'
 import type { StepDay } from '../types'
 import DailyTrackerCard from './DailyTrackerCard'
-import Card from './ui/Card'
+import Tracker from './today/Tracker'
+import { Button } from '@/ui/button'
+import { FIELD } from '@/ui/field'
+import Hint from '@/ui/hint'
+import Retry from '@/ui/retry'
+import { cn } from '@/lib/utils'
+import { StepsIcon } from '@/ui/icons'
 import { useLiveMessage } from '../hooks/useLiveMessage'
+import { n } from '@/lib/format'
 
 interface Props {
   /** The day being viewed on the dashboard, not necessarily today. */
@@ -18,6 +25,11 @@ export default function StepsCard({ date }: Props) {
   const [error, setError] = useState<string | null>(null)
   useLiveMessage(error)
   const [busy, setBusy] = useState(false)
+  const [hintClosed, setHintClosed] = useState(() => isHintDismissed('steps'))
+  const closeHint = () => {
+    dismissHint('steps')
+    setHintClosed(true)
+  }
 
   const load = useCallback(() => {
     api
@@ -63,7 +75,7 @@ export default function StepsCard({ date }: Props) {
       setError(null)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save that — try again.')
+      setError(err instanceof Error ? err.message : "That didn't save. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }
@@ -78,7 +90,7 @@ export default function StepsCard({ date }: Props) {
       setError(null)
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not clear that — try again.')
+      setError(err instanceof Error ? err.message : "That didn't clear. Check your connection, then try again.")
     } finally {
       setBusy(false)
     }
@@ -86,25 +98,37 @@ export default function StepsCard({ date }: Props) {
 
   if (!day) {
     return (
-      <Card>
-        <h2 className="font-semibold">
-          <span className="mr-2" aria-hidden="true">👟</span>Steps
-        </h2>
-        <p className="mt-3 text-xs text-ink-faint">{error ?? 'Loading…'}</p>
-      </Card>
+      <Tracker icon={<StepsIcon size={22} />} title="Steps">
+        {error ? (
+          <Retry text={error} onRetry={load} />
+        ) : (
+          <p className="text-small text-ink-2">Loading…</p>
+        )}
+      </Tracker>
     )
   }
 
   return (
     <DailyTrackerCard
-      icon="👟"
+      icon={<StepsIcon size={22} />}
       label="Steps"
       value={day.steps}
       goal={day.goal}
       unit="steps"
-      color={trackerHues.steps}
       error={error}
-      caption={<StepsCaption day={day} />}
+      explanation={<StepsCaption day={day} />}
+      hint={
+        // Only for an account with no step count on any day: someone with a
+        // history elsewhere can bring it in instead of starting from today.
+        // Samsung is named because its export is the one the importer takes
+        // as it comes (the others need converting first).
+        day.ever_logged === false &&
+        !hintClosed && (
+          <Hint action={{ label: 'Import my steps', to: '/you/steps', onClick: closeHint }} onClose={closeHint}>
+            Use Samsung Health? Bring in your step history from its export.
+          </Hint>
+        )
+      }
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-stretch">
@@ -121,21 +145,22 @@ export default function StepsCard({ date }: Props) {
               }}
               placeholder="steps"
               aria-label="Step count for this day"
-              className="w-24 rounded-l-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-base sm:text-sm text-slate-200"
+              className={cn(FIELD, 'w-28 rounded-r-none tabular-nums')}
             />
-            <button
+            <Button
+              variant="ghost"
               onClick={save}
               disabled={busy || draft.trim() === ''}
-              className="rounded-r-lg border border-l-0 border-slate-700 px-2.5 text-sm text-slate-400 hover:text-violet-300 disabled:opacity-40"
+              className="h-auto rounded-l-none border-l-0"
             >
               Save
-            </button>
+            </Button>
           </div>
           {day.logged && (
             <button
               onClick={clear}
               disabled={busy}
-              className="ml-auto text-xs text-ink-faint hover:text-slate-300 disabled:opacity-40"
+              className="ml-auto min-h-11 px-1 text-small text-ink-2 underline underline-offset-3 hover:text-ink disabled:opacity-45"
             >
               Clear this day
             </button>
@@ -158,17 +183,17 @@ function StepsCaption({ day }: { day: StepDay }) {
   if (day.goal === null) {
     return (
       <>
-        No step goal set — you can pick one in Settings. There is no sensible
-        way to work one out from your body, so this app will not invent it.
+        No step goal set; pick one in You → Steps. The app won't invent one from
+        your body.
       </>
     )
   }
   if (day.burn_kcal != null && day.burn_weight_kg != null) {
     return (
       <>
-        Roughly {Math.round(day.burn_kcal).toLocaleString()} kcal of walking, at{' '}
-        {day.burn_weight_kg.toFixed(1)} kg. A rule of thumb, and it does not
-        change your calorie target — a measured daily burn already counts it.
+        Roughly {n(day.burn_kcal)} kcal of walking at{' '}
+        {day.burn_weight_kg.toFixed(1)} kg, a rule of thumb. It doesn't change
+        your target: a measured daily burn already counts it.
       </>
     )
   }

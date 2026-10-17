@@ -229,6 +229,11 @@ def build_review(db: Session, user_id: int, window_end: date_type):
     setting = _get_or_create(db, user_id)
     days = _intake_days(db, user_id, window_start, window_end)
     daily_target, plan_touched = _daily_calorie_target(db, user_id, setting, days)
+    protein_goal = float(setting.protein_goal)
+    if not setting.target_set:
+        # The stored goals are signup defaults nobody chose; the checks that
+        # compare against them answer "unknown" instead (review.py).
+        daily_target, plan_touched, protein_goal = 0.0, False, 0.0
     rate, weigh_ins, days_since = _weight_facts(db, user_id, window_end)
 
     # `today` for the target machinery is the day after the window closes, so
@@ -244,7 +249,7 @@ def build_review(db: Session, user_id: int, window_end: date_type):
         window_end=window_end,
         days=days,
         daily_calorie_target=daily_target,
-        protein_goal=float(setting.protein_goal),
+        protein_goal=protein_goal,
         plan_touched=plan_touched,
         targets=TargetsFacts(
             missing=tuple(targets.missing),
@@ -272,6 +277,9 @@ def build_review(db: Session, user_id: int, window_end: date_type):
         calibration=calibration_summary(db, user_id),
         rate_window_days=RATE_WINDOW_DAYS,
         rate_min_points=RATE_MIN_POINTS,
+        first_logged_day=db.scalar(
+            select(func.min(Meal.date)).where(Meal.user_id == user_id)
+        ),
     )
 
 
@@ -328,6 +336,14 @@ async def review_summary(
     `_reserve_call`'s contract.
     """
     review = build_review(db, user.id, _window_end(end))
+    if review.logged_days == 0:
+        # Refused before the slot is reserved: a week with nothing logged has
+        # no figures to put into words, and the call would still spend one of
+        # the app-wide daily model calls on saying so.
+        raise HTTPException(
+            status_code=409,
+            detail="Nothing was logged that week, so there's nothing to put into words.",
+        )
     facts = [
         check.detail or check.unavailable_reason or ""
         for check in review.checks

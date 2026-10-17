@@ -1,190 +1,46 @@
 import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { api } from '../api/client'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import FoodAutocomplete from '../components/FoodAutocomplete'
 import MealAnalyzer from '../components/MealAnalyzer'
-import MealCodeInput from '../components/MealCodeInput'
-import { addDays, localIsoDate, parseIsoDate } from '../lib/dates'
-import { clearNoteDraft } from '../lib/draft'
+import { useAnalysis } from '../analysis/AnalysisContext'
+import { useLogPanel } from '../components/log/useLogPanel'
+import { api } from '../api/client'
+import { dismissedSavedMeals, dismissSavedMeal } from '../lib/dismissals'
+import { offerSavedMeal } from '../lib/hints'
+import { announceMealsChanged } from '../lib/mealEvents'
+import { useToast } from '../ui/toast'
+import { localIsoDate, parseIsoDate } from '../lib/dates'
 import type { LibraryContext } from '../lib/libraryMatch'
-import { findByName, matchItem, rowFieldsFromMatch } from '../lib/libraryMatch'
-import type { FoodSource } from '../lib/foodSources'
+import { findByName } from '../lib/libraryMatch'
+import {
+  emptyRow,
+  MAX_TEMPLATE_ITEMS,
+  mealTotals,
+  rowFromAnalyzedItem,
+  rowFromTotals,
+  rowIsValid,
+  rowsFromTemplate,
+  rowTotals,
+  type Row,
+} from '../lib/mealRows'
+import { saveMeal, saveTemplate } from '../lib/saveMeal'
 import { SOURCE_NAME, sourceAfterEdit } from '../lib/foodSources'
-import { num } from '../lib/parse'
 import { useSettings } from '../settings/SettingsContext'
 import type {
-  AnalyzedItem,
   Food,
   FoodCreate,
   Meal,
   MealAnalysisResponse,
   MealTemplate,
+  RecentMeal,
   SharedMeal,
 } from '../types'
-import Card from '../components/ui/Card'
-import TextInput from '../components/ui/TextInput'
-import Button from '../components/ui/Button'
+import { Button } from '@/ui/button'
+import { FIELD } from '@/ui/field'
+import Hint from '@/ui/hint'
+import { DeleteIcon, KeepIcon, LogIcon } from '@/ui/icons'
+import DayChips from '../components/log/DayChips'
 import { useLiveMessage } from '../hooks/useLiveMessage'
-
-interface Row {
-  key: number
-  name: string
-  weight: string
-  servingSize: string
-  calories: string
-  protein: string
-  carbs: string
-  fat: string
-  fromLibrary: boolean
-  saveToLibrary: boolean
-  /** Whose figures these are: a table or Open Food Facts when picked from the
-   *  autocomplete, else 'user'. Saved with the row if the tick is on, and
-   *  reset to 'user' by any number edit (updateRow). */
-  source: FoodSource
-}
-
-let rowCounter = 0
-const emptyRow = (): Row => ({
-  key: ++rowCounter,
-  name: '',
-  weight: '',
-  servingSize: '100',
-  calories: '',
-  protein: '',
-  carbs: '',
-  fat: '',
-  fromLibrary: false,
-  saveToLibrary: true,
-  source: 'user',
-})
-
-const rowIsValid = (row: Row) => {
-  const weight = num(row.weight)
-  const serving = num(row.servingSize)
-  const calories = num(row.calories)
-  const protein = num(row.protein)
-  const carbs = num(row.carbs)
-  const fat = num(row.fat)
-  return (
-    weight !== null && weight > 0 &&
-    serving !== null && serving > 0 &&
-    calories !== null && calories >= 0 &&
-    protein !== null && protein >= 0 &&
-    (row.carbs.trim() === '' || (carbs !== null && carbs >= 0)) &&
-    (row.fat.trim() === '' || (fat !== null && fat >= 0))
-  )
-}
-
-// Mirrors MAX_TEMPLATE_ITEMS in backend/app/schemas.py. Duplicated here only so
-// the user gets a sentence instead of a bare 422 — the server is the authority.
-const MAX_TEMPLATE_ITEMS = 30
-
-// Ingredients aren't persisted with a meal, so editing loads the stored totals
-// as one pass-through row: weight == serving size, so factor = 1 and the
-// macros come through unchanged (same trick applyAnalysis uses).
-//
-// Takes anything carrying a name and the four macros, which is a meal or a
-// template that has no items of its own.
-const rowFromTotals = (
-  source: Pick<Meal, 'name' | 'calories' | 'protein' | 'carbs' | 'fat'>,
-): Row => ({
-  ...emptyRow(),
-  name: source.name,
-  weight: '100',
-  servingSize: '100',
-  calories: String(source.calories),
-  protein: String(source.protein),
-  carbs: source.carbs == null ? '' : String(source.carbs),
-  fat: source.fat == null ? '' : String(source.fat),
-  saveToLibrary: false,
-})
-
-// Just the fields rowsFromTemplate actually reads, rather than a whole
-// MealTemplate -- the same narrowing rowFromTotals above already uses. It is
-// what lets a meal arriving in a share code, which has no id and was never a
-// row in this account, be applied by the identical function.
-type Applicable = Pick<
-  MealTemplate,
-  'name' | 'calories' | 'protein' | 'carbs' | 'fat' | 'items'
->
-
-// A template keeps its ingredient rows, so applying one restores each at the
-// weight it was saved at — which is the entire reason templates store items
-// rather than just totals: the rice stays adjustable on its own.
-//
-// A template saved while editing an existing meal has no items, only totals,
-// and so does every code made from a logged meal. Returning zero rows there
-// would open the form empty and then refuse to save, complaining about
-// ingredients the user never entered.
-const rowsFromTemplate = (template: Applicable): Row[] =>
-  template.items.length === 0
-    ? [rowFromTotals(template)]
-    : template.items.map((item) => ({
-        ...emptyRow(),
-        name: item.name,
-        weight: String(item.weight_grams),
-        servingSize: String(item.serving_size),
-        calories: String(item.calories),
-        protein: String(item.protein),
-        carbs: item.carbs == null ? '' : String(item.carbs),
-        fat: item.fat == null ? '' : String(item.fat),
-        saveToLibrary: false,
-      }))
-
-// One item of an AI estimate as a row. Two shapes, and which one you get is the
-// whole point of attaching a food:
-//
-//  * Unmatched -- the model estimated everything, so weight == serving size and
-//    factor = 1 passes its per-portion numbers through untouched (the same trick
-//    rowFromTotals uses).
-//  * Matched -- serving size and macros are the user's own saved figures while
-//    weight is the model's portion estimate, so rowTotals scales the one by the
-//    other. The AI estimated the portion; the library supplied the macros.
-const rowFromAnalyzedItem = (item: AnalyzedItem, attached: Food[]): Row => {
-  const matched = matchItem(item, attached)
-  if (!matched) {
-    return {
-      ...emptyRow(),
-      name: item.name,
-      weight: String(item.portion_grams),
-      servingSize: String(item.portion_grams),
-      calories: String(item.calories),
-      protein: String(item.protein),
-      carbs: item.carbs == null ? '' : String(item.carbs),
-      fat: item.fat == null ? '' : String(item.fat),
-      saveToLibrary: false,
-    }
-  }
-  const fields = rowFieldsFromMatch(item, matched)
-  return {
-    ...emptyRow(),
-    name: fields.name,
-    weight: String(fields.weight),
-    servingSize: String(fields.servingSize),
-    calories: String(fields.calories),
-    protein: String(fields.protein),
-    carbs: fields.carbs === null ? '' : String(fields.carbs),
-    fat: fields.fat === null ? '' : String(fields.fat),
-    // The row really did come from the library, so the badge it lights is true
-    // and the offer-to-cache tick correctly stays away: it is already saved.
-    fromLibrary: true,
-    saveToLibrary: false,
-  }
-}
-
-const rowTotals = (row: Row) => {
-  const factor = Number(row.weight) / Number(row.servingSize)
-  const scale = (value: string) => {
-    const parsed = num(value)
-    return parsed === null ? null : parsed * factor
-  }
-  return {
-    calories: (num(row.calories) ?? 0) * factor,
-    protein: (num(row.protein) ?? 0) * factor,
-    carbs: scale(row.carbs),
-    fat: scale(row.fat),
-  }
-}
 
 /** "Use your saved numbers", when a row's name is one of the user's foods.
  *
@@ -224,19 +80,25 @@ function SavedNumbersOffer({
     <button
       type="button"
       onClick={() => onUse(match)}
-      className="mt-3 flex min-h-11 w-full flex-wrap items-center justify-between gap-2 rounded-control border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-left text-xs text-emerald-300 hover:bg-emerald-500/10"
+      className="flex min-h-11 w-full flex-wrap items-center justify-between gap-2 rounded-control border-[1.5px] border-fact px-3 py-2 text-left text-small hover:bg-fact/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
     >
-      <span>Use your saved numbers for “{match.name}”</span>
-      <span className="text-ink-faint">
+      <span className="font-semibold text-fact">Use your saved numbers for “{match.name}”</span>
+      <span className="text-ink-2 tabular-nums">
         {match.calories} kcal · {match.protein} g P / {match.serving_size} g
       </span>
     </button>
   )
 }
 
+/** The Log panel's "Enter it by hand" screen, which is also where a meal is
+ *  edited, a saved meal or a recent one is adjusted, and a pasted code or an
+ *  AI estimate is checked before saving. It was the whole Log page until the
+ *  panel (overhaul 0a); the AI box and the code box moved to the panel's start
+ *  screen, and what they produce arrives here through router state. */
 export default function LogMeal() {
-  const navigate = useNavigate()
   const location = useLocation()
+  const { close } = useLogPanel()
+  const toast = useToast()
   // Set when the dashboard's edit button navigated here; absent on a normal log.
   const editMeal = (location.state as { editMeal?: Meal } | null)?.editMeal ?? null
   // Set when navigating from a dashboard day-view, so a new meal defaults to the
@@ -258,7 +120,9 @@ export default function LogMeal() {
   // two travel TOGETHER: the meal says what to log and `?date=` says when, and
   // the meal's own date is deliberately ignored. Copying Tuesday's dinner is
   // logging dinner today, not editing Tuesday.
-  const copyMeal = (location.state as { copyMeal?: Meal } | null)?.copyMeal ?? null
+  const copyMeal = (location.state as { copyMeal?: RecentMeal } | null)?.copyMeal ?? null
+  // Arrived from "Search a food" after an estimate failed.
+  const focusFoodSearch = (location.state as { focusFoodSearch?: boolean } | null)?.focusFoodSearch === true
   // Set when a meal code was pasted below. The decoded meal and the code that
   // produced it travel together: the meal fills the form, and the code is the
   // only stable identity it has -- see the context string in the effect below.
@@ -266,31 +130,35 @@ export default function LogMeal() {
     (location.state as { sharedMeal?: SharedMeal } | null)?.sharedMeal ?? null
   const sharedCode =
     (location.state as { sharedCode?: string } | null)?.sharedCode ?? null
+  // Set when the start screen's "Use these ingredients" brought the AI
+  // estimate here. The estimate itself stays in AnalysisProvider.
+  const fromEstimate =
+    (location.state as { fromEstimate?: boolean } | null)?.fromEstimate ?? false
 
   const { settings } = useSettings()
   const [rows, setRows] = useState<Row[]>([emptyRow()])
   const [mealName, setMealName] = useState('')
   const [mealDate, setMealDate] = useState(localIsoDate())
 
-  // '' is unreachable through the input (the change handler drops it), but the
-  // fallback keeps addDays away from a malformed date if it ever becomes so.
-  const shiftMealDate = (delta: number) =>
-    setMealDate((current) => addDays(current || localIsoDate(), delta))
-  const dateChips = [
-    { label: 'Today', date: localIsoDate() },
-    { label: 'Yesterday', date: addDays(localIsoDate(), -1) },
-  ]
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
   // Both outcomes live in one state here, so one call covers the save
   // confirmation and every validation refusal.
   useLiveMessage(message?.text)
   const [saving, setSaving] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
+  // The saved-meal tip on the copy form: from the third log of a name that
+  // isn't a saved meal yet (lib/hints). Saved meals are fetched only when the
+  // count already qualifies, so most copies cost no extra request.
+  const [savedMealTip, setSavedMealTip] = useState(false)
   const [analysisId, setAnalysisId] = useState<number | null>(null)
-  // Bumped to remount MealAnalyzer. Its state is deliberately its own -- the
-  // parent has no business reaching into ten pieces of it -- so a key is both
-  // the smallest and the most complete way to reset it.
-  const [analyzerNonce, setAnalyzerNonce] = useState(0)
+  // The AI estimate lives in AnalysisProvider, not here, so it outlasts this
+  // page; reset() clears it once its meal is saved.
+  const { reset: resetAnalysis, analysis: estimate, attached, library } = useAnalysis()
+  // Read by the effect below without being one of its triggers: the estimate is
+  // copied into the form once, when this screen opens for it, and never again --
+  // re-copying when the library finished loading would wipe the user's edits.
+  const estimateRef = useRef({ estimate, attached, library })
+  estimateRef.current = { estimate, attached, library }
   // Whether what is currently in the form came out of a meal code, which is not
   // the same question as whether location.state holds one. The state survives a
   // save -- nothing clears a history entry -- so keying the notice off `shared`
@@ -345,6 +213,12 @@ export default function LogMeal() {
     setFromCode(Boolean(shared))
     setCopiedFrom(copyMeal?.date ?? null)
     setMessage(null)
+    // Below the resets on purpose: the estimate brings its own analysisId and
+    // library, which the lines above would otherwise clear.
+    const pending = estimateRef.current
+    if (fromEstimate && pending.estimate && !editMeal && !shared && !template && !copyMeal) {
+      applyAnalysis(pending.estimate, { attached: pending.attached, library: pending.library })
+    }
     // Switching what this page is for -- a new meal, an edit, a template --
     // must take the analyzer with it. Without this, opening a meal to edit
     // leaves the previous meal's photos and estimate sitting above the form.
@@ -366,9 +240,10 @@ export default function LogMeal() {
     const context = `${editMeal?.id ?? ''}|${sharedCode ?? ''}|${template?.name ?? ''}|${copyMeal?.id ?? ''}|${logDate ?? ''}`
     if (lastContext.current !== context) {
       lastContext.current = context
-      setAnalyzerNonce((n) => n + 1)
     }
-  }, [editMeal, shared, sharedCode, template, copyMeal, logDate])
+    // applyAnalysis only calls state setters, so it cannot go stale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editMeal, shared, sharedCode, template, copyMeal, logDate, fromEstimate])
 
   // Every edit to a row passes through here, so this is the one place the
   // provenance rule lives: change a number and the figures are the user's own
@@ -389,7 +264,7 @@ export default function LogMeal() {
   }
 
   // A library pick is already saved, so the tick stays away. A table or Open
-  // Food Facts pick is NOT saved by picking (owner, 2026-10-06): the tick
+  // Food Facts pick is NOT saved by picking (decided 2026-10-06): the tick
   // appears for it, unticked, and saving it keeps the pick's source.
   const selectFood = (key: number, food: FoodCreate, fromLibrary: boolean) => {
     updateRow(key, {
@@ -414,18 +289,7 @@ export default function LogMeal() {
   }
 
   const validRows = rows.filter(rowIsValid)
-  const totals = validRows.reduce(
-    (acc, row) => {
-      const t = rowTotals(row)
-      return {
-        calories: acc.calories + t.calories,
-        protein: acc.protein + t.protein,
-        carbs: t.carbs === null ? acc.carbs : (acc.carbs ?? 0) + t.carbs,
-        fat: t.fat === null ? acc.fat : (acc.fat ?? 0) + t.fat,
-      }
-    },
-    { calories: 0, protein: 0, carbs: null as number | null, fat: null as number | null },
-  )
+  const totals = mealTotals(rows)
 
   const save = async () => {
     if (!mealName.trim()) {
@@ -446,72 +310,29 @@ export default function LogMeal() {
     setSaving(true)
     setMessage(null)
     try {
-      const payload = {
+      const meal = await saveMeal({
+        rows,
+        name: mealName,
         date: mealDate,
-        name: mealName.trim(),
-        calories: Math.round(totals.calories * 100) / 100,
-        protein: Math.round(totals.protein * 100) / 100,
-        carbs: totals.carbs === null ? null : Math.round(totals.carbs * 100) / 100,
-        fat: totals.fat === null ? null : Math.round(totals.fat * 100) / 100,
-      }
-      const meal = editMeal
-        ? await api.updateMeal(editMeal.id, payload)
-        : await api.createMeal(payload)
+        editId: editMeal?.id ?? null,
+        analysisId,
+      })
+      // Whether the estimate in AnalysisProvider went into this meal.
+      const usedEstimate = analysisId !== null
+      setAnalysisId(null)
 
-      // Best-effort: remember which AI analysis this meal came from.
-      if (analysisId !== null) {
-        await api.linkAnalysis(analysisId, meal.id).catch(() => null)
-        setAnalysisId(null)
-      }
-
-      // Offer-to-cache: persist manually entered ingredients the user opted
-      // in on. Best-effort — the meal is already saved, and a failed library
-      // write must not surface as "Saving failed" (which would invite a
-      // duplicate re-save).
-      await Promise.all(
-        validRows
-          .filter((row) => !row.fromLibrary && row.saveToLibrary && row.name.trim())
-          .map((row) =>
-            api
-              .saveFood({
-                name: row.name.trim(),
-                serving_size: Number(row.servingSize),
-                calories: Number(row.calories),
-                protein: Number(row.protein),
-                carbs: num(row.carbs),
-                fat: num(row.fat),
-                source: row.source,
-              })
-              .catch(() => null),
-          ),
-      )
-
-      if (editMeal) {
-        navigate('/', { replace: true })
-        return
-      }
-      setMessage({ kind: 'success', text: `Saved "${mealName.trim()}" ✓` })
-      setRows([emptyRow()])
-      setMealName('')
-      // Remount the analyzer, which is the only way to clear all of its state
-      // at once -- photos, previews, note, the estimate and the "Use these
-      // ingredients" button. Leaving it standing meant the next meal opened
-      // with the last one's photos still attached, and tapping apply again
-      // pushed the previous meal's ingredients into a blank form.
-      //
-      // A remount rather than a pile of setters because MealAnalyzer's cleanup
-      // effect revokes its object URLs; clearing the state by hand and
-      // forgetting that leaks every preview blob for the life of the tab.
-      //
-      // The draft is cleared here too, and must be: the note is restored on
-      // mount, so a remount that left it behind would hand the next meal the
-      // description of the one just saved.
-      clearNoteDraft()
-      // The numbers it described are no longer on screen.
-      setFromCode(false)
-      setCopiedFrom(null)
-      setLibraryFoods([])
-      setAnalyzerNonce((n) => n + 1)
+      // The estimate outlives this screen, so one that went into this meal is
+      // cleared (photos, note, the estimate itself), or the next meal would
+      // open with this one's photos still attached. An unrelated one -- an
+      // estimate still running for lunch while a snack is typed by hand -- is
+      // left alone. reset() also clears the note's draft.
+      if (usedEstimate) resetAnalysis()
+      // The page under the panel never remounted, so it is told to reload.
+      announceMealsChanged({ date: meal.date })
+      // DESIGN.md: saving closes the panel. The toast is the confirmation the
+      // inline "Saved ✓" used to be, and it lands on the page the meal is on.
+      toast.show({ text: editMeal ? `Updated "${meal.name}".` : `Saved "${meal.name}".` })
+      close()
     } catch (error) {
       setMessage({
         kind: 'error',
@@ -522,221 +343,197 @@ export default function LogMeal() {
     }
   }
 
+  useEffect(() => {
+    setSavedMealTip(false)
+    const count = copyMeal?.count
+    if (!copyMeal || count === undefined || count < 2) return
+    let live = true
+    api
+      .getMealTemplates()
+      .then((templates) => {
+        if (!live) return
+        setSavedMealTip(
+          offerSavedMeal({
+            count,
+            name: copyMeal.name,
+            savedNames: templates.map((saved) => saved.name),
+            dismissedNames: dismissedSavedMeals(),
+          }),
+        )
+      })
+      // A tip, not content: if the saved meals can't be read, it stays away.
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [copyMeal])
+
+  const closeSavedMealTip = () => {
+    if (copyMeal) dismissSavedMeal(copyMeal.name)
+    setSavedMealTip(false)
+  }
+
   // Fires on its own rather than riding along with the meal save, so a meal can
   // be templated without being logged — and so it also works while editing an
   // existing meal, where there is no create to ride on.
-  const saveAsTemplate = async () => {
+  // Resolves to whether the meal was saved, so the copy form's tip can go
+  // away on success and stay on an error.
+  const saveAsTemplate = async (): Promise<boolean> => {
     const name = mealName.trim()
     if (!name) {
-      setMessage({ kind: 'error', text: 'Name the meal before saving it as a template.' })
-      return
+      setMessage({ kind: 'error', text: 'Name the meal before keeping it as a saved meal.' })
+      return false
     }
     if (validRows.length === 0) {
       setMessage({
         kind: 'error',
-        text: 'Add at least one complete ingredient before saving a template.',
+        text: 'Add at least one complete ingredient before keeping it as a saved meal.',
       })
-      return
+      return false
     }
     if (validRows.length > MAX_TEMPLATE_ITEMS) {
       setMessage({
         kind: 'error',
-        text: `A template can hold at most ${MAX_TEMPLATE_ITEMS} ingredients.`,
+        text: `A saved meal can hold at most ${MAX_TEMPLATE_ITEMS} ingredients.`,
       })
-      return
+      return false
     }
     setSavingTemplate(true)
     setMessage(null)
     try {
-      const saved = await api.saveMealTemplate({
-        name,
-        calories: Math.round(totals.calories * 100) / 100,
-        protein: Math.round(totals.protein * 100) / 100,
-        carbs: totals.carbs === null ? null : Math.round(totals.carbs * 100) / 100,
-        fat: totals.fat === null ? null : Math.round(totals.fat * 100) / 100,
-        items: validRows.map((row) => ({
-          // A row is valid without a name, but the API requires one on every
-          // item — so an unnamed ingredient gets a placeholder rather than a
-          // 422 the user has no way to interpret.
-          name: row.name.trim() || 'Ingredient',
-          weight_grams: Number(row.weight),
-          serving_size: Number(row.servingSize),
-          calories: Number(row.calories),
-          protein: Number(row.protein),
-          carbs: num(row.carbs),
-          fat: num(row.fat),
-        })),
-      })
+      const saved = await saveTemplate(rows, name)
       setMessage({
         kind: 'success',
         // Saving over a food corrects it; saving over a template throws away an
         // ingredient list, and there is no undo — so say which one happened.
         text: saved.created
-          ? `Saved "${name}" as a template ☆`
-          : `Replaced your existing "${name}" template ☆`,
+          ? `Kept "${name}" as a saved meal.`
+          : `Replaced your saved meal "${name}".`,
       })
+      return true
     } catch (error) {
       setMessage({
         kind: 'error',
-        text: error instanceof Error ? error.message : 'Saving the template failed',
+        text: error instanceof Error ? error.message : 'Saving the meal failed.',
       })
+      return false
     } finally {
       setSavingTemplate(false)
     }
   }
 
 
-  return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">{editMeal ? 'Edit meal' : 'Log a meal'}</h1>
-        <p className="text-sm text-slate-400">
-          {editMeal
-            ? 'Adjust the details below — saving updates the existing entry.'
-            : 'Start typing an ingredient — your food library and open food tables fill in the macros.'}
-        </p>
-      </header>
-
-      <MealCodeInput
-        onLoaded={(sharedMeal, code) =>
-          // Navigate rather than setRows: the effect above is the single place
-          // that decides what this form holds, and it also resets the analyzer
-          // and clears analysisId. That last one matters -- applyAnalysis sets
-          // analysisId, and saving with a stale one would link an AI estimate
-          // to a meal it never produced, quietly corrupting the calibration
-          // figures on the Analytics page.
-          navigate(`/log?date=${mealDate}`, {
-            state: { sharedMeal, sharedCode: code },
-            replace: true,
-          })
-        }
+  // One number field, in the redesign's look (DESIGN.md Inputs).
+  const numberField = (
+    row: Row,
+    key: 'weight' | 'servingSize' | 'calories' | 'protein' | 'carbs' | 'fat',
+    label: string,
+    min = 0,
+  ) => (
+    <label className="grid gap-1">
+      <span className="text-small text-ink-2">{label}</span>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={min}
+        value={row[key]}
+        onChange={(e) => updateRow(row.key, { [key]: e.target.value })}
+        className={`${FIELD} tabular-nums`}
       />
+    </label>
+  )
 
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
+      {/* Ink and words, never a coloured box (DESIGN.md): a rule on the left
+          sets a notice apart from the form it is about. */}
       {fromCode && (
-        <Card as="p" tone="warn" pad="sm" className="text-sm">
-          These numbers came from whoever sent you the code. The app has not checked
-          them and cannot — they may have been weighed, estimated or guessed. Change
-          anything that looks wrong before you save; this is your copy now.
-        </Card>
+        <p className="border-l-2 border-ink pl-3 text-small">
+          These numbers came from whoever sent the code, and the app hasn't checked them. Change
+          anything that looks wrong before you save.
+        </p>
       )}
 
       {copiedFrom && (
-        <Card as="p" tone="brand" pad="sm" className="text-sm text-ink-muted">
+        <p className="border-l-2 border-ink pl-3 text-small">
           Copied from your{' '}
-          <span className="text-slate-200">
+          <b>
             {parseIsoDate(copiedFrom).toLocaleDateString(undefined, {
               weekday: 'long',
               month: 'short',
               day: 'numeric',
             })}
-          </span>{' '}
-          log. Saving adds a new meal on the date below — the one you copied
-          stays where it is.
-        </Card>
+          </b>{' '}
+          log. Saving adds a new meal on the day below; the one you copied stays where it is.
+        </p>
       )}
 
-      <MealAnalyzer key={analyzerNonce} settings={settings} onApply={applyAnalysis} />
+      {savedMealTip && copyMeal?.count !== undefined && (
+        <Hint
+          action={{
+            label: 'Keep as a saved meal',
+            onClick: () => {
+              // Same guard as the footer button: the save is an unlocked
+              // upsert, so a second tap mid-flight would collide.
+              if (savingTemplate || saving) return
+              void saveAsTemplate().then((saved) => saved && closeSavedMealTip())
+            },
+          }}
+          onClose={closeSavedMealTip}
+        >
+          You've logged this {copyMeal.count} times before.
+        </Hint>
+      )}
 
-      <section className="space-y-4">
+      {/* Only when editing: a new meal starts from the AI box on the panel's
+          first screen, but re-estimating a meal already logged happens here,
+          where the form it fills is right below. */}
+      {editMeal && <MealAnalyzer onApply={applyAnalysis} />}
+
+      <ol className="grid border-t border-rule">
         {rows.map((row, index) => (
-          <Card pad="sm" key={row.key}>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-300">
+          <li key={row.key} className="grid gap-3 border-b border-rule py-4">
+            <div className="flex min-h-11 items-center justify-between gap-3">
+              <h3 className="flex flex-wrap items-center gap-2 text-field-label text-ink-2">
                 {rows.length === 1 ? 'Ingredient' : `Ingredient ${index + 1}`}
                 {row.fromLibrary ? (
-                  <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] uppercase text-emerald-300">
-                    from library
+                  <span className="rounded-tag border-[1.5px] border-fact px-1.5 text-[11px] font-bold tracking-[0.04em] text-fact normal-case">
+                    Your food
                   </span>
                 ) : (
                   row.source !== 'user' && (
-                    <span className="ml-2 rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] uppercase text-sky-300">
+                    <span className="rounded-tag border-[1.5px] border-ink-2 px-1.5 text-[11px] font-bold tracking-[0.04em] normal-case">
                       from {SOURCE_NAME[row.source]}
                     </span>
                   )
                 )}
-              </h2>
+              </h3>
               {rows.length > 1 && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setRows((current) => current.filter((r) => r.key !== row.key))}
-                  className="text-xs text-ink-faint hover:text-rose-400"
+                  aria-label={`Remove ${row.name.trim() || `ingredient ${index + 1}`}`}
                 >
-                  Remove
-                </button>
+                  <DeleteIcon size={18} aria-hidden />
+                </Button>
               )}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <FoodAutocomplete
-                  value={row.name}
-                  onChange={(name) => updateRow(row.key, { name, fromLibrary: false })}
-                  onSelect={(food, fromLibrary) => selectFood(row.key, food, fromLibrary)}
-                />
-              </div>
-              <label className="block text-sm">
-                <span className="mb-1 block text-xs text-slate-400">Weight eaten (g)</span>
-                <TextInput
-                  type="number"
-                  min={0}
-                  value={row.weight}
-                  onChange={(e) => updateRow(row.key, { weight: e.target.value })}
-                  className="w-full"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="mb-1 block text-xs text-slate-400">Serving size (g)</span>
-                <TextInput
-                  type="number"
-                  min={1}
-                  value={row.servingSize}
-                  onChange={(e) => updateRow(row.key, { servingSize: e.target.value })}
-                  className="w-full"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="mb-1 block text-xs text-slate-400">Calories / serving</span>
-                <TextInput
-                  type="number"
-                  min={0}
-                  value={row.calories}
-                  onChange={(e) => updateRow(row.key, { calories: e.target.value })}
-                  className="w-full"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="mb-1 block text-xs text-slate-400">Protein / serving (g)</span>
-                <TextInput
-                  type="number"
-                  min={0}
-                  value={row.protein}
-                  onChange={(e) => updateRow(row.key, { protein: e.target.value })}
-                  className="w-full"
-                />
-              </label>
-              {settings?.track_carbs && (
-                <label className="block text-sm">
-                  <span className="mb-1 block text-xs text-slate-400">Carbs / serving (g)</span>
-                  <TextInput
-                    type="number"
-                    min={0}
-                    value={row.carbs}
-                    onChange={(e) => updateRow(row.key, { carbs: e.target.value })}
-                    className="w-full"
-                  />
-                </label>
-              )}
-              {settings?.track_fat && (
-                <label className="block text-sm">
-                  <span className="mb-1 block text-xs text-slate-400">Fat / serving (g)</span>
-                  <TextInput
-                    type="number"
-                    min={0}
-                    value={row.fat}
-                    onChange={(e) => updateRow(row.key, { fat: e.target.value })}
-                    className="w-full"
-                  />
-                </label>
-              )}
+            <FoodAutocomplete
+              value={row.name}
+              onChange={(name) => updateRow(row.key, { name, fromLibrary: false })}
+              onSelect={(food, fromLibrary) => selectFood(row.key, food, fromLibrary)}
+              focusOnMount={index === 0 && focusFoodSearch}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              {numberField(row, 'weight', 'Weight eaten (g)')}
+              {numberField(row, 'servingSize', 'Serving size (g)', 1)}
+              {numberField(row, 'calories', 'Calories per serving')}
+              {numberField(row, 'protein', 'Protein per serving (g)')}
+              {settings?.track_carbs && numberField(row, 'carbs', 'Carbs per serving (g)')}
+              {settings?.track_fat && numberField(row, 'fat', 'Fat per serving (g)')}
             </div>
 
             {!row.fromLibrary && (
@@ -748,175 +545,82 @@ export default function LogMeal() {
             )}
 
             {!row.fromLibrary && row.name.trim() !== '' && (
-              <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-slate-400">
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-small">
                 <input
                   type="checkbox"
                   checked={row.saveToLibrary}
                   onChange={(e) => updateRow(row.key, { saveToLibrary: e.target.checked })}
-                  className="h-3.5 w-3.5 accent-emerald-500"
+                  className="size-5 shrink-0 accent-[var(--action)]"
                 />
                 Save “{row.name.trim()}” to my food library for next time
               </label>
             )}
 
             {rowIsValid(row) && (
-              <p className="mt-3 text-xs text-slate-400">
+              <p className="text-small text-ink-2 tabular-nums">
                 This ingredient: {Math.round(rowTotals(row).calories)} kcal ·{' '}
                 {Math.round(rowTotals(row).protein * 10) / 10} g protein
               </p>
             )}
-          </Card>
+          </li>
         ))}
+      </ol>
 
-        <button
-          onClick={() => setRows((current) => [...current, emptyRow()])}
-          className="w-full rounded-xl border border-dashed border-slate-700 py-3 text-sm text-slate-400 hover:border-emerald-500 hover:text-emerald-300"
-        >
-          + Add another ingredient
-        </button>
-      </section>
+      <Button
+        variant="ghost"
+        onClick={() => setRows((current) => [...current, emptyRow()])}
+        className="justify-self-start"
+      >
+        <LogIcon size={18} aria-hidden />
+        Add another ingredient
+      </Button>
 
-      <Card as="section">
-        <h2 className="mb-3 font-semibold">Meal details</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm">
-            <span className="mb-1 block text-xs text-slate-400">Meal name</span>
-            <TextInput
-              type="text"
-              value={mealName}
-              onChange={(e) => setMealName(e.target.value)}
-              placeholder="e.g. Chicken & rice bowl"
-              className="w-full"
-            />
-          </label>
-          {/* Nearly every meal is logged today or yesterday, so a chip is fewer
-              taps than any picker, and the steppers cover the rest of the week.
-              Mirrors the Dashboard header's controls rather than inventing a
-              second idiom for the same job.
+      <label className="grid gap-1">
+        <span className="text-small text-ink-2">Meal name</span>
+        <input
+          type="text"
+          value={mealName}
+          onChange={(e) => setMealName(e.target.value)}
+          placeholder="e.g. Chicken & rice bowl"
+          className={FIELD}
+        />
+      </label>
 
-              The label cannot wrap the control here -- the steppers sit beside
-              the input, and interactive content inside a <label> has murky
-              click-forwarding behaviour. htmlFor/id instead, which is the first
-              explicit association in this codebase; everything else wraps. */}
-          <div>
-            <label htmlFor="meal-date" className="mb-1 block text-xs text-slate-400">
-              Date
-            </label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => shiftMealDate(-1)}
-                aria-label="Previous day"
-                className="shrink-0 rounded-control border border-line bg-surface px-2.5 py-2 text-slate-300 hover:bg-raised"
-              >
-                ◀
-              </button>
-              <TextInput
-                id="meal-date"
-                type="date"
-                value={mealDate}
-                max={localIsoDate()}
-                // Ignore a cleared field rather than storing ''. addDays throws on
-                // a malformed date by design, so an empty value would turn the
-                // very next stepper tap into an exception. Dashboard's picker
-                // already guards the same way.
-                onChange={(e) => e.target.value && setMealDate(e.target.value)}
-                className="w-full flex-1"
-              />
-              <button
-                type="button"
-                onClick={() => shiftMealDate(1)}
-                disabled={mealDate >= localIsoDate()}
-                aria-label="Next day"
-                className="shrink-0 rounded-control border border-line bg-surface px-2.5 py-2 text-slate-300 hover:bg-raised disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                ▶
-              </button>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {dateChips.map((chip) => (
-                <button
-                  key={chip.label}
-                  type="button"
-                  onClick={() => setMealDate(chip.date)}
-                  aria-pressed={mealDate === chip.date}
-                  className={`rounded-full px-2.5 py-0.5 text-xs ${
-                    mealDate === chip.date
-                      ? 'bg-emerald-500/15 text-emerald-300'
-                      : 'bg-raised text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+      <DayChips legend="Day" value={mealDate} onChange={setMealDate} />
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-800/60 px-4 py-3">
-          <p className="text-sm">
-            <span className="font-semibold text-amber-400">{Math.round(totals.calories)} kcal</span>
-            <span className="mx-2 text-ink-faint">·</span>
-            <span className="font-semibold text-emerald-400">
-              {Math.round(totals.protein * 10) / 10} g protein
-            </span>
-            {settings?.track_carbs && totals.carbs !== null && (
-              <>
-                <span className="mx-2 text-ink-faint">·</span>
-                <span className="font-semibold text-sky-400">
-                  {Math.round(totals.carbs * 10) / 10} g carbs
-                </span>
-              </>
-            )}
-            {settings?.track_fat && totals.fat !== null && (
-              <>
-                <span className="mx-2 text-ink-faint">·</span>
-                <span className="font-semibold text-rose-400">
-                  {Math.round(totals.fat * 10) / 10} g fat
-                </span>
-              </>
-            )}
-            <span className="ml-2 text-xs text-ink-faint">
-              ({validRows.length} of {rows.length} ingredient{rows.length === 1 ? '' : 's'} counted)
-            </span>
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Disabled while in flight, and that is load-bearing rather than
-                cosmetic: the save is a read-then-write upsert with no lock, so
-                two taps in quick succession would both find nothing, both
-                insert, and collide on the unique index. */}
-            <button
-              onClick={saveAsTemplate}
-              disabled={savingTemplate || saving}
-              title="Save these ingredients to re-log in one tap"
-              className="rounded-lg border border-slate-700 px-5 py-2.5 text-sm text-slate-300 hover:border-emerald-500 hover:text-emerald-300 disabled:opacity-60"
-            >
-              {savingTemplate ? (
-                'Saving…'
-              ) : (
-                <>
-                  <span aria-hidden="true">☆</span> Save as template
-                </>
-              )}
-            </button>
-            <Button
-              onClick={save}
-              disabled={saving || savingTemplate}
-              className="px-6 py-2.5"
-            >
-              {saving ? 'Saving…' : editMeal ? 'Update meal' : 'Save meal'}
-            </Button>
-          </div>
-        </div>
+      {message && (
+        <p className="border-l-2 border-ink pl-3 text-small">{message.text}</p>
+      )}
 
-        {message && (
-          <p
-            className={`mt-3 text-sm ${message.kind === 'success' ? 'text-emerald-400' : 'text-rose-400'}`}
+      {/* The panel's footer, as on the AI result: the totals and Save always
+          in reach, however many ingredients sit above. */}
+      <div className="sticky bottom-0 -mx-4 grid gap-2 border-t border-rule bg-ground px-4 py-3 desk:-mx-7 desk:px-7">
+        <p className="text-small text-ink-2 tabular-nums">
+          <b className="text-ink">{Math.round(totals.calories)} kcal</b> ·{' '}
+          {Math.round(totals.protein * 10) / 10} g protein
+          {settings?.track_carbs && totals.carbs !== null && ` · ${Math.round(totals.carbs * 10) / 10} g carbs`}
+          {settings?.track_fat && totals.fat !== null && ` · ${Math.round(totals.fat * 10) / 10} g fat`}
+          {' '}({validRows.length} of {rows.length} ingredient{rows.length === 1 ? '' : 's'} counted)
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {/* Disabled while in flight, and that is load-bearing rather than
+              cosmetic: the save is a read-then-write upsert with no lock, so
+              two taps in quick succession would both find nothing, both
+              insert, and collide on the unique index. */}
+          <Button
+            variant="secondary"
+            onClick={() => void saveAsTemplate().then((saved) => saved && setSavedMealTip(false))}
+            disabled={savingTemplate || saving}
+            title="Save these ingredients to re-log in one tap"
           >
-            {message.text}
-          </p>
-        )}
-      </Card>
+            <KeepIcon size={18} aria-hidden />
+            {savingTemplate ? 'Saving…' : 'Keep as a saved meal'}
+          </Button>
+          <Button onClick={save} disabled={saving || savingTemplate} className="flex-1">
+            {saving ? 'Saving…' : editMeal ? 'Update meal' : 'Save meal'}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

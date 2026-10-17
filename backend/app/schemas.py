@@ -1,8 +1,15 @@
 from datetime import date as date_type
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from .banking import MAX_DAY_DELTA_KCAL, MAX_PLAN_DAYS
 from .calculations import ProjectionStatus
@@ -115,6 +122,35 @@ class Meal(MealCreate):
     # silently reporting an unedited meal -- the from_attributes trap. Null is
     # the honest value for a meal with no recorded edit, not a missing one.
     updated_at: datetime | None
+    # When the row was written, which is when the meal was LOGGED -- not when
+    # it was eaten (that is `date`, and no time of eating is recorded). Today
+    # shows it beside a meal logged on its own day, where the two are close.
+    # Null for rows written before the column existed. No default, for the
+    # reason updated_at gives.
+    #
+    # Stored as naive UTC (models.utcnow); returned with its zone, so a client
+    # parsing it gets the right instant instead of reading it as local time.
+    created_at: datetime | None
+
+    @field_validator("created_at")
+    @classmethod
+    def created_at_is_utc(cls, value: datetime | None) -> datetime | None:
+        if value is None or value.tzinfo is not None:
+            return value
+        return value.replace(tzinfo=timezone.utc)
+
+
+class RecentMeal(Meal):
+    """A "recently logged" meal, with how often its name was logged.
+
+    `count` is the number of meals under this name (case-insensitive, like the
+    deduplication) within the rows GET /api/meals/recent scans, this one
+    included. Older logs past the scan window are not counted, so the number can
+    run low but never high: the copy form's "keep it as a saved meal" tip shows
+    later than it might, never for a meal logged less often than it says.
+    """
+
+    count: int
 
 
 # Bounds the size of MealTemplate.items_json. Named for the same reason
@@ -523,6 +559,10 @@ class StepDay(BaseModel):
     date: date_type
     steps: int
     logged: bool
+    # Whether the account has a step count on ANY day, not only this one: the
+    # card offers the history import to someone who has never logged a day,
+    # and only the server can see past the day being viewed.
+    ever_logged: bool
     goal: int | None = None
     # The walking estimate and the weight it was worked out from, together --
     # the standing rule that no derived number reaches the screen without its
@@ -870,6 +910,34 @@ class Settings(BaseModel):
     weigh_in_reminder_days: int = Field(
         default=1, ge=1, le=MAX_WEIGH_IN_REMINDER_DAYS
     )
+    # Today's meal rows show the time each meal was logged. Defaulted, for the
+    # reason weight_unit is: a stale bundle PUTs without it.
+    show_meal_times: bool = True
+    # Whether a target has ever been chosen (models.py). Server-owned: a PUT
+    # can turn it on but never off, so a form that sends back the false it
+    # read cannot undo the save that set it. Defaulted for the reason
+    # weight_unit is.
+    target_set: bool = False
+    # "What matters most to you?" for protein: keeping or building muscle, or
+    # just the scale; None means not answered. Patched, so a stale bundle
+    # can't clear it and sending null clears it on purpose.
+    protein_focus: Literal["muscle", "scale"] | None = None
+    # Protein is the user's own protein_goal while calories stay worked out.
+    # Only means anything with targets_auto on. Patched, like protein_focus.
+    protein_own: bool = False
+    # Which trackers Today shows besides the weigh-in. None = not chosen yet
+    # (keeps the old cards and asks once); [] = the weigh-in only. Patched and
+    # converted by hand in routers/settings.py: the column is trackers_json.
+    trackers: list[Literal["water", "steps", "supplements"]] | None = Field(
+        default=None, max_length=3
+    )
+
+    @field_validator("trackers")
+    @classmethod
+    def each_tracker_once(cls, value: list[str] | None) -> list[str] | None:
+        if value is not None and len(set(value)) != len(value):
+            raise ValueError("each tracker can be listed once")
+        return value
 
     @field_validator("birth_date")
     @classmethod
@@ -889,6 +957,50 @@ class Settings(BaseModel):
         return value
 
 
+# POLICY. Setup's typo catchers, stricter than the bounds a stored weight or
+# height carries: a first-use form is where a misplaced decimal or the wrong
+# unit happens, and the preview is the moment to say so. Not a judgement about
+# anyone's body -- every real adult value passes.
+MIN_SETUP_WEIGHT_KG = 25
+MIN_SETUP_HEIGHT_CM = 100
+SETUP_BMI_RANGE = (12, 100)
+
+
+class TargetPreviewRequest(BaseModel):
+    """Setup's answers, before anything is saved (POST /settings/targets/preview).
+
+    Every field is required: the preview is the formula on these answers and
+    nothing else, so there is nothing to default.
+    """
+
+    weight_kg: float = Field(ge=MIN_SETUP_WEIGHT_KG, le=MAX_WEIGHT_KG)
+    height_cm: float = Field(ge=MIN_SETUP_HEIGHT_CM, le=MAX_HEIGHT_CM)
+    birth_date: date_type
+    sex: Literal["male", "female"]
+    activity_level: ACTIVITY_LEVELS
+    goal_rate_kg_per_week: float = Field(
+        ge=-MAX_INPUT_GOAL_RATE_KG_PER_WEEK, le=MAX_INPUT_GOAL_RATE_KG_PER_WEEK
+    )
+    protein_focus: Literal["muscle", "scale"] | None = None
+
+    _plausible_birth_date = field_validator("birth_date")(
+        Settings.plausible_birth_date.__func__
+    )
+
+    @model_validator(mode="after")
+    def weight_and_height_fit_together(self) -> "TargetPreviewRequest":
+        """A BMI outside 12-100 is nearly always a units mix-up (kg typed as
+        lb, cm as inches), so it is refused with that suggestion."""
+        body_mass_index = self.weight_kg / (self.height_cm / 100) ** 2
+        low, high = SETUP_BMI_RANGE
+        if not low <= body_mass_index <= high:
+            raise ValueError(
+                f"that weight and height make a BMI of {round(body_mass_index)}, "
+                f"which can't be right; check the units"
+            )
+        return self
+
+
 class TdeeBasis(BaseModel):
     """The sample a measured TDEE rests on, or what it is still short of.
 
@@ -905,6 +1017,14 @@ class TdeeBasis(BaseModel):
     mean_intake: float | None = None
     trend_change_kg: float | None = None
     unavailable_reason: str | None = None
+
+
+class ProteinOption(BaseModel):
+    """One answer's protein: the grams worked out and the range around it."""
+
+    g: float
+    low_g: float
+    high_g: float
 
 
 class BodyTargets(BaseModel):
@@ -942,6 +1062,37 @@ class BodyTargets(BaseModel):
     # either way it is information the user is entitled to.
     tdee_estimated: float | None = None
     tdee_basis: TdeeBasis | None = None
+    # The pace limits, so a screen can explain a target in its own words: the
+    # pace planned (signed kg a week), the fastest this person can be planned
+    # to lose or gain, the lowest target set for them, and whether a loss was
+    # refused because they are already below a healthy weight. Mirrored on
+    # targets.TargetsResult for the reason tdee_source gives.
+    applied_rate_kg_per_week: float | None = None
+    max_loss_kg_per_week: float | None = None
+    max_gain_kg_per_week: float | None = None
+    floor_kcal: float | None = None
+    loss_refused: bool = False
+    # The weight trend has reached the goal weight, so the plan maintains;
+    # clamped_reason says so. Mirrored on targets.TargetsResult.
+    goal_reached: bool = False
+    # Protein's per-kg rate for the goal and "What matters most?", the range
+    # around the target, and the weight it is worked out from (body weight, or
+    # the weight at BMI 30 for the height if lower). Mirrored on
+    # targets.TargetsResult for the reason tdee_source gives.
+    protein_g_per_kg: float | None = None
+    protein_low_g: float | None = None
+    protein_high_g: float | None = None
+    protein_reference_kg: float | None = None
+    # False when protein and the fat minimum alone need more than the
+    # calories: carbs are then 0 and the split overshoots. Mirrored on
+    # targets.TargetsResult.
+    protein_fits: bool = True
+    # What each answer to "What matters most?" would give, so a screen can
+    # offer all three and suggest a range for typed protein: keyed "muscle",
+    # "scale" and "unanswered". Mirrored on targets.TargetsResult.
+    protein_by_focus: dict[
+        Literal["muscle", "scale", "unanswered"], ProteinOption
+    ] | None = None
 
 
 class DayTotals(BaseModel):

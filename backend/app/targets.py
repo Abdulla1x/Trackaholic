@@ -24,6 +24,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .calculations import (
+    GOAL_REACHED_TOLERANCE_KG,
+    TargetCalories,
     RATE_WINDOW_DAYS,
     TDEE_MIN_LOGGED_DAYS,
     TDEE_MIN_LOGGED_FRACTION,
@@ -36,6 +38,8 @@ from .calculations import (
     estimated_tdee,
     macro_targets,
     measured_tdee,
+    protein_g_per_kg,
+    protein_reference_weight,
     target_calories,
     weekly_rate,
     weight_trend,
@@ -122,6 +126,29 @@ class TargetsResult:
     # signal that something is wrong with the logs.
     tdee_estimated: float | None = None
     tdee_basis: TdeeBasis | None = None
+    # The pace limits as data (calculations.target_calories), mirrored on
+    # schemas.BodyTargets for the reason tdee_source gives.
+    applied_rate_kg_per_week: float | None = None
+    max_loss_kg_per_week: float | None = None
+    max_gain_kg_per_week: float | None = None
+    floor_kcal: float | None = None
+    loss_refused: bool = False
+    # The trend has reached the goal weight, so the plan maintains.
+    goal_reached: bool = False
+    # Protein: grams per kg for the goal and "What matters most?", the range
+    # around it, and the weight it is worked out from (capped at BMI 30).
+    protein_g_per_kg: float | None = None
+    protein_low_g: float | None = None
+    protein_high_g: float | None = None
+    protein_reference_kg: float | None = None
+    # False when protein and the fat minimum alone need more than the
+    # calories, so carbs are 0 and the split overshoots
+    # (calculations.macro_targets). Mirrored on schemas.BodyTargets.
+    protein_fits: bool = True
+    # What each answer to "What matters most?" would give, as {g, low_g,
+    # high_g}, keyed "muscle", "scale" and "unanswered". Mirrored on
+    # schemas.BodyTargets.
+    protein_by_focus: dict[str, dict[str, float]] | None = None
 
     @property
     def available(self) -> bool:
@@ -286,6 +313,73 @@ def _measure_tdee(
     )
 
 
+@dataclass(frozen=True)
+class _Plan:
+    """A burn turned into a target: the calories within the pace limits, the
+    macros, and protein's rate, range and reference weight.
+
+    One path for both the stored targets (compute_targets) and setup's
+    preview (preview_targets), so a preview can never promise a number the
+    save doesn't give.
+    """
+
+    target: TargetCalories
+    macros: dict[str, float | bool]
+    per_kg: tuple[float, float, float]
+    reference_kg: float
+
+    def fields(self) -> dict[str, object]:
+        per_kg, low, high = self.per_kg
+        return {
+            "target_calories": self.target.calories,
+            "protein_g": self.macros["protein"],
+            "carbs_g": self.macros["carbs"],
+            "fat_g": self.macros["fat"],
+            "applied_rate_kg_per_week": self.target.applied_rate,
+            "max_loss_kg_per_week": self.target.max_loss_kg_per_week,
+            "max_gain_kg_per_week": self.target.max_gain_kg_per_week,
+            "floor_kcal": self.target.floor_kcal,
+            "loss_refused": self.target.loss_refused,
+            "protein_g_per_kg": per_kg,
+            "protein_low_g": float(round(low * self.reference_kg)),
+            "protein_high_g": float(round(high * self.reference_kg)),
+            "protein_reference_kg": round(self.reference_kg, 1),
+            "protein_fits": self.macros["fits"],
+            "protein_by_focus": {
+                key: {
+                    "g": float(round(per_kg * self.reference_kg)),
+                    "low_g": float(round(low * self.reference_kg)),
+                    "high_g": float(round(high * self.reference_kg)),
+                }
+                for key, (per_kg, low, high) in (
+                    (focus or "unanswered", protein_g_per_kg(focus, self.target.applied_rate))
+                    for focus in ("muscle", "scale", None)
+                )
+            },
+        }
+
+
+def _plan_from_burn(
+    tdee: float,
+    weight_kg: float,
+    height_cm: float,
+    sex: str,
+    rate_kg_per_week: float,
+    protein_focus: str | None,
+    own_protein_g: float | None = None,
+) -> _Plan:
+    target = target_calories(
+        tdee, rate_kg_per_week, sex, weight_kg=weight_kg, height_cm=height_cm
+    )
+    reference_kg = protein_reference_weight(weight_kg, height_cm)
+    per_kg = protein_g_per_kg(protein_focus, target.applied_rate)
+    macros = macro_targets(
+        target.calories, reference_kg, protein_g_per_kg=per_kg[0],
+        protein_g=own_protein_g,
+    )
+    return _Plan(target=target, macros=macros, per_kg=per_kg, reference_kg=reference_kg)
+
+
 def compute_targets(
     db: Session, setting: Setting, today: date_type | None = None
 ) -> TargetsResult:
@@ -343,13 +437,43 @@ def compute_targets(
     tdee = measured if measured is not None else estimated
     tdee_source = "measured" if measured is not None else "estimated"
 
-    target = target_calories(tdee, setting.goal_rate_kg_per_week, setting.sex)
-    macros = macro_targets(target.calories, weight_kg)
+    # At the goal weight, maintain. The trend (not one reading) has to reach
+    # it, within the tolerance Progress uses to call a goal reached; drift
+    # back past it and the plan heads for the goal again, which is what
+    # keeping a goal weight means. Worked out each time rather than stored, so
+    # nothing has to be undone when the goal changes.
+    rate = setting.goal_rate_kg_per_week
+    goal = setting.goal_weight_kg
+    goal_reached = goal is not None and (
+        (rate < 0 and weight_kg <= goal + GOAL_REACHED_TOLERANCE_KG)
+        or (rate > 0 and weight_kg >= goal - GOAL_REACHED_TOLERANCE_KG)
+    )
+    if goal_reached:
+        rate = 0.0
+
+    # Typed protein counts only while the rest is worked out: with targets_auto
+    # off every goal is typed and this result is only for comparison.
+    own_protein = (
+        setting.protein_goal if setting.targets_auto and setting.protein_own
+        else None
+    )
+    plan = _plan_from_burn(
+        tdee, weight_kg, setting.height_cm, setting.sex, rate,
+        setting.protein_focus, own_protein,
+    )
+    target = plan.target
 
     # Both clamps can fire at once and both are the user's business: one says
     # the burn was implausible, the other that the requested rate was. Joined
     # rather than prioritised, the way target_calories already joins its two.
-    clamp_reasons = [r for r in (measure_clamp, target.clamped_reason) if r]
+    reached_note = (
+        f"You've reached your goal weight of {goal:g} kg, so this now plans "
+        f"to maintain. Set a new goal any time."
+        if goal_reached else None
+    )
+    clamp_reasons = [
+        r for r in (measure_clamp, reached_note, target.clamped_reason) if r
+    ]
 
     return TargetsResult(
         missing=[],
@@ -359,41 +483,84 @@ def compute_targets(
         # the chain, and showing both makes its size obvious.
         bmr=bmr,
         tdee=tdee,
-        target_calories=target.calories,
-        protein_g=macros["protein"],
-        carbs_g=macros["carbs"],
-        fat_g=macros["fat"],
         weight_kg=weight_kg,
         weight_date=weight_date,
         clamped_reason=" ".join(clamp_reasons) if clamp_reasons else None,
         tdee_source=tdee_source,
         tdee_estimated=estimated,
         tdee_basis=basis,
+        goal_reached=goal_reached,
+        **plan.fields(),
+    )
+
+
+def preview_targets(
+    weight_kg: float,
+    height_cm: float,
+    birth_date: date_type,
+    sex: str,
+    activity_level: str,
+    goal_rate_kg_per_week: float,
+    protein_focus: str | None,
+    today: date_type | None = None,
+) -> TargetsResult:
+    """What saving these setup answers would produce, without saving them.
+
+    The formula's estimate only: a new account has no history to measure a
+    burn from, and setup is where accounts are new. The target, macros and
+    limits come from the same `_plan_from_burn` the stored targets use, so the
+    number shown is the number saved.
+    """
+    age = age_years(birth_date, on=today)
+    bmr = bmr_mifflin_st_jeor(weight_kg, height_cm, age, sex)
+    tdee = estimated_tdee(weight_kg, height_cm, age, sex, activity_level)
+    plan = _plan_from_burn(
+        tdee, weight_kg, height_cm, sex, goal_rate_kg_per_week, protein_focus
+    )
+    return TargetsResult(
+        missing=[],
+        bmi=bmi(weight_kg, height_cm),
+        bmr=bmr,
+        tdee=tdee,
+        weight_kg=weight_kg,
+        clamped_reason=plan.target.clamped_reason,
+        tdee_source="estimated",
+        tdee_estimated=tdee,
+        **plan.fields(),
     )
 
 
 def apply_auto_targets(
     setting: Setting, db: Session, today: date_type | None = None
-) -> None:
+) -> TargetsResult | None:
     """Rewrite the four goal columns from the profile, if the user asked for it.
 
     A no-op unless `targets_auto` is on, and a no-op when the profile is
     incomplete: the flag stays set and starts working the moment the missing
     field is filled in, rather than being silently switched off behind the
-    user's back.
+    user's back. Returns what it wrote from, or None when it wrote nothing.
+
+    With `protein_own` on, protein is the user's and stays: compute_targets
+    reads it from `protein_goal` and splits carbs and fat around it. If it has
+    stopped fitting (a weigh-in lowered calories), it is still kept, with fat
+    at its minimum and carbs at the 1 g floor below; `protein_fits` says so.
 
     Deliberately does not commit. Both callers -- the settings PUT and the
     weigh-in upsert -- are already inside a transaction with more to write, and
     committing here would split one logical change across two.
     """
     if not setting.targets_auto:
-        return
+        return None
 
     result = compute_targets(db, setting, today=today)
     if not result.available:
-        return
+        return None
 
     setting.calorie_goal = max(result.target_calories, MIN_WRITTEN_GOAL)
     setting.protein_goal = max(result.protein_g, MIN_WRITTEN_GOAL)
     setting.carbs_goal = max(result.carbs_g, MIN_WRITTEN_GOAL)
     setting.fat_goal = max(result.fat_g, MIN_WRITTEN_GOAL)
+    # The formula has written real goals, so a target now exists. Setup's
+    # save lands here, and so does a weigh-in that completes a profile.
+    setting.target_set = True
+    return result

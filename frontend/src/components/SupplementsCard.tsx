@@ -1,15 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import { localIsoDate } from '../lib/dates'
-import { trackerHues } from '../lib/chartTheme'
+import { localIsoDate, timeLabel } from '../lib/dates'
 import type { SupplementDay, SupplementSlot } from '../types'
 import DailyTrackerCard from './DailyTrackerCard'
-import Card from './ui/Card'
+import Tracker from './today/Tracker'
+import { SupplementsIcon, DoneIcon } from '@/ui/icons'
+import { Button } from '@/ui/button'
+import Retry from '@/ui/retry'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 interface Props {
   /** The day being viewed on the dashboard, not necessarily today. */
   date: string
+  /** Whether the account chose this tracker. A chosen tracker with nothing
+   *  set up yet shows how to set it up; before the choice existed, an empty
+   *  card was simply not shown. */
+  chosen?: boolean
 }
 
 /** How often the clock is re-read while the card is on screen.
@@ -32,7 +39,7 @@ function clockTime(now: Date): string {
   ).padStart(2, '0')}`
 }
 
-export default function SupplementsCard({ date }: Props) {
+export default function SupplementsCard({ date, chosen = false }: Props) {
   const [day, setDay] = useState<SupplementDay | null>(null)
   const [error, setError] = useState<string | null>(null)
   useLiveMessage(error)
@@ -104,7 +111,7 @@ export default function SupplementsCard({ date }: Props) {
       setDay(next)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save that — try again.')
+      setError(err instanceof Error ? err.message : "That didn't save. Check your connection, then try again.")
       // The optimistic tick was a guess and the guess was wrong, so go and ask.
       // Leaving it would show a dose as taken that the server never recorded.
       load()
@@ -113,20 +120,28 @@ export default function SupplementsCard({ date }: Props) {
 
   if (error && !day) {
     return (
-      <Card>
-        <h2 className="font-semibold">
-          <span className="mr-2" aria-hidden="true">💊</span>Supplements
-        </h2>
-        <p className="mt-3 text-xs text-ink-faint">{error}</p>
-      </Card>
+      <Tracker icon={<SupplementsIcon size={22} />} title="Supplements">
+        <Retry text={error} onRetry={load} />
+      </Tracker>
     )
   }
 
-  // Nothing scheduled and nothing ticked: no card at all. The entry point is
-  // Settings, and a permanent "add some supplements" card would spend prime
-  // dashboard space explaining a feature once — the same argument that keeps
-  // the Saved meals panel hidden until a template exists. Distinct from the
-  // error branch above, which is why that one comes first.
+  // Nothing scheduled and nothing ticked. Chosen on purpose, the card says
+  // how to set it up: someone who just picked Supplements should not find it
+  // missing. Not chosen (an account from before the choice), no card at all,
+  // as before: a permanent "add some supplements" card would spend prime
+  // space explaining a feature once. Distinct from the error branch above,
+  // which is why that one comes first.
+  if (day && day.slots.length === 0 && chosen) {
+    return (
+      <Tracker icon={<SupplementsIcon size={22} />} title="Supplements" value={<span className="text-small text-ink-2">Nothing to tick yet</span>}>
+        <p className="text-small text-ink-2">Add what you take and when, and it shows up here to tick off.</p>
+        <Button asChild variant="secondary" className="justify-self-start">
+          <Link to="/you/supplements">Set up supplements</Link>
+        </Button>
+      </Tracker>
+    )
+  }
   if (!day || day.slots.length === 0) return null
 
   const nowHm = clockTime(now)
@@ -141,53 +156,58 @@ export default function SupplementsCard({ date }: Props) {
 
   return (
     <DailyTrackerCard
-      icon="💊"
+      icon={<SupplementsIcon size={22} />}
       label="Supplements"
       value={day.taken}
       goal={day.scheduled}
       unit="doses"
-      color={trackerHues.supplements}
+      // A count of a list that is right below: no meter, and never a
+      // percentage of a "goal" (doses are not one, UA-12).
+      meter={false}
+      valueText={
+        <span className="font-semibold">
+          {day.taken >= day.scheduled ? 'All done' : `${day.taken} of ${day.scheduled}`}
+        </span>
+      }
       error={error}
       caption={<DoseCaption day={day} isToday={isToday} overdue={overdue.length} next={next} />}
       actions={
-        <ul className="space-y-1">
+        <ul className="divide-y divide-rule">
           {day.slots.map((slot) => {
             const key = `${slot.supplement_id}-${slot.time}`
             const isOverdue = overdue.includes(slot)
             return (
               <li key={key}>
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg px-1 py-1 text-sm hover:bg-slate-800">
-                  <input
-                    type="checkbox"
-                    checked={slot.taken}
-                    onChange={() => toggle(slot)}
-                    className="h-4 w-4 shrink-0 accent-amber-400"
-                  />
-                  <span className="shrink-0 tabular-nums text-xs text-ink-faint">
-                    {slot.time}
+                <label className="flex min-h-11 cursor-pointer items-center gap-3 py-1.5">
+                  {/* A square 24px box (DESIGN.md: checkboxes 4px radius),
+                      the native input underneath for keyboard and screen
+                      readers, the tick drawn over it. */}
+                  <span className="relative grid size-6 shrink-0 place-items-center">
+                    <input
+                      type="checkbox"
+                      checked={slot.taken}
+                      onChange={() => toggle(slot)}
+                      className="peer size-6 cursor-pointer appearance-none rounded-[4px] border-[1.5px] border-rule checked:border-ink checked:bg-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                    />
+                    <DoneIcon
+                      size={16}
+                      aria-hidden="true"
+                      className="pointer-events-none absolute hidden text-ground peer-checked:block"
+                    />
                   </span>
-                  <span
-                    className={`truncate ${
-                      slot.taken ? 'text-ink-faint line-through' : 'text-slate-200'
-                    }`}
-                  >
-                    {slot.name}
-                    {slot.dose && (
-                      <span className="ml-1.5 text-xs text-ink-faint">{slot.dose}</span>
-                    )}
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className={slot.taken ? 'text-ink-2 line-through' : ''}>{slot.name}</span>
+                    {slot.dose && <span className="ml-1.5 text-small text-ink-2">{slot.dose}</span>}
                   </span>
-                  {isOverdue && (
-                    <span className="ml-auto shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-300">
-                      due
-                    </span>
-                  )}
+                  <span className="shrink-0 text-small text-ink-2 tabular-nums">{timeLabel(slot.time)}</span>
+                  {isOverdue && <span className="shrink-0 text-small font-semibold text-action">Due</span>}
                   {/* Marked rather than hidden: this dose was ticked on a day
                       it was scheduled, and the schedule has since moved. It is
                       history, and dropping it would turn a day that was fully
                       taken into one with a miss in it. */}
                   {slot.off_schedule && !isOverdue && (
                     <span
-                      className="ml-auto shrink-0 text-xs text-ink-faint"
+                      className="shrink-0 text-small text-ink-2"
                       title="Not on your current schedule — shown because you ticked it on this day"
                     >
                       was scheduled
@@ -206,8 +226,8 @@ export default function SupplementsCard({ date }: Props) {
 /** What is outstanding, and — for a past day — why an unfamiliar row is there.
  *
  * Nothing here promises a notification. The card can only speak while the app
- * is open, and the Settings section says so at length rather than this caption
- * repeating it every single day.
+ * is open, and the Supplements screen on You says so once rather than this
+ * caption repeating it every single day.
  */
 function DoseCaption({
   day,
@@ -234,13 +254,13 @@ function DoseCaption({
   if (overdue > 0) {
     return (
       <>
-        <span className="text-amber-300">
+        <span className="font-semibold text-ink">
           {overdue} {overdue === 1 ? 'dose' : 'doses'} overdue
         </span>
-        {next && <> · next at {next.time}</>}
+        {next && <> · next at {timeLabel(next.time)}</>}
       </>
     )
   }
-  if (day.taken >= day.scheduled) return <>All done for today.</>
-  return <>{next ? <>Next at {next.time}.</> : <>Nothing outstanding right now.</>}</>
+  if (day.taken >= day.scheduled) return <>All doses done. Your future self says thanks.</>
+  return <>{next ? <>Next at {timeLabel(next.time)}.</> : <>Nothing outstanding right now.</>}</>
 }

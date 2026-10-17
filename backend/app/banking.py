@@ -43,8 +43,8 @@ from .calculations import (
     KCAL_PER_G_CARB,
     KCAL_PER_G_FAT,
     KCAL_PER_G_PROTEIN,
-    MIN_TARGET_FRACTION_OF_TDEE,
-    MIN_TARGET_KCAL,
+    max_daily_deficit,
+    target_floor,
 )
 
 # The two kinds, spelled once. The CHECK constraint on the table repeats these
@@ -179,42 +179,33 @@ def check_floor(
     calories: float,
     sex: str | None,
     tdee: float | None,
-    min_kcal: dict[str, float] = MIN_TARGET_KCAL,
-    min_fraction: float = MIN_TARGET_FRACTION_OF_TDEE,
+    weight_kg: float | None = None,
 ) -> tuple[float, str | None]:
-    """The lowest a day may be shaved to, and which floor could not be applied.
+    """The lowest a day may be shaved to, and which part could not be checked.
 
-    The same two floors `calculations.target_calories` uses, and deliberately
-    not a third: a day inside a plan is held to exactly the standard a permanent
-    target is, because the body cannot tell the difference between a low day
-    that was planned and a low day that was not.
+    Exactly the standard a permanent target is held to, and deliberately not a
+    third: a day inside a plan is held to what `calculations.target_calories`
+    would allow as a target, because the body cannot tell a planned low day
+    from an unplanned one. That is two limits:
 
-    Both floors can be missing, independently, and the rule is to apply every
-    one that can be evaluated rather than to skip the check:
+      * the absolute floor (`calculations.target_floor`): 1,200 / 1,500 kcal,
+        1,500 for anyone over 113 kg; with no `sex`, the lower of the two;
+      * the pace limit as one day: no further below the burn than the fastest
+        planned loss allows (`calculations.max_daily_deficit`: 1% of body
+        weight a week, never more than 1 kg).
 
-      * No `sex` -- fall back to the lower of the absolute floors, which is what
-        `target_calories` already does for an unrecognised value. A floor that
-        is too permissive for this person still beats no floor.
-      * No `tdee` -- there is no proportional floor to compute. This is the one
-        worth reporting: it is the floor that binds for a large person, for whom
-        1200 kcal is nowhere near a real limit, and it is absent exactly when
-        the body profile is incomplete.
-
-    Returns the floor and, when one was skipped, prose saying so. Note that a
-    missing `sex` implies a missing `tdee` in practice -- `compute_targets`
-    lists `sex` among its `missing` fields, so an incomplete profile yields no
-    measured expenditure either -- but they are checked separately here so that
-    neither depends on the other staying true.
+    The second needs the burn and the weight, which need a complete body
+    profile; without them only the absolute floor is checked, and that is said.
     """
-    floor = min_kcal.get(sex or "", min(min_kcal.values()))
-    if tdee is None:
+    floor = target_floor(sex, weight_kg)
+    if tdee is None or weight_kg is None:
         return floor, (
             f"Only the absolute {round(floor):g} kcal floor was checked. The "
-            f"proportional one needs your estimated daily expenditure, which "
-            f"needs a complete body profile — so on a plan this large it may be "
-            f"lower than it should be."
+            f"pace limit needs your estimated daily expenditure and weight, "
+            f"which need a complete body profile and a weigh-in, so on a plan "
+            f"this large it may be lower than it should be."
         )
-    return max(floor, tdee * min_fraction), None
+    return max(floor, tdee - max_daily_deficit(weight_kg)), None
 
 
 def validate_plan(
@@ -226,6 +217,7 @@ def validate_plan(
     goals: DayGoals,
     sex: str | None,
     tdee: float | None,
+    weight_kg: float | None = None,
     surplus_kcal: float | None = None,
 ) -> PlanCheck:
     """Check a whole plan at once. Empty `refusals` means it may be written.
@@ -285,7 +277,7 @@ def validate_plan(
                     today=today, surplus_kcal=surplus_kcal)
     )
 
-    floor, unchecked = check_floor(goals.calories, sex, tdee)
+    floor, unchecked = check_floor(goals.calories, sex, tdee, weight_kg)
     for entry in entries:
         adjusted = apply_delta(goals, entry.calorie_delta)
         if adjusted.calories < floor:

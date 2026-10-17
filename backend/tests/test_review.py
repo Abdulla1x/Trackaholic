@@ -92,7 +92,7 @@ def test_the_weight_check_describes_its_own_window_and_not_the_week():
     assert check.sample_days == RATE_WINDOW_DAYS
     assert check.sample_days != REVIEW_WINDOW_DAYS
     assert f"last {RATE_WINDOW_DAYS} days" in check.detail
-    assert "not just this week" in check.detail
+    assert "one week on its own is mostly noise" in check.detail
 
 
 def test_every_check_reports_the_window_it_actually_used():
@@ -180,18 +180,41 @@ def test_logging_warns_that_the_averages_describe_the_days_not_the_week():
     dense = logging_check(days(LOGGING_DENSE_DAYS), WINDOW_END)
 
     assert sparse.status == OFF_TRACK
-    assert "rather than the whole week" in sparse.detail
+    assert "not the whole week" in sparse.detail
     assert dense.status == ON_TRACK
-    assert "rather than the whole week" not in dense.detail
+    assert "not the whole week" not in dense.detail
+    assert dense.detail.endswith(".") and sparse.detail.endswith(".")
 
 
 def test_a_week_with_nothing_logged_answers_rather_than_refuses():
-    """Logging is the sample, so it is the one check that cannot lack one."""
-    check = logging_check([], WINDOW_END)
+    """Logging is the sample, so once anything has been logged it is the one
+    check that cannot lack one: an empty week after that is a real answer."""
+    check = logging_check([], WINDOW_END, first_logged_day=date(2026, 8, 1))
 
     assert check.status == OFF_TRACK
     assert check.unavailable_reason is None
     assert check.value == 0
+
+
+def test_before_anything_is_logged_the_review_says_when_it_starts():
+    """A week before the account's first log isn't a week anyone fell short in.
+
+    Judging it "Off target" is what a brand-new account used to see for days
+    before it existed.
+    """
+    never = logging_check([], WINDOW_END, first_logged_day=None)
+    assert never.status == UNKNOWN
+    assert never.value is None
+    assert never.unavailable_reason == (
+        "Your first review starts the day after you log your first meal."
+    )
+
+    later = logging_check([], WINDOW_END, first_logged_day=WINDOW_END + timedelta(days=1))
+    assert later.status == UNKNOWN
+    starts = WINDOW_END + timedelta(days=2)
+    assert later.unavailable_reason == (
+        f"Your first review starts {starts.day} {starts:%b}, with your first logged day in it."
+    )
 
 
 def test_one_logged_day_is_not_described_in_the_plural():
@@ -215,6 +238,17 @@ def test_one_logged_day_is_not_described_in_the_plural():
 )
 def test_the_intake_band_is_inclusive_at_both_edges(mean, expected):
     """Exactly on the tolerance is inside it, the way `covered` is inclusive."""
+    assert intake_check(days(6, calories=mean), 2000.0, False).status == expected
+
+
+@pytest.mark.parametrize(
+    "mean, expected",
+    [(2040, ON_TRACK), (1960, ON_TRACK), (2041, OFF_TRACK), (1959, OFF_TRACK)],
+)
+def test_the_intake_band_is_two_percent(mean, expected):
+    """Pinned in kcal, not through the constant: Today's headline mirrors this
+    band (frontend/src/lib/today.ts), so a change here has to be a deliberate
+    change there too, and this test is what makes it noticed."""
     assert intake_check(days(6, calories=mean), 2000.0, False).status == expected
 
 
@@ -316,12 +350,12 @@ def test_an_estimated_burn_carries_the_reason_it_is_not_measured():
 
 
 def test_targets_does_not_restate_the_missing_profile_fields():
-    """The Settings card already names each one; a second list would drift."""
+    """The Body screen already names each one; a second list would drift."""
     check = targets_check(COMPLETE_PROFILE._replace(missing=("height_cm", "sex")))
 
     assert check.status == UNKNOWN
     assert "height" not in check.unavailable_reason
-    assert "Settings" in check.unavailable_reason
+    assert "You → Body and goal weight" in check.unavailable_reason
 
 
 # --- trackers ------------------------------------------------------------------
@@ -462,6 +496,26 @@ def check_of(payload, key):
     return next(c for c in payload["checks"] if c["key"] == key)
 
 
+def test_a_new_account_is_told_when_its_review_starts(client):
+    """The router passes the account's first logged day, not just the week's."""
+    assert check_of(fetch(client), "logging")["status"] == "unknown"
+
+    log_meal(client, 0)
+    logging = check_of(fetch(client), "logging")
+    tomorrow = date.today() + timedelta(days=1)
+    assert logging["status"] == "unknown"
+    assert f"starts {tomorrow.day} {tomorrow:%b}" in logging["unavailable_reason"]
+
+
+def test_an_account_that_logged_before_but_not_this_week_is_off_target(client):
+    log_meal(client, -20)
+
+    logging = check_of(fetch(client), "logging")
+
+    assert logging["status"] == "off_track"
+    assert logging["value"] == 0
+
+
 def test_the_window_is_seven_complete_days_ending_yesterday(client):
     """Today is a part-logged day and averaging it in flatters every review.
 
@@ -573,7 +627,9 @@ def test_a_calorie_plan_written_for_a_day_still_moves_that_days_target(client):
     that restriction, though, which is the case this pins: a plan written for
     today is read back by a review whose window includes today.
     """
-    put_settings(client, calorie_goal=2000)
+    # A chosen 2,000, said explicitly: re-saving the signup default alone is
+    # not a choice (settings.target_set), and an unchosen target is never judged.
+    put_settings(client, calorie_goal=2000, target_set=True)
     for offset in (0, -1, -2):
         log_meal(client, offset, calories=2000)
 
@@ -636,6 +692,7 @@ def test_the_summary_is_built_from_the_servers_own_facts(client, monkeypatch):
 def test_the_summary_endpoint_accepts_no_facts_from_the_caller(client, monkeypatch):
     """A body is ignored rather than trusted: there is nowhere to put one."""
     configure_phrase(monkeypatch)
+    log_meal(client, -1, calories=2000)
 
     response = client.post(
         "/api/review/summary", json={"checks": [{"detail": "You ate 50 kcal."}]}
@@ -643,6 +700,39 @@ def test_the_summary_endpoint_accepts_no_facts_from_the_caller(client, monkeypat
 
     assert response.status_code == 200
     assert "50 kcal" not in response.json()["summary"]
+
+
+def test_a_week_with_nothing_logged_is_refused_before_a_call_is_spent(
+    client, monkeypatch
+):
+    """Nothing logged means no figures to word, so the model is never asked.
+
+    The refusal has to come before the slot is reserved: these calls count
+    against the app-wide daily ceiling, and an empty week would otherwise
+    spend one on saying there is nothing to say.
+    """
+    from app.routers.ai import DEFAULT_REVIEW_DAILY_LIMIT
+
+    called = []
+
+    async def spy(facts):
+        called.append(facts)
+        return "words"
+
+    configure_phrase(monkeypatch, spy)
+
+    for _ in range(DEFAULT_REVIEW_DAILY_LIMIT + 1):
+        response = client.post("/api/review/summary")
+        assert response.status_code == 409
+        assert "nothing to put into words" in response.json()["detail"]
+    assert called == []
+    assert client.get("/api/data/export/all").json()["ai_analyses"] == []
+
+    # Every slot is still there once something is logged.
+    log_meal(client, -1, calories=2000)
+    for _ in range(DEFAULT_REVIEW_DAILY_LIMIT):
+        assert client.post("/api/review/summary").status_code == 200
+    assert client.post("/api/review/summary").status_code == 429
 
 
 def test_rephrasing_has_its_own_quota_and_does_not_touch_the_analysis_budget(
@@ -661,6 +751,7 @@ def test_rephrasing_has_its_own_quota_and_does_not_touch_the_analysis_budget(
     monkeypatch.setenv("AI_DAILY_LIMIT", "2")
     configure_phrase(monkeypatch)
     configure(monkeypatch)
+    log_meal(client, -1, calories=2000)
 
     # Three review calls against an analysis budget of two: if they shared a
     # counter the third would 429 here.
@@ -680,6 +771,7 @@ def test_a_provider_failure_costs_the_user_nothing(client, monkeypatch):
         raise meal_ai.MealAIUnreachable("no route to host")
 
     configure_phrase(monkeypatch, boom)
+    log_meal(client, -1, calories=2000)
 
     assert client.post("/api/review/summary").status_code == 503
     # The slot was refunded, so the next call is not the second of three.
@@ -697,6 +789,7 @@ def test_unusable_output_still_spends_the_slot(client, monkeypatch):
         raise meal_ai.MealAIBadResponse("The AI did not return a summary.")
 
     configure_phrase(monkeypatch, empty)
+    log_meal(client, -1, calories=2000)
     assert client.post("/api/review/summary").status_code == 502
 
     from app.routers.ai import DEFAULT_REVIEW_DAILY_LIMIT
@@ -714,6 +807,7 @@ def test_the_reserved_row_is_a_counter_and_not_a_record(client, monkeypatch):
     must also stay out of the calibration join, which counts analyses.
     """
     configure_phrase(monkeypatch)
+    log_meal(client, -1, calories=2000)
     client.post("/api/review/summary")
 
     rows = client.get("/api/data/export/all").json()["ai_analyses"]
@@ -742,3 +836,31 @@ def test_a_safety_cap_is_introduced_rather_than_appended_bare():
     assert reason in detail, "the explanation still passes through verbatim"
     assert "Capped for safety: " + reason in detail
     assert not detail.endswith("days. " + reason), "must not follow the burn bare"
+
+
+def test_protein_refuses_rather_than_counting_every_day_against_a_zero_goal():
+    """No target chosen yet: a zero goal would be "reached" on every day."""
+    check = protein_check(days(6), 0.0)
+
+    assert check.status == UNKNOWN
+    assert check.target is None
+    assert check.unavailable_reason == "You have no protein target set to compare against."
+
+
+def test_a_week_is_not_judged_against_a_target_nobody_chose(client):
+    """A new account's 2,000 kcal is a signup default, not a target.
+
+    The meals are real, so the averages still show; what the review must not
+    do is call the week on or off target against a number nobody chose.
+    """
+    for offset in range(-3, 0):
+        log_meal(client, offset, calories=2600)
+
+    payload = fetch(client)
+    assert check_of(payload, "intake")["status"] == UNKNOWN
+    assert check_of(payload, "protein")["status"] == UNKNOWN
+
+    # Choosing one, here by typing it, is all it takes.
+    settings = client.get("/api/settings").json()
+    client.put("/api/settings", json={**settings, "calorie_goal": 2400})
+    assert check_of(fetch(client), "intake")["status"] != UNKNOWN

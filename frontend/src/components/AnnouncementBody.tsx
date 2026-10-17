@@ -11,12 +11,12 @@
 // markers literally. Nothing in code review shows that -- the string is correct
 // and the JSX is valid -- it is only visible on screen.
 //
-// It lives in its own file so the modal and the /whats-new page render a note
-// identically by construction. AlertDialog's docblock claims it "shares its
-// shell with AnnouncementsModal so there is one dialog style rather than two
-// that drift apart", while importing nothing and hand-copying every class --
-// the two have already drifted. A shared claim is only true if there is a
-// shared module.
+// It lives in its own file so the pop-up and the /whats-new page render a note
+// identically by construction: both draw their notes with NoteList below. A
+// claim that two views share a look is only true if they share a module.
+import { parseIsoDate } from '../lib/dates'
+import type { Announcement } from '../types'
+
 const INLINE = /(\*\*[^*]+\*\*|\*[^*]+\*)/g
 
 function inline(text: string, key: string) {
@@ -29,7 +29,7 @@ function inline(text: string, key: string) {
       // `**word**` run never reaches the italic branch.
       if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) {
         return (
-          <strong key={id} className="font-semibold text-slate-100">
+          <strong key={id} className="font-semibold text-ink">
             {part.slice(2, -2)}
           </strong>
         )
@@ -41,12 +41,37 @@ function inline(text: string, key: string) {
     })
 }
 
-export default function AnnouncementBody({ text }: { text: string }) {
+function AnnouncementBody({ text }: { text: string }) {
   return (
-    <div className="mt-1.5 space-y-2 text-sm text-slate-300">
+    <div className="mt-1 grid gap-2 text-small text-ink-2">
       {text.split(/\n{2,}/).map((paragraph, index) => (
         <p key={index}>{inline(paragraph, String(index))}</p>
       ))}
     </div>
+  )
+}
+
+/** Release notes as rows between hairlines (DESIGN.md: Blocks and rows): the
+ *  title, its date at the right, then the body. `heading` keeps the outline
+ *  in order: h2 under a page's title, h3 under a sheet's. */
+export function NoteList({ items, heading: Heading }: { items: Announcement[]; heading: 'h2' | 'h3' }) {
+  return (
+    <ul className="divide-y divide-rule">
+      {items.map((item) => (
+        <li key={item.id} className="py-3 first:pt-0">
+          <div className="flex items-baseline justify-between gap-3">
+            <Heading className="font-semibold">{item.title}</Heading>
+            <time dateTime={item.date} className="shrink-0 text-small text-ink-2">
+              {parseIsoDate(item.date).toLocaleDateString(undefined, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </time>
+          </div>
+          <AnnouncementBody text={item.body} />
+        </li>
+      ))}
+    </ul>
   )
 }

@@ -136,7 +136,7 @@ def test_daily_summary_average_is_unchanged_by_widening_an_empty_range(client):
 # here.
 #
 # "Unset" means omittable from a PUT, not necessarily null in the response.
-# targets_auto and weigh_in_reminder_days are both NOT NULL columns, so their
+# targets_auto, weigh_in_reminder_days, show_meal_times, target_set and protein_own are NOT NULL columns, so their
 # entries here are the shipped defaults rather than None -- which is exactly
 # what a whole-payload assertion should be pinning.
 UNSET_OPTIONALS = {
@@ -147,6 +147,13 @@ UNSET_OPTIONALS = {
     "water_goal_ml": None, "water_quick_adds": None,
     "steps_goal": None,
     "weigh_in_reminder_time": None, "weigh_in_reminder_days": 1,
+    "show_meal_times": True,
+    "target_set": False,
+    "protein_focus": None,
+    "protein_own": False,
+    # A new signup starts with only the weigh-in; null is for accounts that
+    # predate the column (see the trackers tests below).
+    "trackers": [],
 }
 
 
@@ -163,8 +170,11 @@ def test_settings_defaults_and_update(client):
         "fat_goal": 80, "track_carbs": True, "track_fat": False,
         "weight_unit": "lb", **UNSET_OPTIONALS,
     }
-    assert client.put("/api/settings", json=updated).json() == updated
-    assert client.get("/api/settings").json() == updated
+    # Changing a goal is choosing a target, so the server marks it set even
+    # though the body sent back the false it read.
+    saved = {**updated, "target_set": True}
+    assert client.put("/api/settings", json=updated).json() == saved
+    assert client.get("/api/settings").json() == saved
 
 
 def test_body_profile_round_trips(client):
@@ -179,6 +189,13 @@ def test_body_profile_round_trips(client):
         "water_goal_ml": None, "water_quick_adds": None,
         "steps_goal": None,
         "weigh_in_reminder_time": None, "weigh_in_reminder_days": 1,
+        "show_meal_times": True,
+        # The default goals are unchanged and targets_auto is off, so nothing
+        # here chooses a target.
+        "target_set": False,
+        "protein_focus": "muscle",
+        "protein_own": True,
+        "trackers": ["water", "supplements"],
     }
     assert client.put("/api/settings", json=profile).json() == profile
     assert client.get("/api/settings").json() == profile
@@ -527,3 +544,68 @@ def test_the_reminder_time_must_look_like_a_clock(client):
         assert client.put(
             "/api/settings", json={**settings, "weigh_in_reminder_time": good}
         ).status_code == 200, good
+
+
+def test_meal_times_are_shown_until_switched_off(client):
+    settings = client.get("/api/settings").json()
+    assert settings["show_meal_times"] is True
+
+    saved = client.put("/api/settings", json={**settings, "show_meal_times": False}).json()
+    assert saved["show_meal_times"] is False
+
+    # A stale bundle PUTs without the key, and must not switch it back on.
+    stale = {key: value for key, value in saved.items() if key != "show_meal_times"}
+    assert client.put("/api/settings", json=stale).json()["show_meal_times"] is False
+    assert client.get("/api/data/export/all").json()["settings"]["show_meal_times"] is False
+
+
+def test_protein_focus_is_kept_by_a_stale_save_and_cleared_on_purpose(client):
+    settings = client.get("/api/settings").json()
+    assert settings["protein_focus"] is None
+
+    saved = client.put("/api/settings", json={**settings, "protein_focus": "scale"}).json()
+    assert saved["protein_focus"] == "scale"
+
+    stale = {key: value for key, value in saved.items() if key != "protein_focus"}
+    assert client.put("/api/settings", json=stale).json()["protein_focus"] == "scale"
+    assert client.get("/api/data/export/all").json()["settings"]["protein_focus"] == "scale"
+
+    cleared = client.put("/api/settings", json={**saved, "protein_focus": None}).json()
+    assert cleared["protein_focus"] is None
+    assert client.put(
+        "/api/settings", json={**saved, "protein_focus": "bulk"}
+    ).status_code == 422
+
+
+def test_protein_own_is_kept_by_a_stale_save(client):
+    settings = client.get("/api/settings").json()
+    saved = client.put("/api/settings", json={**settings, "protein_own": True}).json()
+    assert saved["protein_own"] is True
+
+    stale = {key: value for key, value in saved.items() if key != "protein_own"}
+    assert client.put("/api/settings", json=stale).json()["protein_own"] is True
+    assert client.get("/api/data/export/all").json()["settings"]["protein_own"] is True
+
+
+def test_a_new_account_starts_with_the_weigh_in_only_and_chooses(client):
+    settings = client.get("/api/settings").json()
+    assert settings["trackers"] == []
+
+    chosen = client.put(
+        "/api/settings", json={**settings, "trackers": ["water", "steps"]}
+    ).json()
+    assert chosen["trackers"] == ["water", "steps"]
+
+    # A stale bundle sends no trackers at all, and must not clear the choice.
+    stale = {key: value for key, value in chosen.items() if key != "trackers"}
+    assert client.put("/api/settings", json=stale).json()["trackers"] == ["water", "steps"]
+    exported = client.get("/api/data/export/all").json()["settings"]
+    assert exported["trackers"] == ["water", "steps"]
+
+
+def test_trackers_must_be_known_and_listed_once(client):
+    settings = client.get("/api/settings").json()
+    for bad in (["water", "water"], ["workouts"], ["weigh_in"]):
+        assert client.put(
+            "/api/settings", json={**settings, "trackers": bad}
+        ).status_code == 422, bad
