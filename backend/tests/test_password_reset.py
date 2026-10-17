@@ -89,7 +89,7 @@ def test_forgot_password_emails_a_link_for_a_known_address(anon_client, monkeypa
     assert len(sent) == 1
     assert sent[0]["to"] == USER_EMAIL
     assert sent[0]["url"].startswith(
-        "https://macros-calculator-mu.vercel.app/reset-password?token="
+        "https://trackaholic.app/reset-password?token="
     )
     assert sent[0]["ttl"] == 60
     assert len(raw) > 20
@@ -105,7 +105,7 @@ def test_the_link_ignores_the_request_host(anon_client, monkeypatch):
     )
     assert response.status_code == 200
     assert "evil.example" not in sent[0]["url"]
-    assert sent[0]["url"].startswith("https://macros-calculator-mu.vercel.app/")
+    assert sent[0]["url"].startswith("https://trackaholic.app/")
 
 
 def test_the_link_uses_the_configured_app_url(anon_client, monkeypatch):

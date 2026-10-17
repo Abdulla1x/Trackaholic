@@ -96,7 +96,7 @@ services:
       # purpose — deriving it from the request's Host header instead would be
       # host-header injection, which poisons the link in the victim's mailbox.
       - key: APP_BASE_URL
-        value: https://macros-calculator-mu.vercel.app
+        value: https://trackaholic.app
       # Reset link lifetime in minutes. Raise it from the dashboard if delivery
       # proves slow; an unauthenticated sender is often greylisted for several
       # minutes before the mail is even readable.
