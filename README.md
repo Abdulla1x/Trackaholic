@@ -9,9 +9,9 @@
 ![Tests](https://img.shields.io/badge/Tests-pytest-brightgreen)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey)](LICENSE)
 
-*Formerly **Macros Calculator**; renamed in October 2026. The live address moves to `trackaholic.app` later.*
+*Formerly **Macros Calculator**; renamed in October 2026, and moved from `macros-calculator-mu.vercel.app` to `trackaholic.app` the same month.*
 
-**🔗 Live app: [macros-calculator-mu.vercel.app](https://macros-calculator-mu.vercel.app)** — sign up and start logging. (Free-tier hosting: the first request after idle can take ~30–60 s.)
+**🔗 Live app: [trackaholic.app](https://trackaholic.app)** — sign up and start logging. (Free-tier hosting: the first request after idle can take ~30–60 s.)
 
 A full-stack, **multi-user** nutrition tracking app: a **React + TypeScript** dashboard UI (installable as a PWA) backed by a **FastAPI + SQLAlchemy** REST API on **PostgreSQL**.
 
@@ -303,7 +303,7 @@ Targets, body and goal weight, trackers, your food library and saved meals, appe
 The app is a **PWA**, so it can be added to your home screen and opened like a
 native app — its own icon, its own window, no address bar. There is nothing to
 download and no app store involved: it is the same
-[live app](https://macros-calculator-mu.vercel.app), saved as a shortcut that
+[live app](https://trackaholic.app), saved as a shortcut that
 the browser then treats as an app.
 
 **On Android** (Chrome, Edge, Samsung Internet)
