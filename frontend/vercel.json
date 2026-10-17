@@ -1,4 +1,12 @@
 {
+  "redirects": [
+    {
+      "source": "/((?!assets/)(?!.*\\.[A-Za-z0-9]+$).*)",
+      "has": [{ "type": "host", "value": "macros-calculator-mu.vercel.app" }],
+      "destination": "https://trackaholic.app/$1",
+      "statusCode": 301
+    }
+  ],
   "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }],
   "headers": [
     {
