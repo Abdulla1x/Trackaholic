@@ -38,7 +38,7 @@ Usage, from backend/ with GEMINI_API_KEY in the environment:
     venv/bin/python scripts/compare_estimates.py --photos ~/ab/photos \\
         --out ~/ab/results.csv
     venv/bin/python scripts/compare_estimates.py --photos ~/ab/photos \\
-        --variants original --models gemini-3.5-flash gemini-3.8-flash \\
+        --variants original --models gemini-3.6-flash gemini-3.8-flash \\
         --out ~/ab/models.csv
 
 ⚠️ These calls go straight to Google, not through the app, so the app's quota

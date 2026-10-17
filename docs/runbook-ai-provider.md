@@ -68,6 +68,12 @@ what made the July 2026 outage take three days.
 | `is not found for API version` | Retired model id | Set `MEAL_AI_MODEL` to a current id — no deploy needed |
 | `User location is not supported` | Server IP is in the EEA/UK/CH | Move the service outside those regions. See [`incident-2026-07-gemini-eea-region.md`](incident-2026-07-gemini-eea-region.md) |
 
+A retired id does not always fail. On 2026-10-10 Google retired `gemini-3.5-flash` and
+`gemini-3.7-flash` and began answering them with 3.6 and 3.8, with no error and nothing
+in the logs, so the `model=` in a log line is the id that was asked for, not
+necessarily the one that answered. Retirements are announced by email to the AI Studio
+account; check those notices before trusting a pinned id.
+
 ## 4. Dependency drift
 
 `render.yaml` runs `pip install -r requirements.txt` on every build. `google-genai`
@@ -94,7 +100,7 @@ Before escalating, note these are automatic:
   overloaded model's refusals took 2–20 s (503) and 13–30 s (504). A running attempt is
   never cut short, because Google has already counted it.
 - **Alternating model chain** (`MEAL_AI_FALLBACK_MODEL`, comma-separated, default
-  `gemini-2.5-flash`): attempt two already lands on the other serving pool, since
+  `gemini-3.8-flash,gemini-2.5-flash`): attempt two already lands on another serving pool, since
   overload is per pool.
 - **A model Google no longer serves (404) leaves the chain** for the call and the next hour, and the
   next model is asked at once. Before 2026-10-05 a 404 on the fallback ended the call as

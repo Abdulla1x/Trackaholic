@@ -81,7 +81,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **It keeps working while you use the app.** An estimate takes about 19 seconds at the median, so it no longer belongs to the screen that started it: close the panel, check Progress, and the Log button shows a spinner, then "Ready". A short note on any tab says when it has arrived, or that it did not
 - **It asks what a photo can't show.** On every model tested, a photo alone reads about two thirds low on calorie-dense meals, because oil, butter and sauces barely show; with a note the error is about 4–6%. So an estimate with photos and no note first asks "Photos miss oil and sauces. Anything hidden?", with one-tap answers that add a line to the note ("Also in it: oil and sauce."), left in the box so you see what the model was told. A short card of three tips sits above the AI box until you dismiss it
 - **Estimate accuracy, measured against you.** Every analysis is logged to an `ai_analyses` table (photo and audio discarded) and compared with what you actually saved: how often the true value fell inside the stated range, and whether the estimates lean high or low. Where there is not enough evidence to answer honestly it **refuses** rather than printing a reassuring number
-- Powered by **Gemini 3.5 Flash** (free tier) — the provider is isolated in a single backend module, so swapping to another model later is a one-file change. Google retires models on a schedule, so the id is overridable at runtime via `MEAL_AI_MODEL` (no deploy needed) and provider failures are logged with the reason
+- Powered by **Gemini 3.6 Flash**, falling back to 3.8 and 2.5 Flash (free tier) — the provider is isolated in a single backend module, so swapping to another model later is a one-file change. Google retires models on a schedule, so the id is overridable at runtime via `MEAL_AI_MODEL` (no deploy needed) and provider failures are logged with the reason
 - **The wait is shown as the things it actually is.** Sending your photos depends on your connection and the model does not, so they are separate steps: "Sending 2 photos" with a real percentage of the bytes uploaded, then "Estimating from your note, 2 photos and 1 saved food", with no timed steps for things the app cannot see the model doing. If the free server happens to be asleep the app checks and says so rather than leaving you watching a spinner, and the "AI service is busy" message now waits until your photos have actually gone, instead of blaming the service for your own upload
 - **Photos are shrunk on your phone before they are sent.** A phone photo is a few megabytes and the model only ever looks at a much smaller version of it, so the extra size bought nothing but waiting — and most of the free server's monthly bandwidth, and a memory spike per request. Each photo now goes up at about a twelfth of the size (1536 px on the long edge), which also strips its **location and camera metadata**. The size was picked by an A/B through the real model, not by taste — 1024 px was half the bytes again but read plates measurably higher, so it was rejected — and anything the phone cannot open (HEIC on some Android browsers) is sent exactly as it was, so a photo is never refused for being unshrinkable
 - **Survives provider outages**: Gemini's "model is overloaded" 503 is retried with jittered backoff and then re-tried against a fallback model — overload is per serving pool, so an older generation is usually still answering. A model Google no longer serves (a 404) is skipped, not reported as a broken setup, so a busy primary is still retried Every call carries an explicit deadline, and `GET /api/ai/status?probe=true` names the cause when it doesn't
@@ -352,7 +352,7 @@ icon, with a dark splash screen while it starts.
                                 │   memory (26k foods) │
                                 └──────┬────────┬──────┘
                                        │SQLAlchemy  google-genai ┌─────────────────┐
-                                ┌──────▼──────┐ └───────────────►│ Gemini 3.5 Flash│
+                                ┌──────▼──────┐ └───────────────►│ Gemini 3.6 Flash│
                                 │  PostgreSQL │ users · meals    │ (meal analysis) │
                                 │ (Neon)/SQLite│ foods · settings└─────────────────┘
                                 └─────────────┘ ai_analyses     ┌─────────────────┐
@@ -490,7 +490,7 @@ GEMINI_API_KEY=your-key uvicorn app.main:app --reload --port 8000
 ```
 
 Without a key the rest of the app works normally and the analyze endpoint returns
-a clear 503. `MEAL_AI_MODEL` overrides the default model (`gemini-3.5-flash`).
+a clear 503. `MEAL_AI_MODEL` overrides the default model (`gemini-3.6-flash`).
 Keep the key in your environment or an untracked `.env` — never commit it.
 
 When AI analysis misbehaves, `GET /api/ai/status?probe=true` (authenticated) names
@@ -630,7 +630,7 @@ server boots, so the schema is created/updated on deploy. In the Render dashboar
 - `GEMINI_API_KEY` — optional, enables AI meal analysis
 - `MEAL_AI_MODEL` — optional, overrides the default Gemini model without a redeploy
 - `MEAL_AI_FALLBACK_MODEL` — optional, comma-separated models tried in order when the
-  primary is overloaded or out of quota (default `gemini-2.5-flash`; set empty to disable)
+  primary is overloaded or out of quota (default `gemini-3.8-flash,gemini-2.5-flash`; set empty to disable)
 - `MEAL_AI_DEADLINE_S` — optional, seconds one analysis may keep retrying a busy
   provider (default `60`; the frontend timeout must stay above it)
 - `MEAL_AI_MAX_ATTEMPTS` — optional, provider attempts per user action (defaults 4 /

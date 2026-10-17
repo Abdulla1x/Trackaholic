@@ -788,13 +788,13 @@ def test_the_second_attempt_uses_the_other_serving_pool(monkeypatch):
     budget on a pool that is already refusing us is what the manual workaround
     (switching MEAL_AI_MODEL by hand) was compensating for.
     """
-    monkeypatch.setenv("MEAL_AI_MODEL", "gemini-3.5-flash")
-    monkeypatch.setenv("MEAL_AI_FALLBACK_MODEL", "gemini-2.5-flash")
+    monkeypatch.setenv("MEAL_AI_MODEL", "gemini-3.6-flash")
+    monkeypatch.setenv("MEAL_AI_FALLBACK_MODEL", "gemini-3.8-flash")
     calls = _install_scripted_provider(
         monkeypatch, [_server_error(), SimpleNamespace(parsed=SAMPLE, text=None)]
     )
     assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
-    assert calls["models"] == ["gemini-3.5-flash", "gemini-2.5-flash"]
+    assert calls["models"] == ["gemini-3.6-flash", "gemini-3.8-flash"]
 
 
 def test_a_sustained_outage_spreads_its_attempts_out(monkeypatch, virtual_clock):
@@ -821,12 +821,24 @@ def test_a_sustained_outage_spreads_its_attempts_out(monkeypatch, virtual_clock)
 
 
 def test_an_empty_fallback_model_keeps_everything_on_one_pool(monkeypatch):
-    monkeypatch.setenv("MEAL_AI_MODEL", "gemini-3.5-flash")
+    monkeypatch.setenv("MEAL_AI_MODEL", "gemini-3.6-flash")
     monkeypatch.setenv("MEAL_AI_FALLBACK_MODEL", "")
     calls = _install_scripted_provider(monkeypatch, [_server_error()])
     with pytest.raises(meal_ai.MealAIUnavailable):
         asyncio.run(meal_ai.analyze_meal([], "chicken"))
-    assert set(calls["models"]) == {"gemini-3.5-flash"}
+    assert set(calls["models"]) == {"gemini-3.6-flash"}
+
+
+def test_the_default_chain_names_the_models_google_serves(monkeypatch):
+    """With no env vars set, the chain is 3.6, then 3.8, then 2.5 Flash.
+
+    Google retired 3.5 and 3.7 Flash on 2026-10-10 and answers those ids with
+    3.6 and 3.8, so a default that still said 3.5 would keep working while
+    naming a model that no longer exists.
+    """
+    monkeypatch.delenv("MEAL_AI_MODEL", raising=False)
+    monkeypatch.delenv("MEAL_AI_FALLBACK_MODEL", raising=False)
+    assert meal_ai._models() == ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-2.5-flash"]
 
 
 def test_the_fallback_is_deduped_against_the_primary(monkeypatch):

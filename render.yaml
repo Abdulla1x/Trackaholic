@@ -27,17 +27,18 @@ services:
       # Gemini API key for AI meal analysis (optional; feature 503s without it).
       - key: GEMINI_API_KEY
         sync: false
-      # Gemini model id. Committed (not sync: false) so the deployed model is
+      # Gemini model id. Committed (not sync: false) so the intended model is
       # visible here, but editable in the dashboard to swap models without a
-      # deploy when Google retires one.
+      # deploy when Google retires one. This file is not synced to the service:
+      # the dashboard's value is the one that runs.
       - key: MEAL_AI_MODEL
-        value: gemini-3.5-flash
+        value: gemini-3.6-flash
       # Tried when the model above is overloaded (5xx) or out of quota (429);
       # comma-separated, in order. Overload is per serving pool and quotas are
       # per model, so each one listed is another day's free allowance. Set
       # empty to disable the fallback.
       - key: MEAL_AI_FALLBACK_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.8-flash,gemini-2.5-flash
       # How long one analysis may keep retrying a busy provider before giving
       # up, in seconds. Raise it from the dashboard during a provider overload;
       # no deploy needed — but the frontend's own request timeout must stay
