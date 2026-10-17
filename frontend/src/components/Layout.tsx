@@ -7,6 +7,7 @@ import AnnouncementsModal from './AnnouncementsModal'
 import NewTrackaholicPrompt from './today/NewTrackaholicPrompt'
 import { announcementsWaiting } from '../lib/dismissals'
 import { targetIsSet } from '../lib/today'
+import MovedNotice from './MovedNotice'
 import StatusBanner from './StatusBanner'
 import WakingNotice from './WakingNotice'
 import { RailNav, TabBar } from './shell/AppNav'
@@ -137,6 +138,7 @@ export default function Layout() {
       >
         <div className={`mx-auto ${wide ? 'max-w-7xl' : 'max-w-5xl'}`}>
           <StatusBanner banner={announcements?.banner ?? null} />
+          <MovedNotice />
           {coldStart && (
             <WakingNotice
               startedAt={waitStartedAt.current}

@@ -32,6 +32,26 @@ STATUS_BANNER_ENV = "STATUS_BANNER"
 # redesign's note is one: accounts from before it were already asked about it
 # by "The new Trackaholic" when they first opened Today.
 ANNOUNCEMENTS: list[Announcement] = [
+    # Pops up, unlike the redesign's note: the server sends it to every build,
+    # so it reaches an installed copy on the old address before that copy has
+    # updated to the build with the moved notice. On the new address a first
+    # run marks every note seen, so nobody who has already moved is shown it.
+    Announcement(
+        id="2026-10-17-new-address",
+        date="2026-10-17",
+        title="Trackaholic has moved to trackaholic.app",
+        body=(
+            "**The app now lives at trackaholic.app.** The old address, "
+            "macros-calculator-mu.vercel.app, still works for now and shows a "
+            "notice at the top of each page with a button to the new one. "
+            "Sign in there with the same email and password: everything "
+            "you've logged is there, and if you've forgotten the password you "
+            "can reset it from the login page.\n\n"
+            "**Added it to your home screen?** Add it again from "
+            "trackaholic.app, then remove the old one. The look you picked is "
+            "kept per address, so choose it again in You, Appearance."
+        ),
+    ),
     # Supersedes 2026-08-14-password-reset-unavailable with a new id, not an
     # edit, for the reason given above that one: whoever read it has its id
     # marked as seen, and they are exactly who this is for.
