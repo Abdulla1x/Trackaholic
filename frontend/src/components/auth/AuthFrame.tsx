@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react'
 import { useAnnouncements } from '../../hooks/useAnnouncements'
 import Wordmark from '../shell/Wordmark'
+import MovedNotice from '../MovedNotice'
 import StatusBanner from '../StatusBanner'
 import WarmupNotice from '../WarmupNotice'
 
 /** The frame the four signed-out pages share (log in, sign up, forgot and
- *  reset password): the large wordmark, the live status notice, the page's
- *  form, and the server's warm-up state, in one centred column (the 0b
- *  prototype's sign-in screen). The wordmark and the page title are centred
+ *  reset password): the large wordmark, the live status notice (and, on the
+ *  old address, the moved notice), the page's form, and the server's warm-up
+ *  state, in one centred column (the 0b prototype's sign-in screen). The wordmark and the page title are centred
  *  over the form, like a front door; labels, boxes and notes keep the left
  *  edge, and the links under the button stay centred.
  *
@@ -25,6 +26,7 @@ export default function AuthFrame({ children }: { children: ReactNode }) {
       <div className="grid w-full max-w-[380px] grid-cols-[minmax(0,1fr)] gap-3.5">
         <Wordmark size="large" className="mb-2 justify-self-center" />
         <StatusBanner banner={announcements?.banner ?? null} />
+        <MovedNotice />
         {children}
         <WarmupNotice />
       </div>

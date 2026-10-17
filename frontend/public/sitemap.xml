@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The front page only: every path serves the same index.html, whose
+     canonical is the front page, so listing /signup too would contradict it. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://trackaholic.app/</loc>
+  </url>
+</urlset>
