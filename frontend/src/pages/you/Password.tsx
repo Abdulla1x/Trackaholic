@@ -20,9 +20,8 @@ type Fields = typeof EMPTY
  *  the settings row, so it has its own small state instead of SettingsScreen.
  *
  *  The new password is asked for twice, though the prototype drew one box.
- *  Password reset is switched off until email sending is set up, so a typo
- *  here would lock the account for good; the second box is the only thing
- *  that catches it. */
+ *  A typo here locks the account until a reset email gets the user back in;
+ *  the second box catches it before that. */
 export default function PasswordScreen() {
   const { user, changePassword } = useAuth()
   const [fields, setFields] = useState<Fields>(EMPTY)

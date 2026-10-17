@@ -31,8 +31,8 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 - **Layered AI quotas**: 12 analyses + 16 voice notes + 3 review summaries per user per day, under a **global ceiling** of 40 calls/day across every account — sized for Gemini's free tier of 20 requests a day per model, and checked against the heaviest real user's busiest days. The per-user caps stop one person using up the shared quota, the global one stops mass signups draining it (or running up a bill on a paid key). All of them are env-tunable
 - **What the AI sees**: your photos, voice note and description are sent to Google Gemini to estimate the meal, and the app says so under the Estimate button. Photos are shrunk on your phone first, which also strips their location data, and only the text of the estimate is kept: the photo and audio are discarded. On Gemini's free tier, Google may use what it is sent to improve its products
 - **What you search for is not logged**: the food searches send what you type as a URL parameter, and both the server's access log and its outgoing-request log blank that value before writing the line. The app's own log lines count results and time them, never the text
-- **Own your data**: export or import your meals as CSV (duplicates are skipped and dates normalized) and download everything as JSON, from **You → Your data**; the import's counts stay on the row afterwards. Each download is a one-minute link the browser fetches itself, because a file made inside the page goes nowhere in an app installed on a phone. Change your password (it signs every other device out; the new one is typed twice, because a forgotten password can't be reset yet) or permanently delete your account from **You → Account**. Deleting is a plain ink button, not a red one; it offers the full download first, and asks once more
-- **Password reset by email — built, deployed, and switched off.** The endpoints, the single-use link (hashed at rest, valid an hour, revoking every session when used) and 38 tests are all here and running in production. They answer **503 to every address**, because no email provider is configured — three free providers were tried and all three refused a domainless free account, which is the profile their fraud screening targets. Until one is wired up, the sign-in page says plainly that there is no reset yet and gives an address to email for getting back in, and the signup page says so before anyone has a password to forget. Nothing about the feature needs a deploy to switch on; it activates on credentials alone
+- **Own your data**: export or import your meals as CSV (duplicates are skipped and dates normalized) and download everything as JSON, from **You → Your data**; the import's counts stay on the row afterwards. Each download is a one-minute link the browser fetches itself, because a file made inside the page goes nowhere in an app installed on a phone. Change your password (it signs every other device out; the new one is typed twice, so a typo can't lock you out) or permanently delete your account from **You → Account**. Deleting is a plain ink button, not a red one; it offers the full download first, and asks once more
+- **Password reset by email**: a single-use link (hashed at rest, valid an hour, revoking every session when used), sent through Resend from `trackaholic.app`, a domain authenticated with DKIM and SPF so the sender is never rewritten. The request answers the same for every address, so it can't tell anyone who has an account, and it is rate-limited per IP, per account and app-wide (100 a day, Resend's free daily quota). It was built in August and waited two months for that domain: three free providers refused a domainless free account, which is the profile their fraud screening targets
 
 ### 🧭 Getting around
 - **Four places, each one tap away**: **Today**, **Progress** and **You** as tabs, with **Log** as a button in the middle. A bottom bar on phones; from 900 px a side rail with the wordmark. Progress holds the weight trend, nutrition, daily burn, the weekly review and the AI's accuracy
@@ -356,7 +356,7 @@ icon, with a dark splash screen while it starts.
                                 │  PostgreSQL │ users · meals    │ (meal analysis) │
                                 │ (Neon)/SQLite│ foods · settings└─────────────────┘
                                 └─────────────┘ ai_analyses     ┌─────────────────┐
-                                        password_resets  httpx  │ Brevo (off)     │
+                                        password_resets  httpx  │ Resend          │
                                                  └─────────────►│ (password reset)│
                                                                 └─────────────────┘
 ```
@@ -390,7 +390,7 @@ Trackaholic
 │   │   └── services/
 │   │       ├── off_client.py    # Open Food Facts client
 │   │       ├── meal_ai.py       # AI meal analysis (the only AI-provider-aware module)
-│   │       └── email.py         # password-reset email (the only Brevo-aware module; switched off)
+│   │       └── email.py         # password-reset email (the only Resend-aware module)
 │   ├── alembic/                 # database migrations (Postgres)
 │   ├── scripts/                 # smoke_multiuser.py — the live two-account isolation check
 │   │                            # reference/ — build_<table>.py per food table, and ranking_report.py
@@ -606,14 +606,6 @@ for the missing system libraries on Linux, is in the script's own header.
 Browser-level checks beyond that diff are manual; backend tests do not catch
 interaction bugs.
 
-**Why ~5% of the suite covers a switched-off feature.** `tests/test_password_reset.py`
-is 38 tests over `services/email.py`, which answers 503 to everything today. They are
-kept rather than deleted because the feature is *code-complete and unconfigured*, not
-abandoned — it activates on credentials alone, with no code change and no deploy.
-Deleting the tests would mean writing them again to turn it on. Roughly 13 of them are
-Brevo-specific (they pin the `api-key` header and the 201 status) and would need
-rewriting for a different provider; the other ~25 test the endpoints and would not.
-
 ---
 
 ## ☁️ Deployment
@@ -652,16 +644,11 @@ server boots, so the schema is created/updated on deploy. In the Render dashboar
   timestamps only, never meal, food or weight content
 - `STATUS_BANNER` — optional, a site-wide notice read on every request, so an
   outage can be announced without a deploy
-- `BREVO_API_KEY` + `EMAIL_SENDER_ADDRESS` — enable password reset (it returns 503
-  for every address until both are set). The sender must be verified in the Brevo
-  dashboard first: add the address, then enter the 6-digit code it emails you.
-  ⚠️ **This deployment has never got past that step**, and neither did two
-  alternatives — Brevo's phone verification never delivers a code, and Mailjet
-  auto-blocks the account on its first API call. Both are the same underlying
-  cause: a new free account with no domain and a gmail.com sender is the profile
-  free-ESP fraud screening exists to stop. A provider with **an HTTP API (never
-  SMTP — Render blocks outbound 25/465/587 on free web services) and a real
-  domain** is what unblocks it
+- `RESEND_API_KEY` + `EMAIL_SENDER_ADDRESS` — enable password reset (it returns 503
+  for every address until both are set). The sender's domain must be verified in
+  Resend (its DKIM and SPF records at the DNS host), and the key needs only
+  sending access, scoped to that domain. Resend's free plan refuses sends over
+  100 a day or 3,000 a month rather than billing for them
 - `EMAIL_SENDER_NAME` / `APP_BASE_URL` / `PASSWORD_RESET_TTL_MINUTES` /
   `PASSWORD_RESET_GLOBAL_DAILY_LIMIT` — optional; all default in code. `APP_BASE_URL`
   builds the emailed link and is **never** taken from the request's Host header
@@ -749,8 +736,8 @@ only on the caller's data, except these public ones: `/api/health`,
 | POST | `/api/auth/login` | Log in → JWT + user |
 | GET | `/api/auth/me` | Current user (token check) |
 | POST | `/api/auth/change-password` | Rotate password; revokes older tokens, returns a fresh one |
-| POST | `/api/auth/forgot-password` | Email a reset link. Always 200, whether or not the address exists — but **503 today**, see above |
-| POST | `/api/auth/reset-password` | Consume a link and set a new password; revokes every session. Reachable, but no link can be issued while the above 503s |
+| POST | `/api/auth/forgot-password` | Email a reset link. Always 200, whether or not the address exists; 503 only when email isn't configured |
+| POST | `/api/auth/reset-password` | Consume a link and set a new password; revokes every session |
 | DELETE | `/api/auth/account` | Permanently delete the account and all its data |
 
 ### Meals, foods and sharing
@@ -832,7 +819,6 @@ only on the caller's data, except these public ones: `/api/health`,
   today, but nothing feeds them back into the next estimate
 - Upgrade the analysis model (provider is isolated in `services/meal_ai.py`)
 - Email verification at signup (would also close the account-enumeration gap the signup 409 leaves open)
-- A sending domain of our own, so reset emails stop being rewritten to `brevosend.com`
 - Barcode scanning via the Open Food Facts barcode API — examined and parked
   rather than unstarted: it needs a hit-rate measurement against real shelves
   first, because a scanner that misses most products is worse than no scanner

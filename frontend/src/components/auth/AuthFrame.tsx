@@ -47,8 +47,8 @@ export function AuthField({ label, children }: { label: string; children: ReactN
  *  wordmark above it is branding, not a heading. */
 export const AUTH_TITLE = 'text-center text-[20px] leading-tight font-bold text-balance [font-stretch:105%]'
 
-/** A note the reader must not miss (blocked site data, no password reset, an
- *  error): ink and a rule, never colour alone (DESIGN.md: the No Red Rule). */
+/** A note the reader must not miss (blocked site data, an error): ink and a
+ *  rule, never colour alone (DESIGN.md: the No Red Rule). */
 export const AUTH_NOTE = 'border-l-2 border-ink pl-3 text-small'
 
 /** A link in a sentence: underlined, so it is not told apart by colour alone. */

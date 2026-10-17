@@ -50,9 +50,8 @@ TOKEN_BYTES = 32  # 256 bits; 43 url-safe characters
 TTL_ENV = "PASSWORD_RESET_TTL_MINUTES"
 # Not driven by the free-tier cold start — that wake happens between opening the
 # page and submitting it, inside the client's own 60s budget. It is driven by
-# delivery: an unauthenticated sender rewritten to @brevosend.com is exactly the
-# profile receiving mail servers greylist, and a 5-15 minute temp-deferral on
-# first contact is routine. A tidy-looking 15 minutes can therefore expire
+# delivery: a sending domain with no history is the profile receiving mail
+# servers greylist, and a 5-15 minute temp-deferral on first contact is routine. A tidy-looking 15 minutes can therefore expire
 # before the mail is readable. An hour bounds the live credential and still
 # survives a bad delivery day.
 DEFAULT_TTL_MINUTES = 60

@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { isSessionPersistent } from '../auth/token'
 import AuthFrame, { AUTH_LINK, AUTH_NOTE, AUTH_TITLE, AuthField } from '../components/auth/AuthFrame'
-import NoPasswordReset from '../components/auth/NoPasswordReset'
 import { Button } from '@/ui/button'
 import { FIELD } from '@/ui/field'
 import { useLiveMessage } from '../hooks/useLiveMessage'
@@ -74,11 +73,15 @@ export default function Login() {
         <Button type="submit" disabled={submitting} className="w-full">
           {submitting ? 'Logging in…' : 'Log in'}
         </Button>
-        <NoPasswordReset />
-        {/* Underlined, not told apart by colour alone (WCAG 1.4.1). This link
-            is the only thing in its paragraph, so strictly the rule does not
-            reach it; it is underlined anyway, because a reader who has learnt
-            that underline means link should not meet one that is not. */}
+        {/* Underlined, not told apart by colour alone (WCAG 1.4.1). Each of
+            these is the only thing in its paragraph, so strictly the rule does
+            not reach it; it is underlined anyway, because a reader who has
+            learnt that underline means link should not meet one that is not. */}
+        <p className="text-center text-small text-ink-2">
+          <Link to="/forgot-password" className={AUTH_LINK}>
+            Forgot your password?
+          </Link>
+        </p>
         <p className="text-center text-small text-ink-2">
           No account?{' '}
           <Link to="/signup" className={AUTH_LINK}>

@@ -32,6 +32,22 @@ STATUS_BANNER_ENV = "STATUS_BANNER"
 # redesign's note is one: accounts from before it were already asked about it
 # by "The new Trackaholic" when they first opened Today.
 ANNOUNCEMENTS: list[Announcement] = [
+    # Supersedes 2026-08-14-password-reset-unavailable with a new id, not an
+    # edit, for the reason given above that one: whoever read it has its id
+    # marked as seen, and they are exactly who this is for.
+    Announcement(
+        id="2026-10-17-password-reset-works",
+        date="2026-10-17",
+        title="Password reset works now",
+        body=(
+            "**Forgot your password? You can get back in.** On the login page, "
+            "tap \"Forgot your password?\" and enter your email. A link to "
+            "choose a new password arrives from Trackaholic, "
+            "noreply@trackaholic.app. It works for an hour and only once, and "
+            "using it signs you out on your other devices. If it isn't in "
+            "your inbox after a few minutes, check your spam folder."
+        ),
+    ),
     Announcement(
         id="2026-10-17-redesign",
         date="2026-10-17",
