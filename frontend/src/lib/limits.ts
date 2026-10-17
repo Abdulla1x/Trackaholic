@@ -359,7 +359,7 @@ export function validateWaterQuickAdd(value: number | null): string | null {
 // unlock meters. The server sends the counts (tdee_basis) but not what they are
 // counted towards, and the meters need both. Mirrored here rather than added
 // to the API so the meters work against the deployed server as it is, which
-// the revamp preview talks to until the revamp ships (decided 2026-10-11).
+// the redesign's preview talked to before it shipped (decided 2026-10-11).
 
 /** calculations.py TDEE_MIN_WEIGH_INS: weigh-ins inside the 28-day window. */
 export const TDEE_MIN_WEIGH_INS = 10
