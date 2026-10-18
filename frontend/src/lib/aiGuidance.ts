@@ -2,9 +2,12 @@
 // moment of a photo-only estimate, plus one dismissible tip card).
 //
 // Why it is worth a screen element at all, measured on the model evaluation:
-// a photo alone reads about two thirds low on calorie-dense meals on every
-// model tried, because oil, butter and sauces barely show; with a note the
-// error is ~4-6%. Asking is the cheapest accuracy there is.
+// on 14 weighed meals, every model tried read a photo alone low on every one,
+// by a median of 53-64% of the true calories, most likely because oil, butter
+// and sauces barely show. With a note, estimates of other meals were ~4-6%
+// from their saved values, but those began as AI estimates: agreement, not accuracy;
+// no weighed meal has been run with a note yet. Asking is still the cheapest
+// accuracy there is.
 
 /** What a photo hides most often, as the chips the question offers. */
 export const HIDDEN_EXTRAS = ['Oil', 'Butter', 'Sauce', 'Sugar or honey', 'Nut butter'] as const
