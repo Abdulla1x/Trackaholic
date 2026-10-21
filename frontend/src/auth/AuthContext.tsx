@@ -21,7 +21,7 @@ interface AuthState {
   loginWithGoogle: (credential: string) => Promise<void>
   logout: () => void
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
-  deleteAccount: (password: string) => Promise<void>
+  deleteAccount: (confirm: { password: string } | { google_credential: string }) => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -93,8 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const deleteAccount = useCallback(async (password: string) => {
-    await api.deleteAccount(password)
+  const deleteAccount = useCallback(async (confirm: { password: string } | { google_credential: string }) => {
+    await api.deleteAccount(confirm)
     clearToken()
     setUser(null)
   }, [])

@@ -322,10 +322,12 @@ export const api = {
         new_password: newPassword,
       }),
     }),
-  deleteAccount: (password: string) =>
+  // Confirmed by the password, or for an account without one by a fresh
+  // Google sign-in (the server checks it is the same Google account).
+  deleteAccount: (confirm: { password: string } | { google_credential: string }) =>
     request<void>('/api/auth/account', {
       method: 'DELETE',
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(confirm),
     }),
   // Both reset endpoints are public, but must stay under /api/auth/ so the 401
   // handling above surfaces failures as form errors instead of bouncing to

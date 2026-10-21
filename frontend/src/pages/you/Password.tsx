@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useBlocker } from 'react-router-dom'
+import { api } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import ScreenBar from '../../components/shell/ScreenBar'
 import { SCREEN_FRAME } from '../../components/you/screenContext'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
 import { AlertDialog } from '@/ui/alert-dialog'
 import Block from '@/ui/block'
+import { Button } from '@/ui/button'
 import { cn } from '@/lib/utils'
 import { FIELD, FIELD_DESK_WIDTH } from '@/ui/field'
 import { SaveBar } from '@/ui/save-bar'
@@ -23,6 +25,58 @@ type Fields = typeof EMPTY
  *  A typo here locks the account until a reset email gets the user back in;
  *  the second box catches it before that. */
 export default function PasswordScreen() {
+  const { user } = useAuth()
+  return user?.has_password === false ? <SetPasswordScreen email={user.email} /> : <ChangePasswordScreen />
+}
+
+/** For an account made through Google: it has no current password to type,
+ *  so a first one is set through the reset email. The server refuses to set
+ *  one from a signed-in session alone, so a stolen session can't turn itself
+ *  into a permanent login; the email proves the mailbox instead. */
+function SetPasswordScreen({ email }: { email: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [error, setError] = useState('')
+  useLiveMessage(error)
+  useLiveMessage(state === 'sent' ? 'Link sent.' : '')
+
+  const send = async () => {
+    setError('')
+    setState('sending')
+    try {
+      await api.forgotPassword(email)
+      setState('sent')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The link wasn't sent. Try again.")
+      setState('idle')
+    }
+  }
+
+  return (
+    <div className={SCREEN_FRAME}>
+      <ScreenBar title="Set a password" back="/you" backLabel="Back to You" />
+      <Block>
+        <p>You sign in with Google, so this account has no password yet. You don&rsquo;t need one.</p>
+        <p className="text-small text-ink-2">
+          To be able to log in with your email as well, set one through a link sent to {email}.
+        </p>
+        {state === 'sent' ? (
+          <p className="text-small font-semibold">
+            Sent. Open the link in that email within an hour to choose your password.
+          </p>
+        ) : (
+          <div>
+            <Button variant="secondary" disabled={state === 'sending'} onClick={send}>
+              {state === 'sending' ? 'Sending…' : 'Email me a link'}
+            </Button>
+          </div>
+        )}
+        {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
+      </Block>
+    </div>
+  )
+}
+
+function ChangePasswordScreen() {
   const { user, changePassword } = useAuth()
   const [fields, setFields] = useState<Fields>(EMPTY)
   const [saving, setSaving] = useState(false)
