@@ -118,6 +118,11 @@ services:
       # frontend if left unedited.
       - key: CORS_ORIGINS
         sync: false
+      # Sign in with Google: the OAuth client ID tokens must be issued to.
+      # Defaults in code to the production client (public, not a secret);
+      # set only to point at a client in another Google Cloud project.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
       # Who may read /api/admin. sync: false because it is an access-control
       # list — committing addresses here would publish them and, worse, make
       # the repo the place people edit privileges. Unset means nobody is an
