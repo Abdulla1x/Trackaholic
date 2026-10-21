@@ -9,10 +9,13 @@ import {
 import { api } from '../api/client'
 import type { User } from '../types'
 import { clearToken, getToken, setToken } from './token'
+import { isInvalidSession } from './session'
 
 interface AuthState {
   user: User | null
   loading: boolean
+  unreachable: boolean
+  retry: () => void
   login: (email: string, password: string) => Promise<void>
   signup: (email: string, password: string) => Promise<void>
   logout: () => void
@@ -25,16 +28,32 @@ const AuthContext = createContext<AuthState | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(() => getToken() !== null)
+  // The server couldn't say whether the stored login is good: it was
+  // unreachable, timed out or failed. Not the same as "signed out".
+  const [unreachable, setUnreachable] = useState(false)
 
-  useEffect(() => {
+  // Validate the stored token against the backend on load.
+  //
+  // ⚠️ Only a 401 signs anyone out. Every failure used to clear the token, so a
+  // server restarting under load (2026-10-21: three health-check restarts while
+  // the date arrow was held) sent a signed-in user to the login page with
+  // nothing wrong with their login. Any other failure keeps the token and
+  // offers a retry (RequireAuth).
+  const validate = useCallback(() => {
     if (!getToken()) return
-    // Validate the stored token against the backend on load.
+    setLoading(true)
+    setUnreachable(false)
     api
       .me()
       .then(setUser)
-      .catch(() => clearToken())
+      .catch((err: unknown) => {
+        if (isInvalidSession(err)) clearToken()
+        else setUnreachable(true)
+      })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(validate, [validate])
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await api.login(email, password)
@@ -50,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     clearToken()
+    setUnreachable(false)
     setUser(null)
   }, [])
 
@@ -72,7 +92,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, signup, logout, changePassword, deleteAccount }}
+      value={{
+        user,
+        loading,
+        unreachable,
+        retry: validate,
+        login,
+        signup,
+        logout,
+        changePassword,
+        deleteAccount,
+      }}
     >
       {children}
     </AuthContext.Provider>
