@@ -9,6 +9,7 @@ import { SupplementsIcon, DoneIcon } from '@/ui/icons'
 import { Button } from '@/ui/button'
 import Retry from '@/ui/retry'
 import { useLiveMessage } from '../hooks/useLiveMessage'
+import { useLatestOnly } from '../hooks/useLatestOnly'
 
 interface Props {
   /** The day being viewed on the dashboard, not necessarily today. */
@@ -52,10 +53,13 @@ export default function SupplementsCard({ date, chosen = false }: Props) {
 
   const isToday = date === localIsoDate()
 
+  const claim = useLatestOnly()
   const load = useCallback(() => {
+    const current = claim()
     api
       .getSupplementDay(date)
       .then((next) => {
+        if (!current()) return
         setDay(next)
         setError(null)
       })
@@ -63,8 +67,8 @@ export default function SupplementsCard({ date, chosen = false }: Props) {
       // rule the water, steps and meal cards all follow. Here it matters more
       // than usual, because "nothing scheduled" is what hides this card
       // entirely, so a swallowed error would look like the feature vanishing.
-      .catch(() => setError("Couldn't load your supplements for this day."))
-  }, [date])
+      .catch(() => current() && setError("Couldn't load your supplements for this day."))
+  }, [date, claim])
 
   useEffect(() => {
     load()

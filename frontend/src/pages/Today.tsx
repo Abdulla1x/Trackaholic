@@ -28,6 +28,7 @@ import { onMealsChanged } from '../lib/mealEvents'
 import type { Meal, PlanDay } from '../types'
 import { useHeldDelete } from '../hooks/useHeldDelete'
 import { useLiveMessage } from '../hooks/useLiveMessage'
+import { useLatestOnly } from '../hooks/useLatestOnly'
 import { useSettled } from '../hooks/useSettled'
 import { cn } from '@/lib/utils'
 import { useToast } from '../ui/toast'
@@ -115,14 +116,17 @@ export default function Today() {
 
   // `ready` holds the answer back until something has finished first: the
   // scroll that brings the day into view after a save, below.
+  const claimMeals = useLatestOnly()
   const load = useCallback((ready?: Promise<void>) => {
     setError(null)
+    const current = claimMeals()
     // A failed load must not masquerade as an empty day.
-    Promise.all([api.getMeals(viewedDate), ready]).then(([fresh]) => setMeals(fresh)).catch(() => {
+    Promise.all([api.getMeals(viewedDate), ready]).then(([fresh]) => current() && setMeals(fresh)).catch(() => {
+      if (!current()) return
       setMeals(null)
       setError("Couldn't load your meals. Check your connection, then try again.")
     })
-  }, [viewedDate])
+  }, [viewedDate, claimMeals])
 
   // The targets actually in force on the viewed day. These are NOT
   // settings.calorie_goal: a calorie plan adjusts a single day, and the

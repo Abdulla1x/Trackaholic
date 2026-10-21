@@ -15,6 +15,7 @@ import Retry from '@/ui/retry'
 import { cn } from '@/lib/utils'
 import { WaterIcon } from '@/ui/icons'
 import { useLiveMessage } from '../hooks/useLiveMessage'
+import { useLatestOnly } from '../hooks/useLatestOnly'
 
 interface Props {
   /** The day being viewed on the dashboard, not necessarily today. */
@@ -29,17 +30,20 @@ export default function WaterCard({ date }: Props) {
   useLiveMessage(error)
   const [busy, setBusy] = useState(false)
 
+  const claim = useLatestOnly()
   const load = useCallback(() => {
+    const current = claim()
     api
       .getWaterDay(date)
       .then((next) => {
+        if (!current()) return
         setDay(next)
         setError(null)
       })
       // A failed load must not render as a day with nothing logged — the same
       // rule the meal list follows.
-      .catch(() => setError("Couldn't load your water for this day."))
-  }, [date])
+      .catch(() => current() && setError("Couldn't load your water for this day."))
+  }, [date, claim])
 
   useEffect(() => {
     load()

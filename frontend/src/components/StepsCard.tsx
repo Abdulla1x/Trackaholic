@@ -12,6 +12,7 @@ import Retry from '@/ui/retry'
 import { cn } from '@/lib/utils'
 import { StepsIcon } from '@/ui/icons'
 import { useLiveMessage } from '../hooks/useLiveMessage'
+import { useLatestOnly } from '../hooks/useLatestOnly'
 import { n } from '@/lib/format'
 
 interface Props {
@@ -31,10 +32,13 @@ export default function StepsCard({ date }: Props) {
     setHintClosed(true)
   }
 
+  const claim = useLatestOnly()
   const load = useCallback(() => {
+    const current = claim()
     api
       .getStepDay(date)
       .then((next) => {
+        if (!current()) return
         setDay(next)
         // The input starts from what is stored, because the interaction here is
         // *correcting* a number rather than adding to one — the whole reason
@@ -44,8 +48,8 @@ export default function StepsCard({ date }: Props) {
       })
       // A failed load must not render as a day with nothing logged — the same
       // rule the water card and the meal list follow.
-      .catch(() => setError("Couldn't load your steps for this day."))
-  }, [date])
+      .catch(() => current() && setError("Couldn't load your steps for this day."))
+  }, [date, claim])
 
   useEffect(() => {
     load()
