@@ -1,4 +1,5 @@
 import { addDays, dayDate, localIsoDate } from '../../lib/dates'
+import { openNativePicker } from '../../lib/nativePicker'
 import { Chip } from '@/ui/chip'
 
 /** Which day a meal is for: Today, Yesterday, or the native date picker behind
@@ -43,6 +44,7 @@ export default function DayChips({
             aria-label={other ? `${chipDate}, pick another day` : 'Other day'}
             value={value}
             max={today}
+            onClick={openNativePicker}
             onChange={(event) => event.target.value && onChange(event.target.value)}
             className="absolute inset-0 cursor-pointer opacity-0"
           />
