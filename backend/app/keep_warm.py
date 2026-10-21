@@ -189,10 +189,11 @@ def record_health_check(src: str | None = None) -> None:
     source's, under one lock, so the two can never disagree about a ping that
     arrived while the panel was being rendered.
 
-    Under a lock because FastAPI runs sync endpoints in a threadpool, so two
-    requests can land at once, and `+= 1` is a read, an add and a store -- not
-    one atomic step. At ~4 s intervals the lock costs nothing and removes the
-    argument.
+    Under a lock because the admin panel reads these from the threadpool while
+    /api/health writes them from the event loop, and `+= 1` is a read, an add
+    and a store -- not one atomic step. The lock is held for a few integer
+    operations, which is what makes it safe to take from the async health
+    endpoint without blocking the loop.
     """
     global _checks, _scheduler_pings
     global _last_scheduler_at, _last_scheduler_monotonic, _longest_scheduler_gap_s

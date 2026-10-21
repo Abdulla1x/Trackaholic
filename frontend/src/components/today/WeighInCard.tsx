@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../api/client'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
+import { useLatestOnly } from '../../hooks/useLatestOnly'
 import { addDays } from '../../lib/dates'
 import { MAX_WEIGH_IN_REMINDER_DAYS } from '../../lib/limits'
 import { displayToKg, formatWeight, unitLabel } from '../../lib/units'
@@ -52,15 +53,18 @@ export default function WeighInCard({
 
   // A window, not the whole log: the reminder's cadence is at most
   // MAX_WEIGH_IN_REMINDER_DAYS, so one day past it is all the rule can need.
+  const claim = useLatestOnly()
   const load = useCallback(() => {
+    const current = claim()
     api
       .getWeights(addDays(day, -(MAX_WEIGH_IN_REMINDER_DAYS + 1)), day)
       .then((next) => {
+        if (!current()) return
         setEntries(next)
         setFailed(false)
       })
-      .catch(() => setFailed(true))
-  }, [day])
+      .catch(() => current() && setFailed(true))
+  }, [day, claim])
   useEffect(load, [load])
 
   // Each day starts unedited, with nothing said yet.

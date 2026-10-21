@@ -28,6 +28,9 @@ import { onMealsChanged } from '../lib/mealEvents'
 import type { Meal, PlanDay } from '../types'
 import { useHeldDelete } from '../hooks/useHeldDelete'
 import { useLiveMessage } from '../hooks/useLiveMessage'
+import { useLatestOnly } from '../hooks/useLatestOnly'
+import { useSettled } from '../hooks/useSettled'
+import { cn } from '@/lib/utils'
 import { useToast } from '../ui/toast'
 import { DURATION } from '../lib/motion'
 import { Button } from '@/ui/button'
@@ -74,7 +77,14 @@ export default function Today() {
   // meal is for.
   const [searchParams, setSearchParams] = useSearchParams()
   const [realToday, setRealToday] = useState(localIsoDate)
-  const viewedDate = viewedDay(searchParams.get('day'), realToday)
+  // Two dates, on purpose. The date bar follows every tap (`pickedDate`); the
+  // page loads and shows `viewedDate`, which waits until the taps stop. Each
+  // day shown costs about six requests, and a held arrow used to fire them for
+  // every day it passed: on 2026-10-21 that queue got the free instance
+  // restarted three times (hooks/useSettled.ts).
+  const pickedDate = viewedDay(searchParams.get('day'), realToday)
+  const viewedDate = useSettled(pickedDate)
+  const settling = pickedDate !== viewedDate
   const isToday = viewedDate === realToday
   // Replace rather than push: stepping back through a week should not leave a
   // week of history entries for the back button to walk through again.
@@ -106,14 +116,17 @@ export default function Today() {
 
   // `ready` holds the answer back until something has finished first: the
   // scroll that brings the day into view after a save, below.
+  const claimMeals = useLatestOnly()
   const load = useCallback((ready?: Promise<void>) => {
     setError(null)
+    const current = claimMeals()
     // A failed load must not masquerade as an empty day.
-    Promise.all([api.getMeals(viewedDate), ready]).then(([fresh]) => setMeals(fresh)).catch(() => {
+    Promise.all([api.getMeals(viewedDate), ready]).then(([fresh]) => current() && setMeals(fresh)).catch(() => {
+      if (!current()) return
       setMeals(null)
       setError("Couldn't load your meals. Check your connection, then try again.")
     })
-  }, [viewedDate])
+  }, [viewedDate, claimMeals])
 
   // The targets actually in force on the viewed day. These are NOT
   // settings.calorie_goal: a calorie plan adjusts a single day, and the
@@ -332,7 +345,7 @@ export default function Today() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-y-2 desk:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] desk:gap-x-10 desk:gap-y-4">
       <div className="grid grid-cols-[minmax(0,1fr)] gap-3 desk:col-span-2">
-        <DateBar day={viewedDate} today={realToday} onChange={showDay} />
+        <DateBar day={pickedDate} today={realToday} onChange={showDay} />
         {/* Above the calories until there is a target to show, then under
             them (chosen from the first-use prototype). */}
         {!hasTarget && gettingStarted}
@@ -346,7 +359,7 @@ export default function Today() {
             onRetry={reloadSettings}
             role="alert"
           />
-        ) : error && meals === null ? null : !settings || !goals || meals === null ? (
+        ) : error && meals === null && !settling ? null : !settings || !goals || meals === null || settling ? (
           <div aria-hidden="true" className="-mx-4 h-[226px] bg-track/40 motion-safe:animate-pulse desk:mx-0 desk:h-[274px]" />
         ) : (
           // The Label style draws the calories as a nutrition label instead of
@@ -368,8 +381,8 @@ export default function Today() {
       </div>
 
       <MealList
-        meals={meals && shownMeals(meals, held?.meal.id, gone)}
-        error={error}
+        meals={settling ? null : meals && shownMeals(meals, held?.meal.id, gone)}
+        error={settling ? null : error}
         onRetry={() => load()}
         isToday={isToday}
         showTimes={settings?.show_meal_times ?? true}
@@ -405,7 +418,10 @@ export default function Today() {
           `viewedDate`, not today: the date bar's ◀ ▶ already move the whole page
           through time, and a tracker that ignored them would be the only part
           of this screen showing a different day from the rest. */}
-      <div className="grid content-start grid-cols-[minmax(0,1fr)]">
+      <div
+        aria-busy={settling || undefined}
+        className={cn('grid content-start grid-cols-[minmax(0,1fr)]', settling && 'opacity-50')}
+      >
         {/* Above the trackers, from the first open of the week, until closed
             or opened (decided 2026-10-13 from a prototype), and only while
             looking at today. Keyed by the week, so a new week starts a fresh

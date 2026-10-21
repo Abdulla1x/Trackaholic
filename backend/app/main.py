@@ -184,8 +184,16 @@ app.include_router(admin.router)
 
 
 @app.get("/api/health")
-def health(src: str | None = None):
+async def health(src: str | None = None):
     """Liveness, and the one route that must never touch the database.
+
+    ⚠️ `async def`, and it has to stay that way. A plain `def` runs in the
+    threadpool, in the same queue as every other request, and Render restarts
+    the instance when this check goes five seconds unanswered. On 2026-10-21 a
+    held date arrow on Today queued enough requests to starve it three times in
+    nine minutes, and each restart failed every request in flight. On the event
+    loop it answers however deep the queue is. Nothing in here may block:
+    record_health_check is a lock held for a few integer operations.
 
     The keep-warm scheduler hits this every 10 minutes across a 16-hour window.
     Any query here would hold Neon awake for all of it -- ~122 CU-hours against
