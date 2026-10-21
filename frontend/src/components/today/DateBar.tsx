@@ -1,4 +1,5 @@
 import { addDays } from '../../lib/dates'
+import { openNativePicker } from '../../lib/nativePicker'
 import { dayHeading } from '../../lib/today'
 import { BackIcon, NextIcon } from '@/ui/icons'
 
@@ -8,8 +9,9 @@ const STEP =
 /** Today's one date control (UA-18): back a day, the day's name, forward a
  *  day. Tapping the name opens the phone's own calendar, through a native date
  *  input laid invisibly over it, the same way the Log panel's "Other day" chip
- *  does. There is no "jump to today": the Today tab is that, since it always
- *  leads to the address without a day. Never later than today. */
+ *  does; lib/nativePicker.ts makes a click open it on a desktop too. There is
+ *  no "jump to today": the Today tab is that, since it always leads to the
+ *  address without a day. Never later than today. */
 export default function DateBar({
   day,
   today,
@@ -31,6 +33,7 @@ export default function DateBar({
           type="date"
           value={day}
           max={today}
+          onClick={openNativePicker}
           onChange={(event) => event.target.value && onChange(event.target.value)}
           // Contains the words on screen, so a voice command naming what is
           // shown finds it (WCAG 2.5.3, label in name).
