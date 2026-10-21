@@ -27,6 +27,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 
 ### 🔐 Accounts & privacy
 - **Email + password auth**: Argon2id password hashing, JWT bearer tokens (7-day expiry), per-IP rate limiting on login, signup and password reset
+- **Sign in with Google**: Google's own "Continue with Google" button on Log in and Sign up; the server checks the ID token against the app's client ID and only trusts emails Google has verified. A Google account whose email already has an account links to it, and the password keeps working. An account made through Google needs no password (it can set one from You through the reset email) and confirms deletion by signing in with Google again. If Google's script can't load, the page is simply the email form
 - **Per-user everything**: meals, food library, saved meal templates, weight entries, water logs, step counts, supplements and their check-offs, calorie plans, goals/settings, and AI analyses are isolated per account — enforced on every query, verified by a dedicated cross-tenant test suite
 - **Layered AI quotas**: 12 analyses + 16 voice notes + 3 review summaries per user per day, under a **global ceiling** of 40 calls/day across every account — sized for Gemini's free tier of 20 requests a day per model, and checked against the heaviest real user's busiest days. The per-user caps stop one person using up the shared quota, the global one stops mass signups draining it (or running up a bill on a paid key). All of them are env-tunable
 - **What the AI sees**: your photos, voice note and description are sent to Google Gemini to estimate the meal, and the app says so under the Estimate button. Photos are shrunk on your phone first, which also strips their location data, and only the text of the estimate is kept: the photo and audio are discarded. On Gemini's free tier, Google may use what it is sent to improve its products
@@ -650,6 +651,9 @@ server boots, so the schema is created/updated on deploy. In the Render dashboar
   Resend (its DKIM and SPF records at the DNS host), and the key needs only
   sending access, scoped to that domain. Resend's free plan refuses sends over
   100 a day or 3,000 a month rather than billing for them
+- `GOOGLE_CLIENT_ID` (backend) / `VITE_GOOGLE_CLIENT_ID` (frontend build) — optional; both
+  default in code to the production OAuth client, which isn't a secret. Set both, to the
+  same value, only to use a client from another Google Cloud project
 - `EMAIL_SENDER_NAME` / `APP_BASE_URL` / `PASSWORD_RESET_TTL_MINUTES` /
   `PASSWORD_RESET_GLOBAL_DAILY_LIMIT` — optional; all default in code. `APP_BASE_URL`
   builds the emailed link and is **never** taken from the request's Host header
@@ -724,9 +728,9 @@ to anything else. That failure looks like a network error and never reaches the 
 
 ## 🔌 API overview
 
-55 paths. All of them require an `Authorization: Bearer <token>` header and operate
+59 paths. All of them require an `Authorization: Bearer <token>` header and operate
 only on the caller's data, except these public ones: `/api/health`,
-`/api/announcements`, `/api/auth/signup|login`, and
+`/api/announcements`, `/api/auth/signup|login|google`, and
 `/api/auth/forgot-password|reset-password`.
 
 ### Accounts
@@ -735,11 +739,12 @@ only on the caller's data, except these public ones: `/api/health`,
 |---|---|---|
 | POST | `/api/auth/signup` | Create an account → JWT + user |
 | POST | `/api/auth/login` | Log in → JWT + user |
+| POST | `/api/auth/google` | Sign in or sign up with the ID token from Google's button → JWT + user. Matched on Google's account id, else links a verified email that already has an account; 401 bad token, 503 Google unreachable |
 | GET | `/api/auth/me` | Current user (token check) |
 | POST | `/api/auth/change-password` | Rotate password; revokes older tokens, returns a fresh one |
 | POST | `/api/auth/forgot-password` | Email a reset link. Always 200, whether or not the address exists; 503 only when email isn't configured |
 | POST | `/api/auth/reset-password` | Consume a link and set a new password; revokes every session |
-| DELETE | `/api/auth/account` | Permanently delete the account and all its data |
+| DELETE | `/api/auth/account` | Permanently delete the account and all its data; confirmed by the password, or by a fresh Google sign-in for an account without one |
 
 ### Meals, foods and sharing
 
