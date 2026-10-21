@@ -79,6 +79,11 @@ export default function Signup() {
             Log in
           </Link>
         </p>
+        <p className="text-center text-small text-ink-2">
+          <Link to="/privacy" className={AUTH_LINK}>
+            Privacy
+          </Link>
+        </p>
       </form>
     </AuthFrame>
   )

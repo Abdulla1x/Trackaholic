@@ -162,7 +162,7 @@ function seedFoods() {
 // Routes that render without a token. Kept in a separate context from the rest:
 // nothing redirects an authenticated visitor away from /login, but visiting them
 // signed out is what a signed-out visitor actually sees.
-export const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password']
+export const PUBLIC_ROUTES = ['/login', '/signup', '/forgot-password', '/reset-password', '/privacy']
 
 // Everything behind RequireAuth. `/nope` is any unmatched address, which renders
 // NotFound inside the Layout.

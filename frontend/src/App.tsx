@@ -88,6 +88,9 @@ const router = createBrowserRouter(
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      {/* Public: Google's consent screen links here, and anyone deciding
+          whether to sign up should be able to read it first. */}
+      <Route path="/privacy" lazy={page(() => import('./pages/Privacy'))} />
       <Route element={<RequireAuth />}>
         {/* Inside RequireAuth, so the settings fetch only ever runs with a
             token in hand; outside Layout's children, so all five pages read
