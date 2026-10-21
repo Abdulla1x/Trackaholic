@@ -45,8 +45,19 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class GoogleSignInRequest(BaseModel):
+    # The ID token Google's button hands the browser. Real ones are around
+    # 1,000-1,500 characters; the bound keeps an oversized body from reaching
+    # the signature check.
+    credential: str = Field(min_length=1, max_length=4096)
+
+
 class DeleteAccountRequest(BaseModel):
-    password: str
+    # One or the other, checked in delete_account: the password for an account
+    # that has one, or a fresh Google sign-in for one that doesn't. `password`
+    # stays first and keeps its name so clients sending only it still work.
+    password: str | None = None
+    google_credential: str | None = Field(default=None, min_length=1, max_length=4096)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -81,6 +92,11 @@ class UserOut(BaseModel):
     # NOTE: the default is also why every construction site must pass it
     # explicitly -- see _user_out in auth/router.py.
     is_admin: bool = False
+    # How this account can sign in, so the client offers the right controls:
+    # a Google-only account has no current password to type into "change
+    # password" or "delete account". Defaulted for the same reason as is_admin.
+    has_password: bool = True
+    google_linked: bool = False
 
 
 class TokenResponse(BaseModel):
@@ -1534,6 +1550,9 @@ class AdminUserRow(BaseModel):
     # last_active_at is the diagnosis: present but writing nothing is an
     # onboarding failure, absent entirely is a bounce.
     last_seen_at: datetime | None = None
+    # Whether the account has ever signed in with Google. A flag, not the id:
+    # Google's account number is an identifier, and this page shows metrics.
+    google_linked: bool = False
     meals: int = 0
     weights: int = 0
     foods: int = 0
