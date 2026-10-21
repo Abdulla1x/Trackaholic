@@ -306,6 +306,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
+  // The ID token from Google's button. Under /api/auth/, so a refusal is a
+  // form error rather than a bounce to /login.
+  googleSignIn: (credential: string) =>
+    request<TokenResponse>('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    }),
   me: () => request<User>('/api/auth/me'),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<TokenResponse>('/api/auth/change-password', {

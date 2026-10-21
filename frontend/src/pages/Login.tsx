@@ -3,12 +3,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { isSessionPersistent } from '../auth/token'
 import AuthFrame, { AUTH_LINK, AUTH_NOTE, AUTH_TITLE, AuthField } from '../components/auth/AuthFrame'
+import GoogleButton from '../components/auth/GoogleButton'
 import { Button } from '@/ui/button'
 import { FIELD } from '@/ui/field'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 export default function Login() {
-  const { login } = useAuth()
+  const { login, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState('')
@@ -21,20 +22,25 @@ export default function Login() {
   // Set by the reset page, which sends people here rather than logging them in.
   const notice = (location.state as { notice?: string } | null)?.notice ?? null
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
+  // Both ways in end the same way: where the visitor was headed, or Today.
+  async function enter(attempt: () => Promise<void>, fallback: string) {
     setError(null)
     setSubmitting(true)
     try {
-      await login(email, password)
+      await attempt()
       navigate((location.state as { from?: string } | null)?.from ?? '/', {
         replace: true,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof Error ? err.message : fallback)
     } finally {
       setSubmitting(false)
     }
+  }
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    void enter(() => login(email, password), 'Login failed')
   }
 
   return (
@@ -49,6 +55,9 @@ export default function Login() {
           </p>
         )}
         {notice && <p className="text-small font-semibold">{notice}</p>}
+        <GoogleButton
+          onCredential={(credential) => void enter(() => loginWithGoogle(credential), 'Google sign-in failed')}
+        />
         <AuthField label="Email">
           <input
             type="email"

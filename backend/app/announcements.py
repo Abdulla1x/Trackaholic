@@ -32,6 +32,23 @@ STATUS_BANNER_ENV = "STATUS_BANNER"
 # redesign's note is one: accounts from before it were already asked about it
 # by "The new Trackaholic" when they first opened Today.
 ANNOUNCEMENTS: list[Announcement] = [
+    # Listed, not popped up: it matters most to people who haven't signed up
+    # yet, and they never see this list. Anyone already in can try it next
+    # time they log in, and nothing about their account changes.
+    Announcement(
+        id="2026-10-21-google-sign-in",
+        date="2026-10-21",
+        title="Sign in with Google",
+        body=(
+            "**You can now sign in with Google.** \"Continue with Google\" is "
+            "on the log-in and sign-up pages. If your Google account uses the "
+            "same email as your Trackaholic account, it opens that account, "
+            "and your password keeps working too.\n\n"
+            "**New here through Google?** You don't need a password. If you "
+            "ever want one, You, Set a password sends you a link."
+        ),
+        popup=False,
+    ),
     # Pops up, unlike the redesign's note: the server sends it to every build,
     # so it reaches an installed copy on the old address before that copy has
     # updated to the build with the moved notice. On the new address a first
