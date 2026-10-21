@@ -195,6 +195,16 @@ def _everything(user: User, db: Session) -> dict:
         "user": {
             "email": user.email,
             "created_at": user.created_at.isoformat(),
+            # How the account signs in, not Google's id for it: the export
+            # restores data, and the id means nothing outside Google.
+            "sign_in": [
+                method
+                for method, enabled in (
+                    ("password", user.password_hash is not None),
+                    ("google", user.google_sub is not None),
+                )
+                if enabled
+            ],
             "last_seen_at": (
                 None if user.last_seen_at is None else user.last_seen_at.isoformat()
             ),

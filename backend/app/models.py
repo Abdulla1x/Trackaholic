@@ -32,7 +32,14 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
+    # NULL for an account created through Google that has not set a password
+    # (it can, through the reset flow). Every reader goes through
+    # verify_password, which treats NULL as a password that never matches.
+    password_hash: Mapped[str | None] = mapped_column(String(255))
+    # Google's permanent id for the account (the ID token's `sub`), NULL until
+    # the first Google sign-in. A returning Google sign-in is matched on this,
+    # never on the email, which can change on Google's side. Migration 0024.
+    google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     # Tokens issued before this moment are rejected (see auth/deps.py), so
     # changing the password revokes any previously leaked token. Written by

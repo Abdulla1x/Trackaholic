@@ -130,6 +130,12 @@ def main() -> None:
             response = client.request(method, path)
             check(response.status_code == 401, f"anon {method} {path} -> 401")
 
+        # A forged Google ID token is refused, not turned into an account.
+        # Against prod this goes through google-auth for real, so it also shows
+        # the server can load the verifier.
+        response = client.post("/api/auth/google", json={"credential": "not.a.token"})
+        check(response.status_code == 401, "forged Google token -> 401")
+
         # -- Two accounts, disjoint data --------------------------------------
         headers_a, user_a = make_user(client, "a")
         headers_b, user_b = make_user(client, "b")

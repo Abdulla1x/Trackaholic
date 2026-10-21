@@ -379,6 +379,7 @@ def list_users(
             created_at=u.created_at,
             last_active_at=last_active.get(u.id),
             last_seen_at=u.last_seen_at,
+            google_linked=u.google_sub is not None,
             meals=meals.get(u.id, 0),
             weights=weights.get(u.id, 0),
             foods=foods.get(u.id, 0),

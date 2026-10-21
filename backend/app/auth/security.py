@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 from pwdlib import PasswordHash
+from pwdlib.exceptions import UnknownHashError
 
 from ..db import get_database_url
 from ..env import env_float
@@ -25,8 +26,19 @@ def hash_password(password: str) -> str:
     return _password_hash.hash(password)
 
 
-def verify_password(password: str, password_hash: str) -> bool:
-    return _password_hash.verify(password, password_hash)
+def verify_password(password: str, password_hash: str | None) -> bool:
+    """False, never an exception, for an account with no usable password.
+
+    NULL is a Google-only account; a string pwdlib can't parse is migration
+    0024's downgrade marker. Both must read as "wrong password" to every
+    caller, or a login attempt against such an account would 500.
+    """
+    if not password_hash:
+        return False
+    try:
+        return _password_hash.verify(password, password_hash)
+    except UnknownHashError:
+        return False
 
 
 def get_jwt_secret() -> str:
