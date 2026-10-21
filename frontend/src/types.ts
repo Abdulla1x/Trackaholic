@@ -11,6 +11,11 @@ export interface User {
    * that forces this true gets a 403 and nothing else.
    */
   is_admin: boolean
+  /** False for an account created through Google that hasn't set a password:
+   *  it has none to type into "change password" or "delete account". */
+  has_password: boolean
+  /** Has signed in with Google at least once. */
+  google_linked: boolean
 }
 
 export interface HealthStatus {
@@ -854,6 +859,9 @@ export interface DaySurplus {
 export interface AdminUserRow {
   id: number
   email: string
+  /** Has signed in with Google at least once. Optional: older API builds
+   *  don't send it. */
+  google_linked?: boolean
   created_at: string
   /** Null for an account that signed up and never logged anything.
    *

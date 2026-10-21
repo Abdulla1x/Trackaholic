@@ -18,9 +18,10 @@ interface AuthState {
   retry: () => void
   login: (email: string, password: string) => Promise<void>
   signup: (email: string, password: string) => Promise<void>
+  loginWithGoogle: (credential: string) => Promise<void>
   logout: () => void
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
-  deleteAccount: (password: string) => Promise<void>
+  deleteAccount: (confirm: { password: string } | { google_credential: string }) => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -67,6 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(response.user)
   }, [])
 
+  // Sign in and sign up are one call: the server creates the account the
+  // first time it sees this Google account.
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    const response = await api.googleSignIn(credential)
+    setToken(response.access_token)
+    setUser(response.user)
+  }, [])
+
   const logout = useCallback(() => {
     clearToken()
     setUnreachable(false)
@@ -84,8 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const deleteAccount = useCallback(async (password: string) => {
-    await api.deleteAccount(password)
+  const deleteAccount = useCallback(async (confirm: { password: string } | { google_credential: string }) => {
+    await api.deleteAccount(confirm)
     clearToken()
     setUser(null)
   }, [])
@@ -99,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         retry: validate,
         login,
         signup,
+        loginWithGoogle,
         logout,
         changePassword,
         deleteAccount,

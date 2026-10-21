@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../../auth/AuthContext'
+import GoogleButton from '../../components/auth/GoogleButton'
 import ScreenBar from '../../components/shell/ScreenBar'
 import { SCREEN_FRAME } from '../../components/you/screenContext'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
@@ -17,8 +18,12 @@ import { FIELD, FIELD_DESK_WIDTH } from '@/ui/field'
  *  is gone there is nothing left to download, and nobody can bring it back.
  *  The button is the quiet secondary one, and it still asks once more. */
 export default function DeleteScreen() {
-  const { deleteAccount } = useAuth()
+  const { user, deleteAccount } = useAuth()
+  // An account made through Google has no password to type, so it confirms by
+  // signing in with Google again; the server checks it's the same account.
+  const byGoogle = user?.has_password === false
   const [password, setPassword] = useState('')
+  const [googleCredential, setGoogleCredential] = useState<string | null>(null)
   const [asking, setAsking] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
@@ -38,7 +43,7 @@ export default function DeleteScreen() {
     setDeleting(true)
     setError('')
     try {
-      await deleteAccount(password)
+      await deleteAccount(googleCredential ? { google_credential: googleCredential } : { password })
       // AuthContext clears the user, so RequireAuth sends you to Log in.
     } catch (err) {
       setError(err instanceof Error ? err.message : "The account wasn't deleted. Try again.")
@@ -61,28 +66,52 @@ export default function DeleteScreen() {
             Download all my data
           </button>
         </p>
-        <label className="grid min-w-0 gap-1.5">
-          <span className="text-small text-ink-2">Type your password to confirm</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className={cn(FIELD, FIELD_DESK_WIDTH)}
-          />
-        </label>
-        <div>
-          <Button variant="secondary" disabled={password === '' || deleting} onClick={() => setAsking(true)}>
-            {deleting ? 'Deleting…' : 'Delete my account'}
-          </Button>
-        </div>
+        {byGoogle ? (
+          <div className="grid gap-2">
+            <p className="text-small text-ink-2">
+              You sign in with Google, so confirm with Google to delete the account.
+            </p>
+            <div className={cn('grid', FIELD_DESK_WIDTH)}>
+              <GoogleButton
+                divider={false}
+                onCredential={(credential) => {
+                  setError('')
+                  setGoogleCredential(credential)
+                  setAsking(true)
+                }}
+              />
+            </div>
+            {deleting && <p className="text-small">Deleting…</p>}
+          </div>
+        ) : (
+          <>
+            <label className="grid min-w-0 gap-1.5">
+              <span className="text-small text-ink-2">Type your password to confirm</span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className={cn(FIELD, FIELD_DESK_WIDTH)}
+              />
+            </label>
+            <div>
+              <Button variant="secondary" disabled={password === '' || deleting} onClick={() => setAsking(true)}>
+                {deleting ? 'Deleting…' : 'Delete my account'}
+              </Button>
+            </div>
+          </>
+        )}
         {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
       </Block>
       <AlertDialog
         open={asking}
         title="Delete your account?"
         confirm="Delete my account"
-        onCancel={() => setAsking(false)}
+        onCancel={() => {
+          setAsking(false)
+          setGoogleCredential(null)
+        }}
         onConfirm={remove}
       >
         Everything goes, for good. There is no way to get it back.

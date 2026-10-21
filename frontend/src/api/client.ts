@@ -306,6 +306,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
+  // The ID token from Google's button. Under /api/auth/, so a refusal is a
+  // form error rather than a bounce to /login.
+  googleSignIn: (credential: string) =>
+    request<TokenResponse>('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    }),
   me: () => request<User>('/api/auth/me'),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<TokenResponse>('/api/auth/change-password', {
@@ -315,10 +322,12 @@ export const api = {
         new_password: newPassword,
       }),
     }),
-  deleteAccount: (password: string) =>
+  // Confirmed by the password, or for an account without one by a fresh
+  // Google sign-in (the server checks it is the same Google account).
+  deleteAccount: (confirm: { password: string } | { google_credential: string }) =>
     request<void>('/api/auth/account', {
       method: 'DELETE',
-      body: JSON.stringify({ password }),
+      body: JSON.stringify(confirm),
     }),
   // Both reset endpoints are public, but must stay under /api/auth/ so the 401
   // handling above surfaces failures as form errors instead of bouncing to

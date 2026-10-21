@@ -3,12 +3,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { isSessionPersistent } from '../auth/token'
 import AuthFrame, { AUTH_LINK, AUTH_NOTE, AUTH_TITLE, AuthField } from '../components/auth/AuthFrame'
+import GoogleButton from '../components/auth/GoogleButton'
 import { Button } from '@/ui/button'
 import { FIELD } from '@/ui/field'
 import { useLiveMessage } from '../hooks/useLiveMessage'
 
 export default function Signup() {
-  const { signup } = useAuth()
+  const { signup, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -36,6 +37,21 @@ export default function Signup() {
     }
   }
 
+  // The same call as on Log in: the server creates the account the first
+  // time it sees this Google account, and signs it in every time after.
+  async function continueWithGoogle(credential: string) {
+    setError(null)
+    setSubmitting(true)
+    try {
+      await loginWithGoogle(credential)
+      navigate('/', { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <AuthFrame>
       <form className="grid gap-3.5" onSubmit={handleSubmit}>
@@ -47,6 +63,7 @@ export default function Signup() {
             leaving private browsing, keeps you signed in.
           </p>
         )}
+        <GoogleButton onCredential={(credential) => void continueWithGoogle(credential)} />
         <AuthField label="Email">
           <input
             type="email"

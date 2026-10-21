@@ -723,7 +723,10 @@ export default function Admin() {
                   <tbody>
                     {users.map((row) => (
                       <tr key={row.id} className="border-t border-rule">
-                        <td className="py-2 pr-4">{row.email}</td>
+                        <td className="py-2 pr-4">
+                          {row.email}
+                          {row.google_linked && <span className="ml-1.5 text-small text-ink-2">· Google</span>}
+                        </td>
                         <td className="py-2 pr-4 text-ink-2">
                           {shortDate(row.created_at.slice(0, 10))}
                         </td>

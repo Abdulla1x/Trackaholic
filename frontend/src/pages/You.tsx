@@ -228,7 +228,7 @@ export default function You() {
           </Group>
 
           <Group label="Account">
-            <RowLink to="/you/password" label="Change password" />
+            <RowLink to="/you/password" label={user?.has_password === false ? 'Set a password' : 'Change password'} />
             <RowButton label="Log out" onClick={() => setLoggingOut(true)} />
             <RowLink to="/you/delete" label="Delete account" detail="Deletes everything for good" />
           </Group>
