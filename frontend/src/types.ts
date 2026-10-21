@@ -859,6 +859,9 @@ export interface DaySurplus {
 export interface AdminUserRow {
   id: number
   email: string
+  /** Has signed in with Google at least once. Optional: older API builds
+   *  don't send it. */
+  google_linked?: boolean
   created_at: string
   /** Null for an account that signed up and never logged anything.
    *
