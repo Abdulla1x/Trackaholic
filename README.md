@@ -13,6 +13,8 @@
 
 **🔗 Live app: [trackaholic.app](https://trackaholic.app)** — sign up and start logging. (Free-tier hosting: the first request after idle can take ~30–60 s.)
 
+**📖 The story: [story.trackaholic.app](https://story.trackaholic.app/?ref=gh-readme)** — how it got here, from a 2024 notepad to the redesign, with every screen along the way.
+
 A full-stack, **multi-user** nutrition tracking app: a **React + TypeScript** dashboard UI (installable as a PWA) backed by a **FastAPI + SQLAlchemy** REST API on **PostgreSQL**.
 
 Sign up with an email and password and get your own private meal log, food library, goals, and AI analyses — every API endpoint is scoped to the authenticated user.
