@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 //
-// Retake every screenshot in the README, at both widths and in both light and
-// dark, from the running app.
+// Retake every screenshot in docs/screenshots.md, at both widths and in both
+// light and dark, from the running app, and then the two images at the top of
+// the README (scripts/readme-images.mjs), which are built from them.
 //
 // The README's screenshots went stale three times before this script existed:
 // a phase moves a screen, nobody retakes the images, and the front door shows
@@ -11,8 +12,9 @@
 // this seeds the data, drives the app, and writes all thirty-two files:
 //
 //   <output-dir>/{light,dark}/{desktop,mobile}/<screen>.png
+//   <output-dir>/{wordmark,hero}-{light,dark}.png
 //
-// Both themes use the default look (Daylight, Fields). The README shows each
+// Both themes use the default look (Daylight, Fields). The docs show each
 // reader the set matching their GitHub theme, through <picture> and a
 // prefers-color-scheme source.
 //
@@ -24,7 +26,7 @@
 // served by `vite preview` (cd frontend && npx vite build && npx vite preview).
 // The dev server works too, but it compiles each route on first visit, and a
 // long run against it has died part-way more than once; the preview build is
-// what the README should show anyway.
+// what the docs should show anyway.
 //
 // ⚠ It signs up, DELETES and re-creates the demo account every run. Seeding is
 // additive, so re-running against a surviving account gives every day two of
@@ -88,6 +90,8 @@ import { execFileSync } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
+import { writeReadmeImages } from './readme-images.mjs'
+
 const BASE_URL = process.env.BASE_URL ?? 'http://localhost:5173'
 const API_URL = process.env.API_URL ?? 'http://localhost:8000'
 const EMAIL = process.env.EMAIL ?? 'demo@example.com'
@@ -103,8 +107,8 @@ if (!outDir) {
 // The width sets the layout breakpoint; the height is only a starting point,
 // because captureWholePage grows the viewport to the page height before
 // shooting. ⚠ A clipped screenshot cut the dashboard off above the meal list
-// and the 7-day sparkline, which is most of what the page is for; a README
-// screenshot has to show the whole screen or it misrepresents it.
+// and the 7-day sparkline, which is most of what the page is for; a
+// screenshot in the docs has to show the whole screen or it misrepresents it.
 const DESKTOP = { width: 1280, height: 832 }
 const MOBILE = { width: 390, height: 844 }
 
@@ -466,10 +470,17 @@ const SHOTS = [
       await runAnalysis(page)
       await page.waitForTimeout(600)
     },
+    // Where the README's hero crops this capture: the top of the estimate, a
+    // little above so its label is not flush with the edge. Measured on the
+    // grown viewport, where page and capture coordinates are the same.
+    async measure(page) {
+      const box = await panel(page).getByRole('region', { name: 'Estimate', exact: true }).boundingBox()
+      return Math.max(0, Math.round(box.y) - 12)
+    },
     // ⚠ The applied capture has to come from the SAME analysis, which is why
     // it hangs off this one rather than being a shot of its own. Two runs of
     // the model give two different estimates -- 612 kcal and 650 kcal on the
-    // run that found this -- and the README shows the two images one after the
+    // run that found this -- and docs/screenshots.md shows the two images one after the
     // other, captioned as the same meal. It also halves the provider calls.
     then: {
       key: 'ai-applied',
@@ -502,7 +513,7 @@ const SHOTS = [
  *  The height is re-measured after the resize because the reflow can change it
  *  -- a narrower scrollbar, a chart that re-lays-out -- and settles in one or
  *  two passes. */
-async function captureWholePage(page, path, dialog) {
+async function captureWholePage(page, path, dialog, measure) {
   const viewport = page.viewportSize()
   let height = viewport.height
   for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -517,7 +528,9 @@ async function captureWholePage(page, path, dialog) {
   // hovered number field shows its spinner in the capture.
   await page.mouse.move(0, 0)
   await page.screenshot({ path })
+  const measured = measure ? await measure(page) : undefined
   await page.setViewportSize(viewport)
+  return measured
 }
 
 /** The viewport height at which the open Log panel shows all of its content.
@@ -538,6 +551,9 @@ function dialogHeightNeeded() {
   return Math.ceil(window.innerHeight + overflow / share)
 }
 
+/** The hero's crop of the phone AI capture, per theme; see readme-images.mjs. */
+const estimateTop = {}
+
 async function capture(context, dir, kind) {
   await mkdir(dir, { recursive: true })
   const errors = []
@@ -547,7 +563,8 @@ async function capture(context, dir, kind) {
     await page.goto(`${BASE_URL}${shot.route}`, { waitUntil: 'domcontentloaded' })
     await settle(page)
     if (shot.prep) await shot.prep(page)
-    await captureWholePage(page, join(dir, `${shot.key}.png`), shot.dialog)
+    const measured = await captureWholePage(page, join(dir, `${shot.key}.png`), shot.dialog, shot.measure)
+    if (measured !== undefined && kind.endsWith('/mobile')) estimateTop[kind.split('/')[0]] = measured
     console.log(`  ${kind}/${shot.key}.png`)
     if (shot.then) {
       await shot.then.prep(page)
@@ -561,11 +578,11 @@ async function capture(context, dir, kind) {
 
 /** Quantise in place if pngquant is available. Optional on purpose: a missing
  *  tool should cost file size, not the whole run. */
-function compress(dir) {
+function compress(dir, extra) {
   const keys = SHOTS.flatMap((shot) => (shot.then ? [shot.key, shot.then.key] : [shot.key]))
   const files = THEMES.flatMap((theme) =>
     keys.flatMap((key) => ['desktop', 'mobile'].map((kind) => join(dir, theme, kind, `${key}.png`))),
-  )
+  ).concat(extra)
   try {
     execFileSync('pngquant', ['--quality=70-92', '--speed', '1', '--force', '--ext', '.png', ...files])
     console.log(`\ncompressed ${files.length} files with pngquant`)
@@ -605,8 +622,11 @@ for (const theme of THEMES) {
   }
 }
 
+const readmeImages = await writeReadmeImages(browser, outDir, estimateTop)
+for (const path of readmeImages) console.log(`  ${path}`)
+
 await browser.close()
-compress(outDir)
+compress(outDir, readmeImages)
 
 if (errors.length) {
   console.error(`\n${errors.length} page errors:`)

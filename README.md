@@ -1,869 +1,84 @@
-# Trackaholic
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="screenshots/wordmark-dark.png">
+    <img src="screenshots/wordmark-light.png" alt="Trackaholic" width="333">
+  </picture>
+</h1>
 
-[![CI](https://github.com/Abdulla1x/Trackaholic/actions/workflows/ci.yml/badge.svg)](https://github.com/Abdulla1x/Trackaholic/actions/workflows/ci.yml)
-![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-REST%20API-009688?logo=fastapi&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.14-blue?logo=python&logoColor=white)
-![Postgres](https://img.shields.io/badge/Database-PostgreSQL-4169e1?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-pytest-brightgreen)
-[![License](https://img.shields.io/badge/License-MIT-lightgrey)](LICENSE)
+<p align="center"><b>A calorie and macro tracker that estimates a meal from a photo, a voice note or a sentence, and tells you how sure it is.</b></p>
 
-*Formerly **Macros Calculator**; renamed in October 2026, and moved from `macros-calculator-mu.vercel.app` to `trackaholic.app` the same month.*
+<p align="center">
+  <a href="https://trackaholic.app"><b>Open the app</b></a> ·
+  <a href="https://story.trackaholic.app/?ref=gh-readme">The story so far</a> ·
+  <a href="#read-more">Docs</a> ·
+  <a href="#engineering-notes">Engineering notes</a>
+  <br>
+  <sub>Free hosting: the first visit after a quiet spell can take 30–60 s while the server wakes up.</sub>
+</p>
 
-**🔗 Live app: [trackaholic.app](https://trackaholic.app)** — sign up and start logging. (Free-tier hosting: the first request after idle can take ~30–60 s.)
+<p align="center">
+  <a href="https://github.com/Abdulla1x/Trackaholic/actions/workflows/ci.yml"><img src="https://github.com/Abdulla1x/Trackaholic/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-lightgrey" alt="License: MIT"></a>
+</p>
 
-**📖 The story: [story.trackaholic.app](https://story.trackaholic.app/?ref=gh-readme)** — how it got here, from a 2024 notepad to the redesign, with every screen along the way.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="screenshots/hero-dark.png">
+    <img src="screenshots/hero-light.png" alt="Trackaholic on a phone: the Today screen, an AI estimate of a chicken and rice meal, and the Progress screen">
+  </picture>
+</p>
 
-A full-stack, **multi-user** nutrition tracking app: a **React + TypeScript** dashboard UI (installable as a PWA) backed by a **FastAPI + SQLAlchemy** REST API on **PostgreSQL**.
-
-Sign up with an email and password and get your own private meal log, food library, goals, and AI analyses — every API endpoint is scoped to the authenticated user.
-
-Log meals by typing an ingredient name — macros auto-fill as you type from your personal **food library** and from **five open national food tables** (USDA, UK, France, Australia, Canada), with an **Open Food Facts** lookup for packaged products. Or skip the form entirely: **describe your meal, record a voice note, or photograph it** — any one is enough — and let **AI estimate the macros** — with honest uncertainty ranges and editable assumptions — before you review and save. Track calories and protein (plus carbs and fat if you enable them), set daily goals, weigh in, and watch the day's calorie gauge, trend charts and a computed weekly review update as you log.
-
-> **v2 rewrite:** this project started as a Streamlit app and was rebuilt with a decoupled frontend/backend architecture. The original app lives in [`legacy/`](legacy/).
-
----
-
-## ✨ Features
-
-### 🔐 Accounts & privacy
-- **Email + password auth**: Argon2id password hashing, JWT bearer tokens (7-day expiry), per-IP rate limiting on login, signup and password reset
-- **Sign in with Google**: a "Continue with Google" button under the email form on Log in and Sign up, drawn in the app's own style with Google's real button laid invisibly over it, so Google still runs the sign-in; the server checks the ID token against the app's client ID and only trusts emails Google has verified. A Google account whose email already has an account links to it, and the password keeps working. An account made through Google needs no password (it can set one from You through the reset email) and confirms deletion by signing in with Google again. If Google's script can't load, the page is simply the email form
-- **Per-user everything**: meals, food library, saved meal templates, weight entries, water logs, step counts, supplements and their check-offs, calorie plans, goals/settings, and AI analyses are isolated per account — enforced on every query, verified by a dedicated cross-tenant test suite
-- **Layered AI quotas**: 12 analyses + 16 voice notes + 3 review summaries per user per day, under a **global ceiling** of 40 calls/day across every account — sized for Gemini's free tier of 20 requests a day per model, and checked against the heaviest real user's busiest days. The per-user caps stop one person using up the shared quota, the global one stops mass signups draining it (or running up a bill on a paid key). All of them are env-tunable
-- **What the AI sees**: your photos, voice note and description are sent to Google Gemini to estimate the meal, and the app says so under the Estimate button. Photos are shrunk on your phone first, which also strips their location data, and only the text of the estimate is kept: the photo and audio are discarded. On Gemini's free tier, Google may use what it is sent to improve its products
-- **A privacy page** at [`/privacy`](https://trackaholic.app/privacy), public and linked from Log in, Sign up and You: what is stored, what goes to Google and the other services, who can see it, and how to export or delete it, each claim checked against the code
-- **What you search for is not logged**: the food searches send what you type as a URL parameter, and both the server's access log and its outgoing-request log blank that value before writing the line. The app's own log lines count results and time them, never the text
-- **Own your data**: export or import your meals as CSV (duplicates are skipped and dates normalized) and download everything as JSON, from **You → Your data**; the import's counts stay on the row afterwards. Each download is a one-minute link the browser fetches itself, because a file made inside the page goes nowhere in an app installed on a phone. Change your password (it signs every other device out; the new one is typed twice, so a typo can't lock you out) or permanently delete your account from **You → Account**. Deleting is a plain ink button, not a red one; it offers the full download first, and asks once more
-- **Password reset by email**: a single-use link (hashed at rest, valid an hour, revoking every session when used), sent through Resend from `trackaholic.app`, a domain authenticated with DKIM and SPF so the sender is never rewritten. The request answers the same for every address, so it can't tell anyone who has an account, and it is rate-limited per IP, per account and app-wide (100 a day, Resend's free daily quota). It was built in August and waited two months for that domain: three free providers refused a domainless free account, which is the profile their fraud screening targets
-
-### 🧭 Getting around
-- **Four places, each one tap away**: **Today**, **Progress** and **You** as tabs, with **Log** as a button in the middle. A bottom bar on phones; from 900 px a side rail with the wordmark. Progress holds the weight trend, nutrition, daily burn, the weekly review and the AI's accuracy
-- **Log opens over the page you are on**, as a sheet rising from the bottom on a phone and a panel from the right on a desktop, so Today, Progress or a half-edited setting is still underneath when you close it. It is in the address (`?log`), so the phone's back button closes it, and "Enter it by hand" is one step in that Back steps out of. Top to bottom: the day the meal is for (Today, Yesterday or any other), the AI box, your saved meals and recent meals, then entering a meal by hand or pasting a meal code. Saving closes it with a short confirmation, and the page underneath updates; on Today it first scrolls back to the top, so the numbers roll and the gauge fills where you can see them
-- **Unsaved settings are never dropped silently.** Typed numbers wait for a **Save bar** pinned above the tab bar, with Undo beside Save; switches and choices that stand alone save the moment you tap them, so the bar appearing is itself the sign something is still waiting. Leaving a screen with changes asks first ("Leave without saving?"), whichever way you leave; reloading or closing the tab gets the browser's own prompt
-- **Each page loads its own code the first time you open it**, so the sign-in page no longer downloads the charts: the first download went from 911 KB to 334 KB when it was split, and is about 470 KB (145 KB compressed) with the redesign's shell, its animation library and icons. The Log panel is fetched the first time it opens, or quietly beforehand once the page is idle. A tab still running the previous version when a new one deploys reloads itself once rather than failing to open a page
-- **Light or dark, nine colours, or a nutrition label**, chosen in You → Appearance. Automatic follows the phone's dark mode. Nine palettes change the ground, the buttons and the colour of the calories band. The **Label** style turns every screen black and white, as on a food packet: boxed sections with heavy rules, square controls, and Today's calories as a nutrition label. The choice belongs to the device, not the account, and a small script in `<head>` applies it before the first frame, so a dark phone never flashes white
-
-### 👋 First use
-- **No invented target.** Every account starts with a 2,000 kcal placeholder, so until you choose a target the calories show what you ate and "Not set yet" instead: no gauge, no "left", no target line in Progress, no weekly review card
-- **Getting started, not a tour**: two steps on Today, set your daily target and log your first meal. "Not now" shrinks it to one row. Once both are done it turns into a short "what's next" (Progress fills in as you log) until you dismiss it. A brand-new account meets **no popup at all**: release notes are marked seen silently on a phone's first visit and held until a target is set
-- **Add to home screen, asked once Getting started is done**: after the first meal, a phone's browser gets one popup on Today. Where the browser can install by itself (Chrome, Samsung Internet, Edge) it has an **Install** button that opens the phone's own dialog; on an iPhone, and on browsers that can't (Firefox, Chrome without Google services, as on Huawei phones), it shows the three taps with a small drawing of each, and inside LinkedIn or Instagram it says to open the page in a real browser first, with **Copy link**. It never asks inside the installed app, and once the installed app has been opened, no browser tab on that account asks either: an iPhone's Safari can't see the home screen, so the app tells the server. **Not now** asks once more a week later, then never; **You → Add to home screen** is always there
-- **Setup, one question per screen**: weight (it counts as your first weigh-in, in kg or lb depending on your phone's region), height, date of birth, sex, activity in workouts a week, your goal and pace, and a few skippable extras (goal weight, carbs and fat, trackers, a weigh-in reminder). Every typo is caught on its own question; the phone's back gesture steps back a question; a reload keeps your answers. The pace choices grey out above the fastest it will plan for you, with the reason
-- **The target comes live from the server's own calculation**, so the number previewed is the number saved, and any limit that changed your pace is named with the numbers. Or skip the questions with **I have my own numbers**, which refuses macros that cannot fit in the calories. Saving plays a short moment: the number counts up and the gauge draws in
-- **How your target is worked out**, with your own numbers: resting burn × activity = daily burn, minus your pace = target, and protein as grams per kilo, each with its source. Plus an optional **How Trackaholic works** page: logging well, reading Today, what unlocks, things people miss, and when to ask a doctor instead
-- **You choose your trackers.** Only the weigh-in is always on; water, steps and supplements are picked in setup or with **Add or remove trackers** at the bottom of Today. Accounts from before the choice keep their cards and are asked once, in "The new Trackaholic"
-- **Three one-line tips, each beside a feature that is easy to miss**, and only when it would help: copying a meal you have logged at least twice before ("You've logged this 2 times before.") offers **Keep as a saved meal**; the Steps card, for an account that has never logged a step, offers to import a Samsung Health history; and the AI box, once you have typed a note and have saved foods, asks "Logging something you've saved?" with **Use my saved foods**. Each has a ✕, and once closed or used it stays away on that device
-
-### 📊 Today
-- **Calories first.** The top of the page is one big number, the calories left (or over) against the day's target, with a 20-segment gauge closed by a target tick, and Eaten and Protein in fixed fields beneath. Carbs and fat join them only if you track them, and are never mentioned otherwise. Changed digits roll into place and new segments light one by one, so a save shows what it moved; under reduced motion the numbers simply change
-- **A tap is answered.** Buttons and chips darken and dip 2% while held, rows and tabs take a light wash, and the browser's grey tap box is gone, because on a phone there is no hover to fall back on. Under reduced motion nothing shrinks. On a desktop, prose stops at about 65 characters a line instead of running across the whole column, and buttons and text fields size to what they hold
-- **Every load that can fail says so, with Retry.** Today's band, the target explanation, the day in detail and the You lists used to pulse forever or show nothing when a request failed; each now says what didn't load and offers Retry, announced once to a screen reader
-- **Close enough says so**: within 2% of the target, either side, the headline reads "On target" instead of "8 kcal over" or "5 kcal left", and Eaten shows the exact figure against the target. The meal that gets you there today is marked once: the target tick lifts and the words roll into place. The weekly review counts a week the same way
-- **Going over is drawn calmly**: past that, the label says "Kcal over", the gauge is simply full, and one line offers to spread it. Nothing turns red
-- **One date control**: back a day, the day's name, forward a day; tap the name for the phone's calendar. The day is in the address, so it survives a reload, and the Today tab always leads back to today
-- **The day in detail**, one tap on the calories: eaten, target, left or over, and each macro against its goal, plus the way into calorie planning
-- **Meals open their own screen.** Each row is one large target with the time you logged it, the name, the macros you track and the kcal. The meal's screen has **Edit**, **Log it again** (a copy on today), **Share as a code**, **Keep as a saved meal** and **Delete**
-- **Delete with ten seconds to undo.** The meal's line is struck through in its own place, with Undo and a bar draining over ten seconds, and it leaves your totals at once. Nothing is sent to the server until the ten seconds are up, so Undo brings back exactly the meal you had, not a copy; leaving Today or switching apps sends it at once, so a deletion you walked away from still happens
-- **The logged time, only where it is honest.** The app records when a meal was logged, not when it was eaten, so the time shows only beside meals logged on the day they were eaten. Every name starts at the same place whether or not a time sits beside it. It can be switched off in You → Appearance
-- **Weigh in from Today.** A card with your latest weight prefilled, in kg or lb; once saved, it shows the weight with Edit. It carries the optional weigh-in reminder (below), and says when an automatic target is waiting for a weigh-in (none in 90 days)
-- **Your target moved, and why.** An automatic target changes a little with every weigh-in, which needs no comment. When something named moves it — your burn becoming measured, reaching your goal weight, or a limit starting or stopping deciding it — one line under the calories says so, with the numbers
-- **Water tracker** with configurable quick-add buttons and a goal derived from your trend weight — with the arithmetic one tap away, under "How is this worked out?", rather than always on the card
-- **Steps tracker**, typed in by hand or imported from a `date,steps` CSV — no phone or watch sync is possible in a web app, and the UI says so rather than implying one. Set a goal or don't; with none set the card shows the count alone
-- **Supplement tracker** — a list with a dose and the times of day you take it, ticked off from Today; chosen but empty, the card says how to set it up. Reminders are in-app only, deliberately: push on Android needs Google Play Services and scheduled local notifications need a browser API nobody shipped, so the card says a dose is due while you have it open and never pretends it will reach your phone. Pausing keeps the history; deleting does not
-- Every tracker is one full-width row with a segmented meter against its goal; supplements show "2 of 3" instead, since doses are not a goal. Changes are drawn the same way everywhere: the changed digits roll, and new segments light in a bright sweep that settles to ink, so a tap on +250 ml is seen as well as counted
-- **The weekly review comes up once a week**, as a card above the trackers with one sentence from the review's own checks ("7 of 7 days logged. Nothing to fix this week. Carry on.") and the way in. It covers the last full Monday-to-Sunday week and stays until you close it or open the review, then stays away on that device until the next week. The review itself is always under Progress
-- **Calorie planning** — move calories between days without moving the week. Plan a bigger day and fund it from the days around it, or spread a day that already ran over across the days ahead (and the mirror when bulking and under). Three things are deliberate: it is **not a debt** — measured expenditure already absorbs one large day as a slightly slower week, so this only decides where it lands; **nothing prompts you** — it waits one tap behind the calories, in the day in detail, whether the day went well or badly, because an app that asks after every overshoot is a different kind of app; and **you pick the days**, with the server only refusing a spread that would take one below a safe calorie floor, naming the day rather than quietly shaving less than you asked. Protein never moves — carbohydrate and fat absorb the difference
-
-### 🤖 AI meal analysis
-- **Describe it, speak it, or shoot it**: type a description, record a voice note, or snap a photo — either a description or a photo produces an estimate on its own, and combining them sharpens it
-- **Voice notes become editable text**: a recording is transcribed by Gemini straight into the description box *before* anything is estimated, so a misheard ingredient is a typo you fix rather than a wrong number you have to catch afterwards
-- **Honest uncertainty**: the result shows the meal's likely **range** beside its total, and for every item its portion and how sure the model was ("140 g, fairly sure") — not a false-precision single number
-- **Editable assumptions**: the AI lists every assumption it made ("1 cup cooked rice ≈ 158 g"); tap one to correct it in the note and **refine** the estimate without starting over. Pressing Refine or Estimate again with nothing changed asks first, since a re-run of the same inputs spends one of the day's AI calls for an answer that moves only by the model's own noise
-- **It can use your saved foods instead of guessing them.** Attach foods from your library before analysing and their macros are sent as facts. It splits the work along the line each side is good at: a photo is poor evidence for how many calories are in chicken breast — you already know that exactly, because you saved it — and good evidence for how much of it is on the plate, which your library cannot know. **The AI estimates the portion; your library supplies the macros.** If it names a food you have saved but did not attach, the ingredient row *offers* to use your numbers rather than quietly rewriting them
-- **And the estimate can feed the library back.** One "Save N new foods to my library" row under the result lists every ingredient the AI guessed that you do not already have saved, each prefilled and converted to per-100 g, with a warning before it would replace one of yours. The first time you eat something the AI guesses it; every time after, your own numbers are the facts it is handed. The two bullets above and this one are the same relationship in both directions
-- **Save it as it is, or check it first.** The result ends in **Save meal · 516 kcal**, so an estimate that is right is saved without opening a form, under a name you can edit first. "Check and edit first", or tapping any line, opens the by-hand form filled in, so you can adjust everything before saving. The total shown is exactly what will be saved, built from the same rows the form would make; only the range is the model's
-- **It keeps working while you use the app.** An estimate takes about 19 seconds at the median, so it no longer belongs to the screen that started it: close the panel, check Progress, and the Log button shows a spinner, then "Ready". A short note on any tab says when it has arrived, or that it did not
-- **It asks what a photo can't show.** On 14 meals weighed on a kitchen scale, every model tested read a photo alone low on every one, by a median of 53–64% of the true calories, most likely because oil, butter and sauces barely show. With a note, estimates of other meals came within about 4–6% of the values saved for them, but those values began as AI estimates themselves, so that is agreement rather than accuracy: no weighed meal has been run with a note yet. So an estimate with photos and no note first asks "Photos miss oil and sauces. Anything hidden?", with one-tap answers that add a line to the note ("Also in it: oil and sauce."), left in the box so you see what the model was told. A short card of three tips sits above the AI box until you dismiss it
-- **Estimate accuracy, measured against you.** Every analysis is logged to an `ai_analyses` table (photo and audio discarded) and compared with what you actually saved: how often the true value fell inside the stated range, and whether the estimates lean high or low. Where there is not enough evidence to answer honestly it **refuses** rather than printing a reassuring number
-- Powered by **Gemini 3.6 Flash**, falling back to 3.8 and 2.5 Flash (free tier) — the provider is isolated in a single backend module, so swapping to another model later is a one-file change. Google retires models on a schedule, so the id is overridable at runtime via `MEAL_AI_MODEL` (no deploy needed) and provider failures are logged with the reason
-- **The wait is shown as the things it actually is.** Sending your photos depends on your connection and the model does not, so they are separate steps: "Sending 2 photos" with a real percentage of the bytes uploaded, then "Estimating from your note, 2 photos and 1 saved food", with no timed steps for things the app cannot see the model doing. If the free server happens to be asleep the app checks and says so rather than leaving you watching a spinner, and the "AI service is busy" message now waits until your photos have actually gone, instead of blaming the service for your own upload
-- **Photos are shrunk on your phone before they are sent.** A phone photo is a few megabytes and the model only ever looks at a much smaller version of it, so the extra size bought nothing but waiting — and most of the free server's monthly bandwidth, and a memory spike per request. Each photo now goes up at about a twelfth of the size (1536 px on the long edge), which also strips its **location and camera metadata**. The size was picked by an A/B through the real model, not by taste — 1024 px was half the bytes again but read plates measurably higher, so it was rejected — and anything the phone cannot open (HEIC on some Android browsers) is sent exactly as it was, so a photo is never refused for being unshrinkable
-- **Survives provider outages**: Gemini's "model is overloaded" 503 is retried with jittered backoff and then re-tried against a fallback model — overload is per serving pool, so an older generation is usually still answering. A model Google no longer serves (a 404) is skipped, not reported as a broken setup, so a busy primary is still retried Every call carries an explicit deadline, and `GET /api/ai/status?probe=true` names the cause when it doesn't
-- **Spends the daily AI allowance carefully.** Google's free tier turned out to be 20 requests a day *per model* for the whole app, counting failed attempts, about 25 times less than the app had been configured for. So each action makes at most a few attempts, and starts another only if there is still time for it to answer. A model that is out for the day is skipped, by reading Google's structured quota error rather than its wording, and the next model, which has a quota of its own, is asked straight away. When the day's AI really is gone, the message says when it comes back instead of "try again in a minute", and offers the ways to log without it: search a food, or enter it by hand
-
-### 🍽️ Smart meal logging
-- **Type-ahead food search, three tiers deep**: your own food library first, then **26,000 generic foods from five open national food tables** — USDA FoodData Central, the UK's CoFID, France's Ciqual, Australia's AFCD and the Canadian Nutrient File — both as you type. A new account with an empty library still finds "apple", "lentils" or "basmati rice" on the first keystrokes. Every row is badged with where its figures come from, per 100 g, and carbs are shown **without fibre** in every table, converted where a table publishes them with it
-- **Ranked for plain ingredients, not dishes**: the tables are searched in memory on the server with ranking of its own, because USDA's search API put croissants first for "green apple". "Apples, raw" beats "Croissants, apple", "Egg, fried" beats "Fried eggplant", a few regional and British names are understood ("arabic bread" finds pita, "moong dal" finds mung beans, "aubergine" finds eggplant), and a query no row fully matches falls back to its last word. Measured against 25 of the author's own everyday foods, **the plain food is in the top 3 for 92%**, and CI fails if a change drops that below 90%
-- **Open Food Facts for packaged products**, on request: one tap searches the public OFF database (per-serving macros normalized automatically). It is a button rather than part of the type-ahead because it is a slower third-party call on a shared rate limit. Its results join the end of the list, so the first of them is scrolled into view and the count is shown and read out ("3 results from Open Food Facts")
-- **Nothing is saved behind your back**: picking a table or Open Food Facts result fills the ingredient and offers "save to my food library", unticked. Saved, it keeps its source badge; change any of its numbers first and it is saved as yours
-- **A food library you can edit**, not just accumulate — rename, correct or delete saved foods from You → Food library, each one opening in a sheet, filter by name, and sort by name or by when each one arrived. Correcting one that came from Open Food Facts or a food table makes it yours, so the badge never claims figures you changed. Both lists show their first few rows with the rest a tap away, so the controls that act on them — the filter, and adding a food by hand — stay on the first screen instead of sitting below everything you have ever saved
-- **Every saved food is comparable, whatever it was saved against.** Macros are stored per the food's own serving size, which is what the packet says and useless for comparing two of them — 108 kcal per 90 g and 70 kcal per 50 g are the same food twice, and nothing about those two lines says so. Any row that is not already per 100 g now shows what it works out to, and a **Per 100 g** button rewrites it that way for good: it previews the figures first, and it **keeps the food's source badge**, because a rescale is the same claim in different units and corrects nothing
-- **It tells you when you have saved the same food twice.** The library fills up with little thought per entry — every ticked ingredient is saved, and Open Food Facts picks were cached automatically until October 2026 — so the same thing arrives under names nobody chose to make match. A pair is flagged only when the names overlap **and** the per-100 g calories and protein are close, because names alone would call "chicken breast" and "chicken thigh" duplicates. And it argues rather than acts: both rows are put side by side in the same units so you can see why, every delete is yours, and "not a duplicate" makes it stop asking
-- **Saved meals**: keep a meal you eat often, from the by-hand form or straight from an AI estimate, and re-log it from the Log panel, where the three you used most recently come first and the rest are behind "Show all"
-- **Recent meals**: the Log panel offers the meals you actually logged recently, so anything you have eaten before can be re-logged without retyping it. It is the counterpart to saved meals rather than a duplicate of them — a saved meal had to be stored in advance, while this needs no forethought at all, which is the case it exists for. The list is one entry per meal *name*, carrying the most recent version of it and the day that came from, so logging “Breakfast” every morning does not fill the list with six Breakfasts. Tapping one opens the log form filled in, so the portion is still yours to change before it is saved. Three show at first and "Show more" adds ten at a time, up to fifty, and **one search above both lists**, always there, finds any saved meal or any of those fifty recent ones. Meals you have already logged on the day you are looking at are moved to the end of the list rather than dropped from it — you can still have the same thing twice, but the list leads with what you have not had yet
-- **Share a meal by code**: turn a meal or a saved template into a short code, hand it to someone, and they get an **editable copy in their own account**. The code is a self-contained encoded payload — there is no shared row, no invite, nothing to revoke, and no account id inside it, so per-user isolation is untouched by the feature existing
-- Single- or multi-ingredient meals with live-updating totals as you type
-
-### 📈 Progress
-- **One range for the whole page**: 7 days, 30 days, 90 days, a year, or everything, opening on 30 and remembered on your device. It changes what the charts draw and what the averages cover. The trend weight, this week's change and the goal date deliberately do *not* follow it: they are measured over their own fixed windows, so the app cannot report a different "current rate" depending on which range you happen to be looking at
-- **Food ends yesterday; a weigh-in counts today.** A day that still has dinner to come would end every chart in a cliff, so meals join the charts once the day is over. A weigh-in made this morning is already real
-- **Weight**: read the **trend**, not the daily noise — an exponentially weighted line over the raw weigh-ins, with the weekly rate fitted over the last 28 days
-- **Set a goal weight and it works out when you would reach it** — from the rate you are actually moving at, never the rate you asked for, because projecting from your own target would just hand your input back as a prediction. The goal is drawn on the chart, the gap is spelled out, and when a date cannot honestly be named the app says why instead: too few weigh-ins to fit a rate, a trend going the other way, a log that has stopped, or a pace that puts the date more than two years out
-- **Every weigh-in, editable**: one row a day, newest first, 30 at a time. Tap one to change it or delete it. New weigh-ins come from the card on Today
-- Kilograms or pounds, switchable at any time; the stored value never changes, only how it's shown
-- **Nutrition**: one bar chart with a switch between calories and protein (and carbs and fat if you track them), your target as a dashed line (once you have chosen one), and the average **per day you logged**, not per day in the range — a day with nothing recorded is missing data, not a day of zero intake. **Daily totals** lists each day as a row, calories with the macros under them, so nothing scrolls off the side of a phone
-- **Daily burn, measured from your own logs** once there are enough of them (below), with what it was built from one tap away
-- **Locked until it means something.** A new account sees how close each part is instead of an empty chart: the trend after 7 weigh-ins, the measured burn after 10 weigh-ins across 14 days with enough of them logged, the review after a week with meals in it, the AI's accuracy after 10 corrected estimates. Each says "3 of 7" on a meter, and the moment one unlocks is marked, once
-- Your weigh-ins are not just a chart: they are what the measured daily burn and — if you enable them — the automatic daily targets are worked out from
-- **An optional weigh-in reminder.** Set a time and how many days you want between weigh-ins, and on a day one is due the weigh-in card on Today says "Due today" once that time has come. Leave the time empty, which is how every account starts, and the card simply sits there
-
-### ⚙️ Configurable tracking
-- Calories + protein always on; **carbs and fat are opt-in**
-- Per-macro daily goals drive Today's calories and macro fields, the log form, and Progress
-- Optional **body profile** (height, date of birth, sex, activity level, goal
-  weight, goal rate) turns into BMI, a daily burn, and calorie/macro targets —
-  every figure shown next to the input it came from. Activity is described in
-  workouts a week and time on your feet ("Active: 3–5 workouts a week, or on
-  your feet most of the day"), the same words in setup and on You
-- **Every limit on a target comes from a source and says what it changed**:
-  activity levels from measured data (FAO/WHO/UNU), loss at most 1% of body
-  weight a week and never over 1 kg, gain at most 0.5%, no loss plan below a
-  healthy BMI, a calorie floor, and protein set by your goal, worked out from
-  weight capped at BMI 30. When a limit moves your target, the reason names
-  what you asked for and what it plans. Reach your goal weight and it switches
-  to maintaining. The rules and their sources are in
-  [`docs/goal-setting-rules.md`](docs/goal-setting-rules.md)
-- **Your daily burn is measured, not guessed**, once you have logged enough:
-  roughly two weeks of weigh-ins and meals turns into a real energy-balance
-  figure from your own data, shown beside what the formula would have said.
-  Until then Progress shows a meter for each thing it is still waiting for
-- Let the app **keep those goals in step with your weight**: with auto-targets
-  on, the daily goals are recalculated on every weigh-in instead of staying
-  wherever you first set them
-- **Keep calories automatic, set protein yourself.** On You → Daily targets,
-  protein is "Keep or build muscle", "Just the scale" or **My own number**. A
-  typed number leaves the worked-out calories alone, so the room for it comes
-  out of **fat first**, down to its minimum of 0.5 g per kilo, and only then out
-  of carbs, which fuel training. Fat's line says which it is ("A quarter of the
-  day", "Less, to make room for protein", "At its minimum"). A number that
-  cannot fit is refused with the most that would; if a later weigh-in lowers
-  the calories below it, the screen says "Your protein no longer fits" until
-  you lower it
-- **Every setting is on one page, You**, in groups from daily to rare: Goals and body, Trackers, Food, Appearance, Your data, Account, Help. Each row shows what it is set to underneath ("2,500 ml a day, from your weight · +250 +500 +750", "48 foods · 1 possible duplicate"), so most visits end there without opening anything. A row opens its own screen with its own address, and a supplement, food or saved meal opens in a sheet (from the bottom on a phone, from the side on a desktop) with its fields, its other actions and Delete. **Log out** asks first. The old `/settings/…` addresses still lead to the right screen
-
-### 🗓️ Weekly review
-- **Everything the app already knew, added up in one place**, opened from Progress (and from its card on Today): how much you logged, calories and protein against target, whether your weight is moving the way you asked, where your daily burn figure came from, water, steps, and one line on estimate accuracy
-- **Every sentence is arithmetic, not opinion.** Each section shows the number, what it is compared with, and how many days it was worked out from — and where there isn't enough to answer, it says what is missing instead of guessing
-- **Today is left out on purpose.** The week ends yesterday, because averaging in a day that still has dinner to come makes every week look better than it was
-- **Not every section is about the same seven days, and each one says which.** The weight rate is fitted over four weeks, not one, because a seven-day weight slope is mostly water. Calling that "this week" would have been a tidier page and a less honest one
-- **Sections appear only for things you already track** — no step goal, no steps section. Nothing new to switch on
-- **A new account isn't graded on an empty week.** Before the first logged day the review says when it will start, instead of marking every check "Off target", and a week with nothing logged never spends an AI call on the reading below
-- And an optional **plain-English reading** of it. That one button asks the AI; it is handed the figures and nothing else, and is not allowed to work anything out, introduce a number, or tell you what to eat. It isn't stored — come back tomorrow and you get the figures, not yesterday's wording
-
-### 🔭 Operator metrics
-- **A funnel, not a headcount.** `/admin` reports how far accounts actually get: how many ever logged a meal, how many logged on two separate days, and the median hours from signing up to the first meal. Three strangers once signed up and none of them wrote a single row, and there was no figure anywhere that said so — it had to be counted off a table by eye
-- **Presence and activity are separate columns**, because they answer different questions. "Last active" derives from rows an account *wrote*, so it cannot see a visit that only read; "Last seen" records that the account turned up at all. Someone who keeps opening the app and never logs anything is an onboarding failure, someone who never returns is a bounce, and until both columns existed the two were indistinguishable
-- **Retention is frozen, not derived.** Every other figure on the page recounts the accounts that exist right now, so deleting one rewrites the past — which would make D7/D30 read *higher* the more people quit. A daily snapshot row carrying no `user_id` freezes each finished day instead, so a cohort's size is fixed while it was still whole and churn counts against retention rather than vanishing from it. A cohort still inside its window counts as nothing rather than as zero
-- **Signups are bucketed by local hour against the keep-warm window**, which is the only way to tell whether someone's first request met a sleeping free instance and a ~52 s cold start
-- **Feature adoption by distinct account** — how many people have *ever* used water, steps, supplements, plans, the library or AI. Worth as much for what it says to remove as for what it says to build
-- **Invisible to everyone else.** An account that isn't on the allowlist gets the same 404 page at `/admin` as at any wrong address, so the page doesn't give away that it exists
-- Still counts and dates only: no meal, food, weight or supplement content ever reaches the page, and the snapshot table holds nothing that belongs to a person
-
-### ♿ Accessibility
-- **The food search works without a mouse.** Typing a name used to bring up a list of matches that arrow keys could not reach and Escape could not dismiss. It is a proper combobox: arrows move through the suggestions, Enter picks one, Escape closes it
-- **Every focused control shows a ring, text fields included.** Fields used to replace the focus ring with a 1 px border colour change, which misses the 3:1 contrast a focus indicator needs
-- **Everything the app tells you reaches a screen reader.** A save that failed, an import that was rejected, a password that changed — all of it used to appear as coloured text and be announced nowhere. Every one of those messages is now spoken
-- **Closing a dialog puts you back where you were.** Cancelling "Log out?", a delete or "Leave without saving?" used to drop keyboard focus at the top of the page; it now returns to the button that opened the dialog
-- **Icon-only buttons say what they do and which row they belong to** — a list of thirty weigh-ins no longer offers thirty controls all called the same thing
-- **Big enough to hit.** Each meal on Today is one 56 px row instead of three 12 px glyphs, and every control clears WCAG 2.2's 24 px target size: at 360 px the audit checks 456 of them across the signed-in screens and passes them all
-- Tables that scroll sideways on a phone are reachable with Tab, links inside a sentence are underlined rather than told apart by colour alone, and every colour pair clears WCAG AA contrast
-- **Measured, not asserted.** `scripts/a11y-audit.mjs` drives the real app through axe-core across all 37 routes at 360 px and 1280 px. It reports **zero WCAG 2.2 A/AA violations**, 2.1's rules included, — and the script's own header says why that number is a floor rather than a claim: an automated pass cannot see a wrong label, and three of the four real defects it found were ones a hand-written checklist had missed
-
----
-
-## 📸 Screenshots
-
-Every screen at both widths, in light or dark to match your GitHub theme. Each image is one long capture of the **entire page**, top to bottom — not the part that happens to fit above the fold.
-
-> 🔍 **Click any screenshot to open it full size.**
-> Because each one is a whole page, it is scaled down to fit here and runs past the bottom of your screen. What you can see without scrolling is not the end of it.
-
-### Today
-
-What's left of today's calories, protein, carbs and fat, then the meals you've logged. Below them: the week's review when it's ready, and the trackers you chose — weigh-in, water, steps, supplements.
+## Highlights
 
 <table>
-<tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
 <tr>
-<td valign="top" align="center"><a href="screenshots/light/desktop/today.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/today.png"><img src="screenshots/light/desktop/today.png" alt="Today in a desktop browser" width="620"></picture></a></td>
-<td valign="top" align="center"><a href="screenshots/light/mobile/today.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/today.png"><img src="screenshots/light/mobile/today.png" alt="Today on a phone" width="190"></picture></a></td>
+<td valign="top" width="50%">
+
+🔍 **[AI analysis was down for three days](docs/incident-2026-07-gemini-eea-region.md)**
+
+Six hypotheses were ruled out before the real one: Gemini's free tier is geo-blocked in the EEA, and the server was in Frankfurt.
+
+</td>
+<td valign="top" width="50%">
+
+📐 **[Photo size chosen by an A/B test](docs/photo-size-ab-2026-10.md)**
+
+1024 px moved the model's estimates upward, so 1536 px shipped. The AI bill turned out not to depend on photo size at all.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+✅ **[1,700+ tests, six CI gates](https://github.com/Abdulla1x/Trackaholic/actions/workflows/ci.yml)**
+
+1,544 backend and 190 frontend, including a cross-account suite that checks no user can read another's data.
+
+</td>
+<td valign="top">
+
+🏗️ **[Multi-user, in production](docs/architecture.md)**
+
+FastAPI + PostgreSQL behind a React PWA, with migrations, nightly backups and AI quotas sized to a free tier.
+
+</td>
 </tr>
 </table>
 
-<sub>Whole page, scaled down — click either image to view it full size.</sub>
-
-### Estimate a meal with AI
-
-Log is a panel over whatever you're looking at. Describe the meal, speak it or photograph it. The estimate comes back as a range with how sure it is, each ingredient with its own confidence, and every assumption listed so you can correct it in your note. Save it in one tap, or check it first.
-
-<table>
-<tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
-<tr>
-<td valign="top" align="center"><a href="screenshots/light/desktop/ai-analysis.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/ai-analysis.png"><img src="screenshots/light/desktop/ai-analysis.png" alt="An AI estimate in the Log panel in a desktop browser" width="620"></picture></a></td>
-<td valign="top" align="center"><a href="screenshots/light/mobile/ai-analysis.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/ai-analysis.png"><img src="screenshots/light/mobile/ai-analysis.png" alt="An AI estimate in the Log panel on a phone" width="190"></picture></a></td>
-</tr>
-</table>
-
-<sub>Whole page, scaled down — click either image to view it full size.</sub>
-
-### Check and edit first
-
-Nothing is saved until you've looked at it. The ingredients arrive as ordinary rows you can correct, and any of them can go into your food library for next time.
-
-<table>
-<tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
-<tr>
-<td valign="top" align="center"><a href="screenshots/light/desktop/ai-applied.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/ai-applied.png"><img src="screenshots/light/desktop/ai-applied.png" alt="The estimate as editable ingredients in a desktop browser" width="620"></picture></a></td>
-<td valign="top" align="center"><a href="screenshots/light/mobile/ai-applied.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/ai-applied.png"><img src="screenshots/light/mobile/ai-applied.png" alt="The estimate as editable ingredients on a phone" width="190"></picture></a></td>
-</tr>
-</table>
-
-<sub>Whole page, scaled down — click either image to view it full size.</sub>
-
-### Enter it by hand
-
-Type an ingredient and your food library fills in the macros, with generic foods from the national food tables listed under it as you type, and an Open Food Facts lookup for packaged products.
-
-<table>
-<tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
-<tr>
-<td valign="top" align="center"><a href="screenshots/light/desktop/log-meal.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/log-meal.png"><img src="screenshots/light/desktop/log-meal.png" alt="Entering a meal by hand in a desktop browser" width="620"></picture></a></td>
-<td valign="top" align="center"><a href="screenshots/light/mobile/log-meal.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/log-meal.png"><img src="screenshots/light/mobile/log-meal.png" alt="Entering a meal by hand on a phone" width="190"></picture></a></td>
-</tr>
-</table>
-
-<sub>Whole page, scaled down — click either image to view it full size.</sub>
-
-### Progress
-
-Weight as a trend line rather than daily noise, with the weekly rate and when you'll reach your goal at that rate. Then calories and each macro per day, and the daily burn measured from your own weigh-ins and logging.
-
-<table>
-<tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
-<tr>
-<td valign="top" align="center"><a href="screenshots/light/desktop/progress.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/progress.png"><img src="screenshots/light/desktop/progress.png" alt="Progress in a desktop browser" width="620"></picture></a></td>
-<td valign="top" align="center"><a href="screenshots/light/mobile/progress.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/progress.png"><img src="screenshots/light/mobile/progress.png" alt="Progress on a phone" width="190"></picture></a></td>
-</tr>
-</table>
-
-<sub>Whole page, scaled down — click either image to view it full size.</sub>
-
-### Weekly review
-
-A computed check for each thing you track. Each one names the number, what it's compared with, and how many days it was worked out from. The AI can put them into words, without adding numbers of its own.
-
-<table>
-<tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
-<tr>
-<td valign="top" align="center"><a href="screenshots/light/desktop/review.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/review.png"><img src="screenshots/light/desktop/review.png" alt="Weekly review in a desktop browser" width="620"></picture></a></td>
-<td valign="top" align="center"><a href="screenshots/light/mobile/review.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/review.png"><img src="screenshots/light/mobile/review.png" alt="Weekly review on a phone" width="190"></picture></a></td>
-</tr>
-</table>
-
-<sub>Whole page, scaled down — click either image to view it full size.</sub>
-
-### How your target is worked out
-
-Every step from your body to your daily target, with the arithmetic shown and the sources listed. Once there's enough data, the measured burn replaces the formula's guess.
-
-<table>
-<tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
-<tr>
-<td valign="top" align="center"><a href="screenshots/light/desktop/target.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/target.png"><img src="screenshots/light/desktop/target.png" alt="How the target is worked out in a desktop browser" width="620"></picture></a></td>
-<td valign="top" align="center"><a href="screenshots/light/mobile/target.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/target.png"><img src="screenshots/light/mobile/target.png" alt="How the target is worked out on a phone" width="190"></picture></a></td>
-</tr>
-</table>
-
-<sub>Whole page, scaled down — click either image to view it full size.</sub>
-
-### You
-
-Targets, body and goal weight, trackers, your food library and saved meals, appearance, and your data, all on one page, each a tap away.
-
-<table>
-<tr><th align="center">Desktop</th><th align="center">Phone</th></tr>
-<tr>
-<td valign="top" align="center"><a href="screenshots/light/desktop/you.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/desktop/you.png"><img src="screenshots/light/desktop/you.png" alt="You in a desktop browser" width="620"></picture></a></td>
-<td valign="top" align="center"><a href="screenshots/light/mobile/you.png"><picture><source media="(prefers-color-scheme: dark)" srcset="screenshots/dark/mobile/you.png"><img src="screenshots/light/mobile/you.png" alt="You on a phone" width="190"></picture></a></td>
-</tr>
-</table>
-
-<sub>Whole page, scaled down — click either image to view it full size.</sub>
-
----
-
-## 📲 Install it on your phone
-
-The app is a **PWA**, so it can be added to your home screen and opened like a
-native app — its own icon, its own window, no address bar. There is nothing to
-download and no app store involved: it is the same
-[live app](https://trackaholic.app), saved as a shortcut that
-the browser then treats as an app.
-
-**On Android** (Chrome, Edge, Samsung Internet)
-
-1. Open the app in your browser.
-2. Open the browser menu — the **⋮** in the corner.
-3. Tap **Install app**, or **Add to Home screen** if that is the wording you see.
-4. Confirm. The icon appears with your other apps.
-
-**On iPhone or iPad** (Safari)
-
-1. Open the app in Safari.
-2. Tap **Share** — the square with the arrow pointing up.
-3. Scroll down the list and tap **Add to Home Screen**.
-4. Tap **Add**.
-
-On iOS 16.4 and later, Chrome, Edge and Firefox can add to the home screen from
-their own share menus too; before that, it has to be Safari.
-
-**On a desktop** (Chrome, Edge) — an install icon appears at the right-hand end
-of the address bar; the browser menu has the same option if it doesn't.
-
-The app offers the same steps itself, for the phone and browser you are on:
-once on Today after your first meal, and any time from **You → Add to home screen**.
-
-**What you get:** the app opens full-screen with no browser chrome, on its own
-icon, with a dark splash screen while it starts.
-
-⚠️ **What you do not get, said rather than left for you to discover:**
-
-- **It does not work offline.** The service worker caches the app shell only,
-  and API responses are deliberately never cached — a shared browser cache
-  holding one account's data is exactly what per-user isolation exists to
-  prevent. With no connection the app opens and has nothing to show.
-- **It cannot notify you.** Installing changes nothing about reminders: the
-  supplement and weigh-in reminders still speak only while the app is open, for
-  the reasons given above.
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────┐         ┌──────────────────────┐        ┌─────────────────┐
-│  React SPA / PWA    │  HTTP   │  FastAPI REST API    │        │ Open Food Facts │
-│  Tailwind, Recharts ├────────►│  /api/auth /meals    ├───────►│  public API     │
-│  Router, shadcn/ui  │ Bearer  │  /foods /ai ...      │  httpx │  (packaged)     │
-└─────────────────────┘  JWT    │ + 5 food tables, in  │        └─────────────────┘
-                                │   memory (26k foods) │
-                                └──────┬────────┬──────┘
-                                       │SQLAlchemy  google-genai ┌─────────────────┐
-                                ┌──────▼──────┐ └───────────────►│ Gemini 3.6 Flash│
-                                │  PostgreSQL │ users · meals    │ (meal analysis) │
-                                │ (Neon)/SQLite│ foods · settings└─────────────────┘
-                                └─────────────┘ ai_analyses     ┌─────────────────┐
-                                        password_resets  httpx  │ Resend          │
-                                                 └─────────────►│ (password reset)│
-                                                                └─────────────────┘
-```
-
-```
-Trackaholic
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI app, CORS, lifespan (fails fast on a missing JWT_SECRET)
-│   │   ├── db.py                # SQLAlchemy engine + session dependency
-│   │   ├── env.py               # env_int / env_float — one idiom for ~23 environment variables
-│   │   ├── models.py            # ORM models: users, password_resets, meals, meal_templates, foods,
-│   │   │                        #   weights, water_logs, steps, supplements, supplement_logs,
-│   │   │                        #   calorie_plan_days, settings, ai_analyses
-│   │   ├── schemas.py           # Pydantic request/response models
-│   │   ├── auth/                # signup/login/me, Argon2 + JWT, current-user dependency
-│   │   ├── rate_limit.py        # per-IP limits on the public auth routes
-│   │   ├── upsert.py            # the check-then-insert race, handled once instead of at five sites
-│   │   ├── calculations.py      # macro scaling, weight trend, BMR/TDEE/target math
-│   │   ├── targets.py           # body profile → daily targets, and measured TDEE
-│   │   ├── banking.py           # moving calories between days: the split, the floors, the sum rules
-│   │   ├── calibration.py       # how far you move the AI's numbers — coverage, bias, sample sizes
-│   │   ├── review.py            # the weekly review's arithmetic: eight checks, each with its own window
-│   │   ├── share.py             # the meal-code codec (a self-contained payload; no table)
-│   │   ├── announcements.py     # committed release notes + an env-var status banner
-│   │   ├── reference_foods.py   # the national food tables: loaded once, searched and ranked in memory
-│   │   ├── data/reference/      # one CSV per table (USDA, CoFID, Ciqual, AFCD, CNF) + NOTICE.md credits
-│   │   ├── routers/             # auth, meals, meal_templates, share, foods, weights, analytics,
-│   │   │                        #   settings, data (CSV/JSON), ai, water, steps, plan,
-│   │   │                        #   supplements, review, announcements, admin
-│   │   └── services/
-│   │       ├── off_client.py    # Open Food Facts client
-│   │       ├── meal_ai.py       # AI meal analysis (the only AI-provider-aware module)
-│   │       └── email.py         # password-reset email (the only Resend-aware module)
-│   ├── alembic/                 # database migrations (Postgres)
-│   ├── scripts/                 # smoke_multiuser.py — the live two-account isolation check
-│   │                            # reference/ — build_<table>.py per food table, and ranking_report.py
-│   │                            # delete_account_by_email.py — ops: remove an account whose password is gone
-│   │                            # compare_estimates.py — same photos through the real model in
-│   │                            #   several variants (sizes, models), against its own noise
-│   ├── tests/                   # pytest suite incl. auth + cross-tenant isolation
-│   └── requirements.txt
-├── frontend/
-│   ├── tests/                   # node --test unit tests for DOM-free code (npm test), incl. the
-│   │                            #   colour tokens against DESIGN.md and WCAG contrast in every theme
-│   ├── components.json          # shadcn/ui CLI config: new components land in src/ui/
-│   ├── public/theme-init.js     # applies the device's theme before the first paint (a file:
-│   │                            #   the CSP blocks inline scripts)
-│   └── src/
-│       ├── api/client.ts        # typed API client
-│       ├── auth/                # AuthContext + token storage (guarded against blocked localStorage)
-│       ├── settings/            # SettingsContext — one settings fetch for the whole app
-│       ├── appearance/          # AppearanceContext — this device's theme, style and palette
-│       ├── analysis/            # AnalysisContext — the AI estimate, held for the whole session
-│       │                        #   so it keeps running while you move around the app
-│       ├── ui/                  # the app's components: shadcn/ui (Radix) restyled from
-│       │                        #   DESIGN.md (button, chip, field, toast), the segmented
-│       │                        #   gauge, rolling numbers, quiet blocks, rows and stats, skeletons, and icons
-│       │                        #   (Phosphor + the weigh-in scale)
-│       ├── theme.css            # DESIGN.md's colour tokens, 9 palettes × light/dark + Label;
-│       │                        #   generated from DESIGN.md and tested against it
-│       ├── components/
-│       │   ├── shell/           # the app shell: tab bar, side rail, wordmark, which tab is current
-│       │   ├── auth/            # the frame the four signed-out pages share
-│       │   ├── today/           # Today: the calories band, date control, meal list, the
-│       │   │                    #   weigh-in card, the tracker block, the review card
-│       │   ├── progress/        # Progress: daily burn and its meters, "Looking back"
-│       │   ├── log/             # the Log panel: its address (?log), start screen, saved and
-│       │   │                    #   recent meals, the estimate's stages and result, the AI tips
-│       │   ├── you/             # You's screens: SettingsScreen (one draft + Save bar + leave
-│       │   │                    #   guard per screen), ItemSheet, Your data, food duplicates
-│       │   ├── settings/        # the body and calorie-plan fields You's screens share
-│       │   └── ...              # Layout, DailyTrackerCard, MealAnalyzer,
-│       │                        #   FoodAutocomplete, ShareCodePanel
-│       ├── hooks/               # useAudioRecorder (MediaRecorder voice notes), useWarmup,
-│       │                        #   useHeldDelete (a meal's delete, held ten seconds for Undo),
-│       │                        #   useUnlockMoment (a lock opening, marked once), ...
-│       ├── lib/                 # dates, parse, limits (mirrors the server's bounds), units,
-│       │                        #   chartTheme (one place for every recharts colour), libraryMatch,
-│       │                        #   photoSize + photoDownscale (shrink photos before upload),
-│       │                        #   analysisInputs (is a re-run of an estimate unchanged?),
-│       │                        #   foodSources (source badges, credits, the edited-number rule),
-│       │                        #   staleChunk (reload once when a deploy removed a page's code),
-│       │                        #   mealRows + saveMeal (one meal arithmetic for the form and
-│       │                        #   the AI result), aiGuidance (the hidden-extras question),
-│       │                        #   motion (animation tokens), utils (cn, the class merger),
-│       │                        #   today + weighIn + review (Today's arithmetic and rules),
-│       │                        #   progress + weight + accuracy (Progress's range, trend and
-│       │                        #   locks)
-│       └── pages/               # Today, Day (the day in detail), Meal (one meal's screen),
-│                                #   LogMeal (the panel's by-hand form), Progress, WeighIns,
-│                                #   DailyTotals, WeeklyReview, AiAccuracy, Admin, WhatsNew,
-│                                #   You + you/ (one screen per row), Setup, HowItWorks, and the four auth pages
-├── docs/                        # AI provider runbook, the Gemini EEA-region incident write-up,
-│                                #   the photo-size A/B note, and the goal-setting rules
-├── scripts/                     # check.sh (all six gates), dev.sh, review-changes.sh,
-│                                #   dom-snapshot.mjs (the refactor DOM-diff harness)
-├── screenshots/                 # light/ and dark/, each desktop/ + mobile/, used by this README
-├── .github/workflows/           # ci.yml (the same six gates), backup.yml (daily export)
-├── .github/pull_request_template.md  # asks contributors to agree to CONTRIBUTING.md
-├── legacy/                      # original Streamlit app (v1)
-├── PRODUCT.md                   # what the product is, who it serves, and what it must keep true
-├── DESIGN.md                    # the app's look, as shipped in the redesign: colour tokens, palettes, type
-├── CONTRIBUTING.md              # how to contribute, and the licence terms for contributions
-├── LICENSE                      # MIT
-└── render.yaml                  # Render blueprint — documentation of intent, NOT synced with
-                                 #   the dashboard, which is the source of truth for every value
-```
-
----
-
-## 🚀 Running locally
-
-### 1. Backend (FastAPI)
-
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate        # Windows  (source venv/bin/activate on macOS/Linux)
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-API docs: http://localhost:8000/docs
-
-**AI meal analysis (optional):** set `GEMINI_API_KEY` before starting the backend
-(get a free key at [Google AI Studio](https://aistudio.google.com/apikey)):
-
-```bash
-GEMINI_API_KEY=your-key uvicorn app.main:app --reload --port 8000
-```
-
-Without a key the rest of the app works normally and the analyze endpoint returns
-a clear 503. `MEAL_AI_MODEL` overrides the default model (`gemini-3.6-flash`).
-Keep the key in your environment or an untracked `.env` — never commit it.
-
-When AI analysis misbehaves, `GET /api/ai/status?probe=true` (authenticated) names
-the cause — upstream outage, unreachable, misconfigured key, or quota — instead of
-leaving you to read logs. See [`docs/runbook-ai-provider.md`](docs/runbook-ai-provider.md).
-
-Local development needs no database setup: with `DATABASE_URL` unset the backend
-uses a repo-root SQLite file and creates the schema itself. Point `DATABASE_URL`
-at Postgres (and set `JWT_SECRET`) for a production-like run — the schema is then
-managed by Alembic (`alembic upgrade head`). All 23 env vars are documented in
-[`backend/.env.example`](backend/.env.example).
-
-**Migrating from the single-user version:** the old `macros.db` isn't read by
-the multi-user schema. Export your meals as CSV from the old app (or keep the
-file), create an account, and use **You → Your data → Import meals**.
-
-### 2. Frontend (React)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-App: http://localhost:5173 (the dev server proxies `/api` to the backend).
-
-Or start both at once, with a throwaway database:
-
-```bash
-./scripts/dev.sh --fresh
-```
-
-**Adding a UI component.** `npx shadcn@latest add <name>` (from `frontend/`) puts it in `src/ui/`. Restyle it from `DESIGN.md` before using it: shadcn's default look is never shipped. If you add a `text-*` or `rounded-*` utility to `index.css` that is not a colour, add its name to `src/lib/utils.ts` as well; otherwise `cn()` treats it as a colour and drops the real colour beside it (`tests/cn.test.ts` checks this).
-
-### Tests and gates
-
-`scripts/check.sh` runs every pre-commit gate in one pass — the same six CI runs:
-
-```bash
-./scripts/check.sh              # all six
-./scripts/check.sh --backend    # pytest + ruff only
-./scripts/check.sh --frontend   # tsc + unit tests + oxlint + build only
-```
-
-| Gate | Command |
-|---|---|
-| backend tests | `venv/bin/python -m pytest -q` |
-| backend lint | `ruff check app tests scripts` |
-| frontend typecheck | `npx tsc --noEmit -p tsconfig.app.json` — `strict` **and** `noUncheckedIndexedAccess` |
-| frontend unit tests | `npm test` — pure logic only, see below |
-| frontend lint | `npm run lint` (oxlint) |
-| frontend build | `npm run build` |
-
-**The frontend's unit tests need no test framework.** `npm test` compiles
-`frontend/tests/` with the project's own `tsc` (`tsconfig.test.json`) and runs the
-output with Node's built-in `node --test`. Compiled rather than run as TypeScript
-directly, because Node only strips types when it was built with TypeScript support
-and distro builds are not. The price is that only DOM-free code can be tested this
-way — which is why `lib/photoSize.ts` (the sizing decisions) is kept apart from
-`lib/photoDownscale.ts` (the canvas work, covered by browser checks instead).
-
-It deliberately does not stop at the first failure. `a && b && c` hides whether the
-frontend is also broken once the backend fails, turning one fix-and-rerun cycle into
-three; every gate runs, then a summary says which failed.
-
-**Cross-tenant isolation is tested twice, deliberately.** `tests/test_isolation.py`
-asserts it in-process (51 tests). `backend/scripts/smoke_multiuser.py` asserts it
-against a *running* server — over a hundred live checks that sign up two accounts and
-fire every verb at the other account's concrete row ids, which is the only version
-that also covers routing, auth middleware and the deployed database:
-
-```bash
-cd backend
-BASE_URL=http://localhost:8000 DATABASE_URL=... venv/bin/python scripts/smoke_multiuser.py
-```
-
-It removes both throwaway accounts when it finishes, **however it finishes** —
-the cleanup is registered with `atexit`, not written at the end of the run, because
-the runs that leave accounts behind are the ones that *failed*. Pass `--keep` to
-inspect them instead; it then prints each email and its password.
-
-For the one case that cannot go through the API — an account whose password is gone,
-since `DELETE /api/auth/account` needs that account's own token and password —
-`scripts/delete_account_by_email.py` does the same thing against the database. It is
-a dry run unless given `--delete`, it never takes the connection string as an
-argument, and it checks two separate claims afterwards: that the account is gone,
-**and** that no rows of theirs are left under any of the twelve tables carrying a
-`user_id`. Those are not the same claim — with SQLite's foreign keys off, the first
-one passes while six tables keep their rows.
-
-⚠️ **Set `DATABASE_URL` or the row-ownership half silently skips** and you get a
-smaller, quieter pass. It also runs against the deployed URL — note that it leaves
-its two throwaway accounts behind, so it is the wrong tool for probing production.
-
-**Proving a refactor changed nothing.** `scripts/dom-snapshot.mjs` renders every
-route with a signed-in, seeded account and dumps `document.body.innerHTML` with
-every `class` attribute stripped. Run it on each branch and diff:
-
-```bash
-node scripts/dom-snapshot.mjs /tmp/snap-before   # on main
-node scripts/dom-snapshot.mjs /tmp/snap-after    # on your branch
-diff -ru /tmp/snap-before /tmp/snap-after
-```
-
-Stripping `class` is what makes it useful: a styling change passes, while a stray
-wrapper `<div>`, a dropped attribute, a reordered sibling or a section that quietly
-stopped rendering still fails. It needs a browser, so it is **not** part of
-`check.sh`, and `playwright-core` is deliberately absent from `package.json` — it is
-a local verification tool, not something the app ships, and CI has no reason to
-download a browser to run `npm ci`. The one-time setup, including the no-root path
-for the missing system libraries on Linux, is in the script's own header.
-
-Browser-level checks beyond that diff are manual; backend tests do not catch
-interaction bugs.
-
----
-
-## ☁️ Deployment
-
-**Database → [Neon](https://neon.tech)** (free tier) — create a project, copy the
-connection string, and rewrite its scheme for SQLAlchemy:
-`postgresql+psycopg://USER:PASSWORD@HOST/DB?sslmode=require`. That's the value for
-`DATABASE_URL`. (Plain Postgres — a `pg_dump` moves you anywhere later.)
-
-**Backend → [Render](https://render.com)** — the included [`render.yaml`](render.yaml) deploys
-`backend/` as a web service; the start command runs `alembic upgrade head` before the
-server boots, so the schema is created/updated on deploy. In the Render dashboard set:
-- `DATABASE_URL` — the Neon string above
-- `GEMINI_API_KEY` — optional, enables AI meal analysis
-- `MEAL_AI_MODEL` — optional, overrides the default Gemini model without a redeploy
-- `MEAL_AI_FALLBACK_MODEL` — optional, comma-separated models tried in order when the
-  primary is overloaded or out of quota (default `gemini-3.8-flash,gemini-2.5-flash`; set empty to disable)
-- `MEAL_AI_DEADLINE_S` — optional, seconds one analysis may keep retrying a busy
-  provider (default `60`; the frontend timeout must stay above it)
-- `MEAL_AI_MAX_ATTEMPTS` — optional, provider attempts per user action (defaults 4 /
-  3 / 2 for analysis / voice note / review). Failed attempts count against Google's
-  per-day quota, so keep it low on the free tier
-- `AI_DAILY_LIMIT` / `AI_TRANSCRIBE_DAILY_LIMIT` / `AI_REVIEW_DAILY_LIMIT` /
-  `AI_GLOBAL_DAILY_LIMIT` — optional, the per-user and app-wide AI quotas
-  (defaults 12 / 16 / 3 / 40, sized for Gemini's free tier of 20 requests a day per
-  model; read the real limits at [aistudio.google.com/rate-limit](https://aistudio.google.com/rate-limit))
-- `AI_PROBE_DAILY_LIMIT` / `MEAL_AI_STATUS_DETAIL` — optional, govern
-  [`GET /api/ai/status`](docs/runbook-ai-provider.md)
-- `CORS_ORIGINS` — your exact frontend origin (scheme included, no trailing slash)
-- `ADMIN_EMAILS` — optional, comma-separated addresses allowed to read
-  `/api/admin` (usage metrics: signups, active accounts, per-account counts,
-  the activation/retention funnel and AI consumption). Case- and
-  whitespace-insensitive, re-read on every request.
-  **Unset means nobody is an admin** — there is no role column and no promotion
-  endpoint, so this variable is the only way to grant it. Admins see counts and
-  timestamps only, never meal, food or weight content
-- `STATUS_BANNER` — optional, a site-wide notice read on every request, so an
-  outage can be announced without a deploy
-- `RESEND_API_KEY` + `EMAIL_SENDER_ADDRESS` — enable password reset (it returns 503
-  for every address until both are set). The sender's domain must be verified in
-  Resend (its DKIM and SPF records at the DNS host), and the key needs only
-  sending access, scoped to that domain. Resend's free plan refuses sends over
-  100 a day or 3,000 a month rather than billing for them
-- `GOOGLE_CLIENT_ID` (backend) / `VITE_GOOGLE_CLIENT_ID` (frontend build) — optional; both
-  default in code to the production OAuth client, which isn't a secret. Set both, to the
-  same value, only to use a client from another Google Cloud project
-- `EMAIL_SENDER_NAME` / `APP_BASE_URL` / `PASSWORD_RESET_TTL_MINUTES` /
-  `PASSWORD_RESET_GLOBAL_DAILY_LIMIT` — optional; all default in code. `APP_BASE_URL`
-  builds the emailed link and is **never** taken from the request's Host header
-
-`JWT_SECRET` is auto-generated by the blueprint. Rotating it logs every user out —
-that's also the emergency kill switch for leaked tokens.
-
-> **Pick a non-EEA region.** Google's terms allow only *paid* services for users in
-> the EEA, UK and Switzerland — and your server's IP is what counts as the user's
-> location. So a backend in Render's Frankfurt region fails every analysis with
-> `400 FAILED_PRECONDITION` — *"User location is not supported for the API use"* —
-> while the same key works fine from a machine outside those countries. Note that
-> Google's [available-regions](https://ai.google.dev/gemini-api/docs/available-regions)
-> page lists every EEA country as supported and doesn't mention this, so the docs
-> will not warn you. `render.yaml` pins `region: ohio`; put the Neon project in the
-> matching region (`AWS US East 2`) so database round-trips stay local.
-> This one took three days to diagnose — the write-up is in
-> [`docs/incident-2026-07-gemini-eea-region.md`](docs/incident-2026-07-gemini-eea-region.md).
-
-**Frontend → [Vercel](https://vercel.com)** — import the repo, set the root directory to
-`frontend/`, and add an environment variable `VITE_API_URL=https://<your-render-service>.onrender.com`.
-Also update `connect-src` in [`frontend/vercel.json`](frontend/vercel.json) to your own API
-origin — the CSP there names an exact host, and the browser silently refuses every request
-to anything else. That failure looks like a network error and never reaches the server, so
-`curl` against the API will happily report everything healthy.
-
-> Free-tier note: Render stops the service after 15 minutes without traffic, and the next
-> request pays for the boot — a 52.3 s median over ten consecutive cold starts, and about
-> 62 s on the slow one run in five. Neon autosuspends too, but resumes in about a second.
-> The login page says so, so first-time users don't bounce.
->
-> That wait is removed across a daily window — 05:03 to 20:53 `Asia/Dubai`, one ping every
-> 10 minutes — by a scheduler at [cron-job.org](https://cron-job.org), not by GitHub
-> Actions. GitHub's cron cannot hold a 15-minute deadline on a free public repository: it
-> delivered 3 of the 114 runs a day this needs, and `backup.yml` has started 4.5 to 12
-> hours late on eight consecutive days.
-> [`.github/workflows/keep-warm.yml`](.github/workflows/keep-warm.yml) carries the whole
-> record of why, and remains a one-click button for waking the server by hand.
-> **Outside the window the cold start is still there** — the window exists because Render
-> allows 750 instance-hours per workspace per month and a 24/7 ping would spend all but six
-> of them.
->
-> **A second pinger runs alongside it, and the reason is worth reading before copying any
-> of this.** Since 2026-09-11 the cron-job.org pings have been refused with a ~1.3 s 503
-> that starts no boot at all, every morning, until an ordinary visitor arrives and wakes
-> the service — the discriminator is the client making the request, not how long it waits.
-> The job has auto-disabled itself twice over the resulting failure streaks. So a cron on
-> an always-on home machine pings the same window with a 120 s budget, and `/admin` counts
-> the two separately: if one is landing and the other is not, that is the diagnosis.
->
-> **While a cold start is happening you get a progress bar, not just a spinner.** It is
-> calibrated on those measurements — a straight line to 90% across the 52.3 s that eight
-> of ten boots take, then a creep toward 99% covering the ~10 s extra step the other two
-> pay. It never fills on a timer; only the request completing ends the wait. `/admin`
-> shows the same thing from the operator's side: uptime, how many health pings have
-> arrived since boot, and whether that adds up to the scheduler actually landing.
->
-> Each pinger calls `/api/health` with its own marker — `?src=keepwarm` and
-> `?src=homecron` — and the markers matter twice over. Render's own platform monitor hits
-> the bare route every few seconds, so without a way to tell them apart the "are the pings
-> landing" answer on `/admin` counts the platform's traffic as a scheduler's and can never
-> report a problem; and with two pingers, one combined counter could not say which of them
-> was actually working. The recognised values are an allowlist, because the route is public
-> and unauthenticated.
->
-> The ping targets `/api/health` and must keep doing so: it is the one route that never
-> touches Postgres. Pointing it at anything that queries the database would hold Neon awake
-> ~16 hours a day, over its 100 CU-hour monthly allowance, and suspend the database until
-> the next billing period.
-
----
-
-## 🔌 API overview
-
-59 paths. All of them require an `Authorization: Bearer <token>` header and operate
-only on the caller's data, except these public ones: `/api/health`,
-`/api/announcements`, `/api/auth/signup|login|google`, and
-`/api/auth/forgot-password|reset-password`.
-
-### Accounts
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/signup` | Create an account → JWT + user |
-| POST | `/api/auth/login` | Log in → JWT + user |
-| POST | `/api/auth/google` | Sign in or sign up with the ID token from Google's button → JWT + user. Matched on Google's account id, else links a verified email that already has an account; 401 bad token, 503 Google unreachable |
-| GET | `/api/auth/me` | Current user (token check) |
-| POST | `/api/auth/change-password` | Rotate password; revokes older tokens, returns a fresh one |
-| POST | `/api/auth/forgot-password` | Email a reset link. Always 200, whether or not the address exists; 503 only when email isn't configured |
-| POST | `/api/auth/reset-password` | Consume a link and set a new password; revokes every session |
-| DELETE | `/api/auth/account` | Permanently delete the account and all its data; confirmed by the password, or by a fresh Google sign-in for an account without one |
-
-### Meals, foods and sharing
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET/POST | `/api/meals` | List (optionally by `?date=`) / create meals |
-| GET | `/api/meals/recent` | The most recent meal under each distinct name, for re-logging, with how many times each name was logged. `?demote_date=` sorts names already logged on that day to the end |
-| PUT/DELETE | `/api/meals/{id}` | Edit or delete a meal |
-| GET/POST | `/api/meal-templates` | List saved meals / save one (upsert by name) |
-| DELETE | `/api/meal-templates/{id}` | Delete a saved meal template |
-| GET/POST | `/api/foods` | The food library / save or update a food |
-| PUT/DELETE | `/api/foods/{id}` | Rename and correct a saved food / remove it |
-| POST | `/api/foods/{id}/normalize` | Rescale one food's macros to per 100 g, keeping its provenance |
-| GET | `/api/foods/duplicates` | Pairs of saved foods that look like the same thing twice |
-| GET | `/api/foods/search?q=` | Autocomplete over the local food library |
-| GET | `/api/foods/reference?q=` | Generic foods from the five national tables, per 100 g, ranked |
-| GET | `/api/foods/lookup?q=` | Open Food Facts search (normalized per serving) |
-| GET | `/api/share/meal/{id}` | Encode one of your meals as a shareable code |
-| GET | `/api/share/template/{id}` | Encode a saved meal as a shareable code |
-| POST | `/api/share/decode` | Read a code back into an editable draft — no row is shared |
-
-### AI
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/ai/analyze` | AI meal analysis from any of photo, audio, text (multipart) |
-| POST | `/api/ai/transcribe` | Voice note (multipart audio) → editable text |
-| PATCH | `/api/ai/analyses/{id}` | Link an analysis to the meal it was saved as |
-| GET | `/api/ai/calibration` | How your corrections compare with the estimates — coverage, bias, sample size |
-| GET | `/api/ai/status` | Provider health; `?probe=true` makes one live call and classifies the failure |
-
-### Weight, trackers and planning
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET/POST | `/api/weights` | Weigh-in history / log one (upsert by date) |
-| GET | `/api/weights/trend` | Smoothed trend line, latest trend weight, weekly rate and the goal-weight projection |
-| DELETE | `/api/weights/{id}` | Delete a weigh-in |
-| GET/POST | `/api/water` | One day's water (entries, total, derived goal) / log a drink |
-| DELETE | `/api/water/{id}` | Remove one water entry (what the card's undo calls) |
-| GET/POST/DELETE | `/api/steps` | One day's steps (count, goal, walking estimate, whether the account has ever logged any) / save it / clear it |
-| POST | `/api/data/import/steps` | Import a step history from a two-column `date,steps` CSV; days already logged are kept |
-| GET | `/api/supplements/day` | One day's doses: every scheduled slot and whether it was ticked |
-| POST/DELETE | `/api/supplements/log` | Tick / un-tick one dose; both idempotent, both return the updated day |
-| GET/POST | `/api/supplements` | The supplement list (paused ones included) / add one |
-| PUT/DELETE | `/api/supplements/{id}` | Edit, pause or resume one / delete it and its check-offs |
-| GET | `/api/plan/day` | One day's **effective** targets — the four numbers its rings are drawn against, after any plan |
-| GET/POST | `/api/plan` | Upcoming plans / create one (validated as a set; refusals name every offending day) |
-| DELETE | `/api/plan/{event_date}` | Cancel a plan, removing only the days it has not spent yet |
-| GET | `/api/plan/surplus` | How far a finished day ran from its target, with what it was measured against |
-
-### Review, settings and data
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/review` | The computed weekly review — eight checks, each with its own window and sample size |
-| POST | `/api/review/summary` | An AI reading of those figures; nothing is stored |
-| GET | `/api/analytics/daily` | Per-day totals + averages for a date range |
-| GET/PUT | `/api/settings` | Daily goals, tracked-macro toggles, body profile, tracker goals, weigh-in reminder |
-| GET | `/api/settings/targets` | BMI, BMR, measured-or-estimated TDEE, calorie + macro targets |
-| POST | `/api/settings/targets/preview` | The target first-use setup would save, from its answers, without saving them |
-| POST | `/api/settings/installed` | Record that the account has the app on a home screen (kept from the first call), so the browser stops offering it |
-| GET | `/api/data/export` | CSV backup of every meal |
-| POST | `/api/data/import` | Restore meals from CSV, with duplicate detection |
-| GET | `/api/data/export/all` | Full JSON export of everything the account owns |
-| POST | `/api/data/export/ticket` | A one-minute link to either export, for a phone to download without the login header |
-| GET | `/api/data/export/file` | Follows that link: the CSV or the JSON as a download. Expired, tampered or pre-password-change links get a plain-text refusal |
-| GET | `/api/announcements` | Committed release notes (the ones the pop-up may show, and the ones only What's new lists) + the status banner (public) |
-| GET | `/api/health` | Liveness check (public). `?src=keepwarm` (cron-job.org) or `?src=homecron` (the home-machine cron) marks a request as a keep-warm ping |
-| GET | `/api/admin/stats` | Usage metrics, the funnel and frozen retention, behind the `ADMIN_EMAILS` allowlist |
-| GET | `/api/admin/users` | Per-account counts, presence and AI consumption; never meal or weight content |
-| GET | `/api/admin/keep-warm` | Uptime, scheduler-ping counts and the ping window; in-memory, wiped at spin-down |
-
----
-
-## 📈 Future improvements
-
-- Learn from your corrections to AI analyses — the accuracy figures are measured
-  today, but nothing feeds them back into the next estimate
-- Upgrade the analysis model (provider is isolated in `services/meal_ai.py`)
-- Email verification at signup (would also close the account-enumeration gap the signup 409 leaves open)
-- Barcode scanning via the Open Food Facts barcode API — examined and parked
-  rather than unstarted: it needs a hit-rate measurement against real shelves
-  first, because a scanner that misses most products is worse than no scanner
-- Frontend component tests (Vitest + Testing Library) — DOM-free logic has had
-  `npm test` since the photo-downscaling work; components still have none
-
----
-
-## 🥕 Food data sources
-
-The generic foods in the search come from open national food-composition tables, used under their licences and credited here and in the app (You → Food library → Where food data comes from). Each was reduced to energy, protein, carbohydrate, fat and fibre per 100 g, with carbohydrate shown **excluding fibre** — subtracted where a table publishes it included. Full credits and every change made are in [`backend/app/data/reference/NOTICE.md`](backend/app/data/reference/NOTICE.md). None of these organisations endorses this app.
-
-| Table | Publisher | Licence |
-|---|---|---|
-| [FoodData Central](https://fdc.nal.usda.gov/) (Foundation, SR Legacy, FNDDS) | U.S. Department of Agriculture, Agricultural Research Service | Public domain (CC0 1.0) |
-| [CoFID 2021](https://www.gov.uk/government/publications/composition-of-foods-integrated-dataset-cofid) — McCance and Widdowson's The Composition of Foods Integrated Dataset | Public Health England. Contains public sector information licensed under the Open Government Licence v3.0 | [OGL v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) |
-| [Ciqual 2025](https://ciqual.anses.fr/) — Anses. 2025. Table de composition nutritionnelle des aliments Ciqual | ANSES | [Licence Ouverte](https://www.etalab.gouv.fr/licence-ouverte-open-licence/) |
-| [AFCD Release 3](https://www.foodstandards.gov.au/science-data/food-nutrient-databases/afcd) — Australian Food Composition Database | Food Standards Australia New Zealand (2025) | [CC BY 2.5 AU](https://creativecommons.org/licenses/by/2.5/au/) |
-| [Canadian Nutrient File 2015](https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html) | Health Canada | [OGL – Canada](https://open.canada.ca/en/open-government-licence-canada) |
-| [Open Food Facts](https://world.openfoodfacts.org/) (packaged products, searched live) | Open Food Facts contributors | [ODbL](https://opendatacommons.org/licenses/odbl/1-0/) |
-
-### Fonts and icons
-
-| Font or icon set | By | Licence |
-|---|---|---|
-| [Mona Sans](https://github.com/github/mona-sans) (the app's typeface, self-hosted) | The Mona Sans Project Authors | [SIL Open Font License 1.1](https://openfontlicense.org/) |
-| [Libre Franklin](https://github.com/googlefonts/Libre-Franklin) (the wordmark and the Label style) | The Libre Franklin Project Authors | [SIL Open Font License 1.1](https://openfontlicense.org/) |
-| [Phosphor Icons](https://phosphoricons.com/) | Phosphor Icons | MIT |
-
----
-
-## 🔍 Engineering notes
+## What it does
+
+- **Log a meal from a photo, a voice note or a sentence.** The AI returns a calorie range, how sure it is, and every assumption it made, so you can correct it before saving.
+- **Or type it.** Ingredients fill in from your own food library, five national food tables (USDA, UK, France, Australia, Canada) and Open Food Facts.
+- **A daily target worked out from you**: your body, then your real burn, measured from your own weigh-ins and logs.
+- **Progress over any range**: weight trend, goal date and nutrition charts, from 7 days to all time.
+- **A weekly review** computed from the week you actually logged.
+- **Optional trackers** for water, steps (with a Samsung Health import) and supplements, plus calorie banking across the week.
+- **Saved meals, copy a recent meal, share a meal by code.**
+- **Installs on your phone as an app**, nine colour palettes in light and dark, and your data is yours: meals out as CSV, everything as JSON.
+
+Everything, in detail: [docs/features.md](docs/features.md).
+
+## Engineering notes
 
 - [**AI meal analysis down for three days**](docs/incident-2026-07-gemini-eea-region.md) — a
   post-mortem. The feature failed for every input; the API key was valid, the model existed,
@@ -885,16 +100,29 @@ The generic foods in the search come from open national food-composition tables,
   macros that couldn't add up. Covers each rule with its source, three decisions in detail,
   how it's tested, and where a competitor is still ahead.
 
----
+## Read more
 
-## 🤝 Contributing
+| | |
+|---|---|
+| [All features](docs/features.md) | everything the app does, in detail |
+| [Screenshots](docs/screenshots.md) | every screen, phone and desktop, light and dark |
+| [Install it on your phone](docs/install.md) | iPhone, Android, desktop |
+| [Architecture](docs/architecture.md) | how the frontend, API, database and AI fit together |
+| [Running locally](docs/development.md) | setup, tests and the six CI gates |
+| [Deployment](docs/deployment.md) | Neon, Render and Vercel, and keeping the free server awake |
+| [API](docs/api.md) | every endpoint |
+| [Data sources and credits](docs/data-sources.md) | the food tables, fonts and icons, and their licences |
 
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: opening a pull
+## Built with
+
+React 19 + TypeScript 6 (an installable PWA) · Python 3.14 + FastAPI + SQLAlchemy · PostgreSQL on Neon, with Alembic migrations · Gemini for the meal estimates · hosted on Vercel and Render.
+
+*Formerly **Macros Calculator**; renamed in October 2026, and moved from `macros-calculator-mu.vercel.app` to `trackaholic.app` the same month. It started as a Streamlit app, which lives on in [`legacy/`](legacy/).*
+
+## Licence and contributing
+
+[MIT](LICENSE). Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: opening a pull
 request means agreeing to its licence terms. Your contribution is MIT-licensed, and I may also
 relicense it in the future.
 
----
-
-## 👨‍💻 Author
-
-**Abdulla** — [github.com/Abdulla1x](https://github.com/Abdulla1x)
+**Abdulla** · [github.com/Abdulla1x](https://github.com/Abdulla1x)
