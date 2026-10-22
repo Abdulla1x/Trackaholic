@@ -19,6 +19,9 @@ interface SettingsState {
   /** Writes through to the API and updates every consumer with the row the
    *  server actually stored — not the optimistic local copy. */
   updateSettings: (next: Settings) => Promise<Settings>
+  /** Records that the account has the app on a home screen, the same way:
+   *  the stored row comes back and replaces the copy here. */
+  markInstalled: () => Promise<void>
   reload: () => void
 }
 
@@ -85,11 +88,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return saved
   }, [])
 
+  const markInstalled = useCallback(async () => {
+    setSettings(await api.markInstalled())
+  }, [])
+
   const reload = useCallback(() => setReloadCount((count) => count + 1), [])
 
   return (
     <SettingsContext.Provider
-      value={{ settings, loading, error, updateSettings, reload }}
+      value={{ settings, loading, error, updateSettings, markInstalled, reload }}
     >
       {children}
     </SettingsContext.Provider>
