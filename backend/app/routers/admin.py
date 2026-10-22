@@ -16,7 +16,7 @@ matter more than the rest. A supplement list can name a prescription, which
 makes it the most disclosive data this app stores. A plan's `event_date` is
 disclosive in a different way -- it does not describe health at all, it
 describes a life: it says this person has something on the 5th. Counts say
-everything an operator needs while saying neither. That is what keeps README.md's "every API endpoint is scoped to the
+everything an operator needs while saying neither. That is what keeps docs/features.md's "every API endpoint is scoped to the
 authenticated user" and the Settings privacy copy true without a rewrite.
 `tests/test_admin.py` asserts the absence positively, so a later "just one
 useful field" commit fails a test rather than quietly failing the promise.

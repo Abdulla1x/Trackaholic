@@ -5,7 +5,7 @@ can agree on the approach before you write the code.
 
 ## Before you open a pull request
 
-- Set the app up with [Running locally](README.md#-running-locally) in the README.
+- Set the app up with [Running locally](docs/development.md).
 - Run `./scripts/check.sh`. It runs the same six gates as CI: backend tests and lint, then the
   frontend typecheck, unit tests, lint and build.
 - Keep a pull request to one change. Use one commit per logical step, each building and passing

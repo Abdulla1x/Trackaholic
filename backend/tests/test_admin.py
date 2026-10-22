@@ -151,7 +151,7 @@ def test_login_response_reports_the_admin_flag(client, anon_client, monkeypatch)
 
 
 def test_admin_payloads_contain_no_user_content(client, client_b, monkeypatch):
-    """Metrics only. If this fails, the README's scoping promise is false.
+    """Metrics only. If this fails, docs/features.md's scoping promise is false.
 
     Asserted against the raw response text rather than specific fields, so
     adding a content-bearing field anywhere in either payload trips it.
