@@ -30,7 +30,7 @@ export default function GoogleButton({
 }: {
   /** Called with the ID token once Google has signed the person in. */
   onCredential: (credential: string) => void
-  /** The "or" rule under the button, for when an email form follows. */
+  /** The "or" rule above the button, for when it follows the email form. */
   divider?: boolean
 }) {
   const wrapper = useRef<HTMLDivElement>(null)
@@ -147,12 +147,19 @@ export default function GoogleButton({
   const ready = api !== null
   return (
     <div className="grid gap-3.5">
+      {divider && (
+        <div className="flex items-center gap-3 text-small text-ink-2" aria-hidden="true">
+          <span className="h-px flex-1 bg-rule" />
+          or
+          <span className="h-px flex-1 bg-rule" />
+        </div>
+      )}
       <div ref={wrapper} className="group relative grid">
         <div
           aria-hidden="true"
           className={cn(
             buttonVariants({ variant: 'ghost' }),
-            // The field ground: it reads as one of the form's boxes.
+            // The field ground: it reads as one of the boxes of the form above it.
             'h-11 w-full gap-2.5 bg-field',
             'group-hover:bg-[color-mix(in_oklab,var(--ink)_5%,var(--field))]',
             focused && 'outline-2 outline-offset-2 outline-action',
@@ -171,13 +178,6 @@ export default function GoogleButton({
         {/* Google's button, invisible, over the face. */}
         <div ref={slot} className="absolute inset-0 grid place-items-center overflow-hidden opacity-0" />
       </div>
-      {divider && (
-        <div className="flex items-center gap-3 text-small text-ink-2" aria-hidden="true">
-          <span className="h-px flex-1 bg-rule" />
-          or
-          <span className="h-px flex-1 bg-rule" />
-        </div>
-      )}
     </div>
   )
 }
