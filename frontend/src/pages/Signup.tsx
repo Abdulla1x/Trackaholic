@@ -63,7 +63,6 @@ export default function Signup() {
             leaving private browsing, keeps you signed in.
           </p>
         )}
-        <GoogleButton onCredential={(credential) => void continueWithGoogle(credential)} />
         <AuthField label="Email">
           <input
             type="email"
@@ -90,6 +89,9 @@ export default function Signup() {
         <Button type="submit" disabled={submitting} className="w-full">
           {submitting ? 'Creating account…' : 'Sign up'}
         </Button>
+        {/* Email first, Google under it: the form is the way in, and Google
+            a quieter second one (chosen on a prototype, 2026-10-22). */}
+        <GoogleButton onCredential={(credential) => void continueWithGoogle(credential)} />
         <p className="text-center text-small text-ink-2">
           Already have an account?{' '}
           <Link to="/login" className={AUTH_LINK}>

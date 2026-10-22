@@ -55,9 +55,6 @@ export default function Login() {
           </p>
         )}
         {notice && <p className="text-small font-semibold">{notice}</p>}
-        <GoogleButton
-          onCredential={(credential) => void enter(() => loginWithGoogle(credential), 'Google sign-in failed')}
-        />
         <AuthField label="Email">
           <input
             type="email"
@@ -82,6 +79,11 @@ export default function Login() {
         <Button type="submit" disabled={submitting} className="w-full">
           {submitting ? 'Logging in…' : 'Log in'}
         </Button>
+        {/* Email first, Google under it: the form is the way in, and Google
+            a quieter second one (chosen on a prototype, 2026-10-22). */}
+        <GoogleButton
+          onCredential={(credential) => void enter(() => loginWithGoogle(credential), 'Google sign-in failed')}
+        />
         {/* Underlined, not told apart by colour alone (WCAG 1.4.1). Each of
             these is the only thing in its paragraph, so strictly the rule does
             not reach it; it is underlined anyway, because a reader who has

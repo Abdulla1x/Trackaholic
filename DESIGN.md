@@ -271,6 +271,7 @@ Nearly square. Controls have a 5px radius, the Log button 7px, tags 3px, checkbo
 - **Ghost:** transparent with a 1.5px rule-coloured border (Undo, Cancel).
 - **Log button:** ink fill, ground-coloured text, 7px radius, 50px tall. While an AI estimate runs it shows a spinner; when the estimate is ready it shows a dot and "Ready".
 - **Disabled:** 45% opacity, no pointer.
+- **Continue with Google:** drawn like an input: the field ground, a 1.5px rule border, 44px tall, with Google's full-colour G (its branding rules forbid a single-colour one). It sits under the email form's button, after an "or" rule, on Log in and Sign up. Google's own button lies invisibly on top and takes the tap, so the focus ring and the pressed tone are set from script rather than CSS.
 - **Pressed:** while held, a primary button darkens toward ink 2 (78% action mixed with ink 2), secondary and ghost take a 12% ink wash, and the Log button goes to 80% ink. Every button also shrinks to 0.98 and springs back, except under reduced motion. Hover only exists on a mouse, so on a phone this is the only answer a tap gets, and the browser's grey tap rectangle is switched off where a control has its own pressed tone.
 
 ### Chips
