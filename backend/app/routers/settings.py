@@ -11,7 +11,7 @@ from ..calculations import (
     max_protein_g,
 )
 from ..db import get_db
-from ..models import Setting, User
+from ..models import Setting, User, utcnow
 from ..schemas import BodyTargets, Settings, TargetPreviewRequest
 from ..targets import (
     TargetsResult,
@@ -88,6 +88,25 @@ def _get_or_create(db: Session, user_id: int) -> Setting:
 @router.get("", response_model=Settings)
 def get_settings(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _settings_out(_get_or_create(db, user.id))
+
+
+@router.post("/installed", response_model=Settings)
+def mark_installed(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """The account has the app on a home screen: stop asking it to add one.
+
+    Sent by the installed app the first time it opens, by Chromium's
+    `appinstalled` event, and by "I already have it". Keeps the first time
+    and never clears it, so every call after the first changes nothing and a
+    retry is harmless. Answers with the settings, as a save does, so the
+    client's copy updates without another fetch.
+    """
+    row = _get_or_create(db, user.id)
+    if row.installed_at is None:
+        row.installed_at = utcnow()
+        db.commit()
+    return _settings_out(row)
 
 
 @router.get("/targets", response_model=BodyTargets)

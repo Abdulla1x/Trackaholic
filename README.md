@@ -808,6 +808,7 @@ only on the caller's data, except these public ones: `/api/health`,
 | GET/PUT | `/api/settings` | Daily goals, tracked-macro toggles, body profile, tracker goals, weigh-in reminder |
 | GET | `/api/settings/targets` | BMI, BMR, measured-or-estimated TDEE, calorie + macro targets |
 | POST | `/api/settings/targets/preview` | The target first-use setup would save, from its answers, without saving them |
+| POST | `/api/settings/installed` | Record that the account has the app on a home screen (kept from the first call), so the browser stops offering it |
 | GET | `/api/data/export` | CSV backup of every meal |
 | POST | `/api/data/import` | Restore meals from CSV, with duplicate detection |
 | GET | `/api/data/export/all` | Full JSON export of everything the account owns |

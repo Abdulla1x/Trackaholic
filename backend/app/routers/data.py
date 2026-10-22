@@ -266,6 +266,12 @@ def _everything(user: User, db: Session) -> dict:
                 None if setting.trackers_json is None
                 else json.loads(setting.trackers_json)
             ),
+            # When the app was first seen on a home screen, UTC. Null means
+            # never seen installed, not "uninstalled": nothing clears it.
+            "installed_at": (
+                None if setting.installed_at is None
+                else setting.installed_at.isoformat()
+            ),
         },
         "meals": [
             # `date` is when it was eaten, `created_at` when it was logged,

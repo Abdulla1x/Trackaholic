@@ -947,6 +947,11 @@ class Settings(BaseModel):
     trackers: list[Literal["water", "steps", "supplements"]] | None = Field(
         default=None, max_length=3
     )
+    # When the account was first seen with the app on a home screen (models.py).
+    # Read-only: a PUT that sends it is ignored, whatever it says, because only
+    # POST /api/settings/installed sets it. Defaulted for the reason
+    # weight_unit is.
+    installed_at: datetime | None = None
 
     @field_validator("trackers")
     @classmethod
