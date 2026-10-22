@@ -552,6 +552,8 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(settings),
     }),
+  /** The account has the app on a home screen. Keeps the first time. */
+  markInstalled: () => request<Settings>('/api/settings/installed', { method: 'POST' }),
 
   getAnalytics: (start?: string, end?: string) => {
     const params = new URLSearchParams()

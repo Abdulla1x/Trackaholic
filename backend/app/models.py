@@ -624,6 +624,14 @@ class Setting(Base):
     # signup starts at "[]" and chooses during setup. `_json` for the reason
     # water_quick_adds_json gives.
     trackers_json: Mapped[str | None] = mapped_column(Text, default="[]")
+    # When this account first opened the app from a home screen, or said it
+    # already has it there. NULL = never seen installed, and the "Add to home
+    # screen" popup may ask. Kept on the account rather than the device
+    # because an iPhone's Safari cannot see the home screen: the installed
+    # app is the only one that knows, and it tells the server. Set once by
+    # POST /api/settings/installed, never by a settings save and never
+    # cleared, so deleting the icon does not bring the popup back.
+    installed_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
 
     __table_args__ = (
         CheckConstraint(

@@ -154,6 +154,8 @@ UNSET_OPTIONALS = {
     # A new signup starts with only the weigh-in; null is for accounts that
     # predate the column (see the trackers tests below).
     "trackers": [],
+    # Set only by POST /api/settings/installed; see the tests below.
+    "installed_at": None,
 }
 
 
@@ -196,6 +198,7 @@ def test_body_profile_round_trips(client):
         "protein_focus": "muscle",
         "protein_own": True,
         "trackers": ["water", "supplements"],
+        "installed_at": None,
     }
     assert client.put("/api/settings", json=profile).json() == profile
     assert client.get("/api/settings").json() == profile
@@ -609,3 +612,26 @@ def test_trackers_must_be_known_and_listed_once(client):
         assert client.put(
             "/api/settings", json={**settings, "trackers": bad}
         ).status_code == 422, bad
+
+
+def test_installed_is_set_once_and_kept(client):
+    assert client.get("/api/settings").json()["installed_at"] is None
+
+    first = client.post("/api/settings/installed")
+    assert first.status_code == 200
+    stamp = first.json()["installed_at"]
+    assert stamp is not None
+    # A second call (another device, a retry) keeps the first time.
+    assert client.post("/api/settings/installed").json()["installed_at"] == stamp
+    assert client.get("/api/data/export/all").json()["settings"]["installed_at"] is not None
+
+
+def test_a_settings_save_cannot_set_or_clear_installed(client):
+    settings = client.get("/api/settings").json()
+    sent = {**settings, "installed_at": "2026-01-01T00:00:00"}
+    assert client.put("/api/settings", json=sent).json()["installed_at"] is None
+
+    stamp = client.post("/api/settings/installed").json()["installed_at"]
+    # A form that read null before the app was installed sends it back.
+    stale = {**settings, "installed_at": None}
+    assert client.put("/api/settings", json=stale).json()["installed_at"] == stamp

@@ -38,6 +38,14 @@ export { MagnifyingGlassIcon as SearchIcon } from '@phosphor-icons/react/dist/cs
 // Not in DESIGN.md's mapping either: the caret on a "How is this worked out?"
 // disclosure, turned over while it is open.
 export { CaretDownIcon as ExpandIcon } from '@phosphor-icons/react/dist/csr/CaretDown'
+// Not in DESIGN.md's mapping either: the Add to home screen steps, each
+// drawn as the browser itself draws it (iOS Share, Add to Home Screen, the
+// Android menu, an in-app browser's menu), plus the Install button.
+export { ExportIcon as BrowserShareIcon } from '@phosphor-icons/react/dist/csr/Export'
+export { PlusSquareIcon as AddToHomeIcon } from '@phosphor-icons/react/dist/csr/PlusSquare'
+export { DotsThreeVerticalIcon as BrowserMenuIcon } from '@phosphor-icons/react/dist/csr/DotsThreeVertical'
+export { DotsThreeIcon as BrowserMoreIcon } from '@phosphor-icons/react/dist/csr/DotsThree'
+export { DownloadSimpleIcon as InstallIcon } from '@phosphor-icons/react/dist/csr/DownloadSimple'
 // Not in DESIGN.md's mapping either: the steps tracker, which replaced its 👟.
 export { FootprintsIcon as StepsIcon } from '@phosphor-icons/react/dist/csr/Footprints'
 

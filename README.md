@@ -48,6 +48,7 @@ Log meals by typing an ingredient name — macros auto-fill as you type from you
 ### 👋 First use
 - **No invented target.** Every account starts with a 2,000 kcal placeholder, so until you choose a target the calories show what you ate and "Not set yet" instead: no gauge, no "left", no target line in Progress, no weekly review card
 - **Getting started, not a tour**: two steps on Today, set your daily target and log your first meal. "Not now" shrinks it to one row. Once both are done it turns into a short "what's next" (Progress fills in as you log) until you dismiss it. A brand-new account meets **no popup at all**: release notes are marked seen silently on a phone's first visit and held until a target is set
+- **Add to home screen, asked once Getting started is done**: after the first meal, a phone's browser gets one popup on Today. Where the browser can install by itself (Chrome, Samsung Internet, Edge) it has an **Install** button that opens the phone's own dialog; on an iPhone, and on browsers that can't (Firefox, Chrome without Google services, as on Huawei phones), it shows the three taps with a small drawing of each, and inside LinkedIn or Instagram it says to open the page in a real browser first, with **Copy link**. It never asks inside the installed app, and once the installed app has been opened, no browser tab on that account asks either: an iPhone's Safari can't see the home screen, so the app tells the server. **Not now** asks once more a week later, then never; **You → Add to home screen** is always there
 - **Setup, one question per screen**: weight (it counts as your first weigh-in, in kg or lb depending on your phone's region), height, date of birth, sex, activity in workouts a week, your goal and pace, and a few skippable extras (goal weight, carbs and fat, trackers, a weigh-in reminder). Every typo is caught on its own question; the phone's back gesture steps back a question; a reload keeps your answers. The pace choices grey out above the fastest it will plan for you, with the reason
 - **The target comes live from the server's own calculation**, so the number previewed is the number saved, and any limit that changed your pace is named with the numbers. Or skip the questions with **I have my own numbers**, which refuses macros that cannot fit in the calories. Saving plays a short moment: the number counts up and the gauge draws in
 - **How your target is worked out**, with your own numbers: resting burn × activity = daily burn, minus your pace = target, and protein as grams per kilo, each with its source. Plus an optional **How Trackaholic works** page: logging well, reading Today, what unlocks, things people miss, and when to ask a doctor instead
@@ -329,6 +330,9 @@ their own share menus too; before that, it has to be Safari.
 
 **On a desktop** (Chrome, Edge) — an install icon appears at the right-hand end
 of the address bar; the browser menu has the same option if it doesn't.
+
+The app offers the same steps itself, for the phone and browser you are on:
+once on Today after your first meal, and any time from **You → Add to home screen**.
 
 **What you get:** the app opens full-screen with no browser chrome, on its own
 icon, with a dark splash screen while it starts.
@@ -808,6 +812,7 @@ only on the caller's data, except these public ones: `/api/health`,
 | GET/PUT | `/api/settings` | Daily goals, tracked-macro toggles, body profile, tracker goals, weigh-in reminder |
 | GET | `/api/settings/targets` | BMI, BMR, measured-or-estimated TDEE, calorie + macro targets |
 | POST | `/api/settings/targets/preview` | The target first-use setup would save, from its answers, without saving them |
+| POST | `/api/settings/installed` | Record that the account has the app on a home screen (kept from the first call), so the browser stops offering it |
 | GET | `/api/data/export` | CSV backup of every meal |
 | POST | `/api/data/import` | Restore meals from CSV, with duplicate detection |
 | GET | `/api/data/export/all` | Full JSON export of everything the account owns |

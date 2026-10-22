@@ -77,6 +77,10 @@ export default function HowItWorks() {
       <Section title="Things you might have missed">
         <List>
           <li>
+            <b className="text-ink">Your home screen.</b> Add Trackaholic to your phone's home screen and it opens in one
+            tap, full screen, like any other app: You → Add to home screen.
+          </li>
+          <li>
             <b className="text-ink">Saved meals.</b> Open a meal and choose Keep as a saved meal; it's then one tap from
             Log.
           </li>

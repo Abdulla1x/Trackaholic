@@ -5,8 +5,12 @@ import { useAnnouncements } from '../hooks/useAnnouncements'
 import { useSettings } from '../settings/SettingsContext'
 import AnnouncementsModal from './AnnouncementsModal'
 import NewTrackaholicPrompt from './today/NewTrackaholicPrompt'
+import InstallPrompt from './install/InstallPrompt'
 import { announcementsWaiting } from '../lib/dismissals'
+import { isStandalone, useInstallState } from '../lib/installEvent'
 import { targetIsSet } from '../lib/today'
+import { asksForTrackers } from '../lib/trackers'
+import { logScreen } from './log/logPanelUrl'
 import MovedNotice from './MovedNotice'
 import StatusBanner from './StatusBanner'
 import WakingNotice from './WakingNotice'
@@ -51,7 +55,7 @@ function useNewPageStartsAtTop(pathname: string) {
 
 export default function Layout() {
   const { user } = useAuth()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   useNewPageStartsAtTop(pathname)
   const section = sectionFor(pathname)
   // How the page arrives, worked out when the path changes and then held: a
@@ -75,7 +79,18 @@ export default function Layout() {
   const [notesShown, setNotesShown] = useState(false)
   // The shared settings fetch doubles as the cold-start probe: it is the first
   // authenticated request of the session, so if it is slow, everything is.
-  const { loading: settingsLoading, settings } = useSettings()
+  const { loading: settingsLoading, settings, markInstalled } = useSettings()
+  // An account with the app on a home screen tells the server once, from
+  // whichever page the installed app opens on (or the moment Chromium says it
+  // was just installed), so no browser tab asks it again: an iPhone's Safari
+  // can't see the home screen, so this is the only way it could know.
+  // `installed_at` undefined is an API that predates it: nothing to tell.
+  const { installed } = useInstallState()
+  const installedAt = settings?.installed_at
+  useEffect(() => {
+    if (installedAt !== null) return
+    if (installed || isStandalone()) markInstalled().catch(() => {})
+  }, [installedAt, installed, markInstalled])
   const [coldStart, setColdStart] = useState(false)
   // When the wait actually began, which is not when the notice appears. The
   // notice is held back COLD_START_NOTICE_AFTER_MS, so a progress bar started
@@ -173,6 +188,20 @@ export default function Layout() {
       {pathname === '/' && (
         <NewTrackaholicPrompt
           ready={announcements !== null && !notesShown && !announcementsWaiting(announcements.items)}
+        />
+      )}
+      {/* Last in the queue: after the release notes and The new Trackaholic,
+          and never over the Log panel. */}
+      {pathname === '/' && (
+        <InstallPrompt
+          ready={
+            announcements !== null &&
+            !notesShown &&
+            !announcementsWaiting(announcements.items) &&
+            settings !== null &&
+            !asksForTrackers(settings) &&
+            logScreen(search) === null
+          }
         />
       )}
     </div>

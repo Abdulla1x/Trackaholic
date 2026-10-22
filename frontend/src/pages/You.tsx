@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { useAppearance } from '../appearance/AppearanceContext'
 import { useAuth } from '../auth/AuthContext'
+import InstallSheet from '../components/install/InstallSheet'
 import TrackersSheet from '../components/today/TrackersSheet'
 import YourData from '../components/you/YourData'
 import { useLiveMessage } from '../hooks/useLiveMessage'
@@ -9,6 +10,8 @@ import { activityName } from '../lib/activity'
 import { paletteName, type Appearance } from '../lib/appearance'
 import { localIsoDate } from '../lib/dates'
 import { livePairs, readDismissed } from '../lib/foodDuplicates'
+import { installRoute } from '../lib/install'
+import { isStandalone, useInstallState } from '../lib/installEvent'
 import { DEFAULT_WATER_QUICK_ADDS } from '../lib/limits'
 import { targetIsSet } from '../lib/today'
 import { canChooseTrackers, CHANGE_TRACKERS, TRACKERS } from '../lib/trackers'
@@ -122,6 +125,14 @@ export default function You() {
   const saveNow = useInstantSave()
   const [choosingTrackers, setChoosingTrackers] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  // Add to home screen: offered wherever the popup could help, so not inside
+  // the installed app and not on a computer without an install dialog.
+  const [installing, setInstalling] = useState(false)
+  const { canPrompt } = useInstallState()
+  const [standalone] = useState(isStandalone)
+  const canInstall =
+    !standalone &&
+    installRoute({ userAgent: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints, canPrompt }) !== 'none'
   const [waterDay, setWaterDay] = useState<WaterDay | null>(null)
   const [supplements, setSupplements] = useState<Supplement[] | null>(null)
   const [foods, setFoods] = useState<Food[] | null>(null)
@@ -234,6 +245,14 @@ export default function You() {
           </Group>
 
           <Group label="Help">
+            {canInstall && (
+              <RowButton
+                label="Add to home screen"
+                detail="Open it in one tap, like any other app"
+                chevron
+                onClick={() => setInstalling(true)}
+              />
+            )}
             <RowLink to="/how-it-works" label="How Trackaholic works" detail="And things you might have missed" />
             <RowLink to="/whats-new" label="What's new" detail="Release notes" />
             <RowLink to="/you/contact" label="Contact" detail="Questions or feedback by email" />
@@ -241,6 +260,7 @@ export default function You() {
           </Group>
 
           <TrackersSheet open={choosingTrackers} onOpenChange={setChoosingTrackers} />
+          <InstallSheet open={installing} onClose={() => setInstalling(false)} />
           <AlertDialog
             open={loggingOut}
             title="Log out?"

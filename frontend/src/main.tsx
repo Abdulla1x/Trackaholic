@@ -10,6 +10,7 @@ import App from './App.tsx'
 import { AppearanceProvider } from './appearance/AppearanceContext'
 import { AuthProvider } from './auth/AuthContext'
 import ErrorBoundary from './components/ErrorBoundary'
+import { listenForInstall } from './lib/installEvent'
 import { startServiceWorker } from './lib/swUpdate'
 
 // Runs at module scope, before render, where no error boundary can reach it.
@@ -22,6 +23,10 @@ try {
 } catch (err) {
   console.error('Service worker registration failed:', err)
 }
+
+// Before render too: Chromium can offer the install prompt before anything
+// mounts, and an event nobody was listening for is gone. See lib/installEvent.ts.
+listenForInstall()
 
 // Some mobile browsers (iOS Safari among them) only apply :active on a tap
 // when the page has a touch listener, and :active is the pressed state every

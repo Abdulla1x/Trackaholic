@@ -129,6 +129,11 @@ export interface Settings {
    *  keeps the old cards and is asked once); [] = the weigh-in only. Absent
    *  on the live API, which predates it: the old cards, and no question. */
   trackers?: ('water' | 'steps' | 'supplements')[] | null
+  /** When the account was first seen with the app on a home screen (UTC);
+   *  null = never, so the Add to home screen popup may ask. Read-only: only
+   *  api.markInstalled sets it, and a save ignores it. Absent on an API that
+   *  predates it, which keeps the popup off. */
+  installed_at?: string | null
 }
 
 /** One logged drink. */
