@@ -114,8 +114,10 @@ Trackaholic
 │                                #   the AI provider runbook, the Gemini EEA-region incident
 │                                #   write-up, the photo-size A/B note, and the goal-setting rules
 ├── scripts/                     # check.sh (all six gates), dev.sh, review-changes.sh,
-│                                #   dom-snapshot.mjs (the refactor DOM-diff harness)
-├── screenshots/                 # light/ and dark/, each desktop/ + mobile/, used by docs/screenshots.md
+│                                #   dom-snapshot.mjs (the refactor DOM-diff harness),
+│                                #   screenshots.mjs + readme-images.mjs (every image in the docs)
+├── screenshots/                 # light/ and dark/, each desktop/ + mobile/, used by docs/screenshots.md;
+│                                #   wordmark-* and hero-* head the README
 ├── .github/workflows/           # ci.yml (the same six gates), backup.yml (daily export)
 ├── .github/pull_request_template.md  # asks contributors to agree to CONTRIBUTING.md
 ├── legacy/                      # original Streamlit app (v1)
