@@ -113,3 +113,11 @@ to anything else. That failure looks like a network error and never reaches the 
 > touches Postgres. Pointing it at anything that queries the database would hold Neon awake
 > ~16 hours a day, over its 100 CU-hour monthly allowance, and suspend the database until
 > the next billing period.
+
+**Story page sync (optional, the owner's own setup)** — [`.github/workflows/notify-story.yml`](../.github/workflows/notify-story.yml)
+pings [trackaholic-story](https://github.com/Abdulla1x/trackaholic-story) after every push to
+`main`. That repository recounts the commits, pull requests and tests on
+[story.trackaholic.app](https://story.trackaholic.app) as a pull request, and keeps an issue
+listing what the story hasn't covered yet. The ping needs a `STORY_DISPATCH_TOKEN` secret, a
+fine-grained token with access to that one repository and *Contents: Read and write*. Without
+it the workflow warns and passes, so a fork can ignore it.

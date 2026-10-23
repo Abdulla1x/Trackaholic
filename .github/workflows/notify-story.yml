@@ -1,0 +1,29 @@
+# Tells the story page's repository (Abdulla1x/trackaholic-story) that something
+# merged here, so it can recount its numbers and flag what the story is missing.
+# That repository does the work; this only sends the signal.
+#
+# Needs the secret STORY_DISPATCH_TOKEN: a fine-grained token with access to
+# trackaholic-story only and "Contents: Read and write", which is what
+# repository_dispatch requires. Without it (a fork, or a token that expired) the
+# step warns and passes, so main never goes red over the story page.
+name: Notify the story page
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.STORY_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo '::warning::STORY_DISPATCH_TOKEN is not set, so the story page was not told about this merge.'
+            exit 0
+          fi
+          gh api repos/Abdulla1x/trackaholic-story/dispatches -f event_type=trackaholic-merged \
+            || echo '::warning::The story page could not be notified. Has STORY_DISPATCH_TOKEN expired?'
