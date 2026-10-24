@@ -50,7 +50,7 @@ from datetime import datetime, time, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .activity import daily_activity
+from .activity import REAL_USER, REAL_USERS, daily_activity
 from .models import DailyStat, Meal, User
 from .upsert import upsert
 
@@ -78,7 +78,9 @@ def _first_day_to_freeze(db: Session, last_day: date_type) -> date_type | None:
     else:
         # Nothing frozen yet: start at the first signup. Starting at the epoch
         # would write thousands of empty rows for days before the app existed.
-        first_signup = db.scalar(select(func.min(User.created_at)))
+        first_signup = db.scalar(
+            select(func.min(User.created_at)).where(REAL_USER)
+        )
         if first_signup is None:
             return None
         candidate = first_signup.date()
@@ -149,7 +151,7 @@ def _retained(db: Session, cohort_day: date_type, window: int) -> int:
     cohort = set(
         db.scalars(
             select(User.id).where(
-                User.created_at >= day_start, User.created_at < day_end
+                User.created_at >= day_start, User.created_at < day_end, REAL_USER
             )
         ).all()
     )
@@ -180,7 +182,8 @@ def ensure_snapshots(db: Session, today: date_type) -> int:
         signups_per_day: dict[date_type, int] = {}
         for created_at in db.scalars(
             select(User.created_at).where(
-                User.created_at >= datetime.combine(first_day, time.min)
+                User.created_at >= datetime.combine(first_day, time.min),
+                REAL_USER,
             )
         ).all():
             day = created_at.date()
@@ -203,13 +206,13 @@ def ensure_snapshots(db: Session, today: date_type) -> int:
                     "total_users": db.scalar(
                         select(func.count())
                         .select_from(User)
-                        .where(User.created_at < day_end)
+                        .where(User.created_at < day_end, REAL_USER)
                     )
                     or 0,
                     "total_meals": db.scalar(
                         select(func.count())
                         .select_from(Meal)
-                        .where(Meal.date <= day)
+                        .where(Meal.date <= day, Meal.user_id.in_(REAL_USERS))
                     )
                     or 0,
                 },

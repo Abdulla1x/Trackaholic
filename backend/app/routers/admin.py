@@ -35,7 +35,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..activity import TIMESTAMPED, daily_activity
+from ..activity import REAL_USER, REAL_USERS, TIMESTAMPED, daily_activity
 from ..auth.deps import require_admin
 from ..db import get_db
 from ..keep_warm import (
@@ -133,11 +133,13 @@ def _activation(db: Session, total_users: int) -> Activation:
     """
     with_meal = db.scalar(
         select(func.count(func.distinct(Meal.user_id)))
+        .where(Meal.user_id.in_(REAL_USERS))
     ) or 0
     # Distinct DAYS, not distinct meals: three meals on one Tuesday is one
     # session with a good appetite, not a habit.
     per_user_days = db.execute(
         select(Meal.user_id, func.count(func.distinct(Meal.date)))
+        .where(Meal.user_id.in_(REAL_USERS))
         .group_by(Meal.user_id)
     ).all()
     on_two_days = sum(1 for _, day_count in per_user_days if day_count >= 2)
@@ -161,7 +163,7 @@ def _time_to_first_meal(db: Session) -> TimeToFirstMeal:
     """
     first_meal = (
         select(Meal.user_id, func.min(Meal.created_at).label("first_at"))
-        .where(Meal.created_at.is_not(None))
+        .where(Meal.created_at.is_not(None), Meal.user_id.in_(REAL_USERS))
         .group_by(Meal.user_id)
         .subquery()
     )
@@ -195,7 +197,7 @@ def _signup_hours(db: Session) -> SignupHours:
     tz = window_tz()
     by_hour = [0] * 24
     outside = 0
-    for created_at in db.scalars(select(User.created_at)).all():
+    for created_at in db.scalars(select(User.created_at).where(REAL_USER)).all():
         # Stored naive-UTC (models.utcnow), so it must be told it is UTC before
         # it can be converted -- otherwise astimezone would read it as local
         # server time, which is UTC on Render today and a silent four-hour
@@ -230,7 +232,10 @@ def _feature_adoption(db: Session) -> dict[str, int]:
         "ai": AIAnalysis,
     }
     return {
-        name: db.scalar(select(func.count(func.distinct(model.user_id)))) or 0
+        name: db.scalar(
+            select(func.count(func.distinct(model.user_id)))
+            .where(model.user_id.in_(REAL_USERS))
+        ) or 0
         for name, model in sources.items()
     }
 
@@ -354,7 +359,10 @@ def list_users(
     into a diagnosis. See _last_active_by_user.
     """
     users = db.scalars(
-        select(User).order_by(User.created_at.desc(), User.id.desc()).limit(limit)
+        select(User)
+        .where(REAL_USER)
+        .order_by(User.created_at.desc(), User.id.desc())
+        .limit(limit)
     ).all()
     if not users:
         return []
@@ -418,12 +426,14 @@ def stats(
     window_start = datetime.combine(first_day, time.min)
     days = [first_day + timedelta(days=offset) for offset in range(CHART_DAYS)]
 
-    total_users = db.scalar(select(func.count()).select_from(User))
-    total_meals = db.scalar(select(func.count()).select_from(Meal))
+    total_users = db.scalar(select(func.count()).select_from(User).where(REAL_USER))
+    total_meals = db.scalar(
+        select(func.count()).select_from(Meal).where(Meal.user_id.in_(REAL_USERS))
+    )
 
     signups_per_day: dict[date_type, int] = defaultdict(int)
     for created_at in db.scalars(
-        select(User.created_at).where(User.created_at >= window_start)
+        select(User.created_at).where(User.created_at >= window_start, REAL_USER)
     ).all():
         signups_per_day[created_at.date()] += 1
 
@@ -443,7 +453,10 @@ def stats(
     recent = days[-ACTIVE_WINDOW_DAYS:]
     ai_by_kind = db.execute(
         select(AIAnalysis.kind, func.count())
-        .where(AIAnalysis.created_at >= window_start)
+        .where(
+            AIAnalysis.created_at >= window_start,
+            AIAnalysis.user_id.in_(REAL_USERS),
+        )
         .group_by(AIAnalysis.kind)
     ).all()
 
@@ -455,6 +468,7 @@ def stats(
         .where(
             AIAnalysis.created_at >= window_start,
             AIAnalysis.provider_ms.is_not(None),
+            AIAnalysis.user_id.in_(REAL_USERS),
         )
         .order_by(AIAnalysis.created_at.desc())
         .limit(LATENCY_SAMPLE_LIMIT)

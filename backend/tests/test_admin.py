@@ -942,3 +942,76 @@ def test_user_rows_carry_both_presence_and_activity(client, monkeypatch):
     mine = next(row for row in rows if row["email"] == email_of(client))
     assert mine["last_seen_at"] is not None
     assert mine["last_active_at"] is None, "no rows written, so no activity"
+
+
+# --- Demo accounts -------------------------------------------------------------
+
+
+def mark_demo(client) -> int:
+    """Flag this client's account as a demo. Returns its id.
+
+    Set directly rather than through POST /api/demo, so this suite proves the
+    exclusion on its own: the metrics have to ignore a demo account however one
+    comes to exist.
+    """
+    user_id = client.get("/api/auth/me").json()["id"]
+    with Session(get_engine()) as db_session:
+        db_session.get(User, user_id).is_demo = True
+        db_session.commit()
+    return user_id
+
+
+def test_a_demo_account_moves_no_admin_number(client, client_b, monkeypatch):
+    """⚠️ A visitor trying the demo is not someone using the app.
+
+    The demo account does everything a real one can -- meals today and
+    backdated, water, a weigh-in, a saved food, an AI call -- and every figure
+    on the page must read exactly as if it did not exist. Backdated meals are
+    the dangerous case: the seeded month would otherwise make a visitor of five
+    minutes count as "logged on two days".
+    """
+    for day in (TODAY, YESTERDAY):
+        client_b.post(
+            "/api/meals",
+            json={"date": day.isoformat(), "name": "Demo", "calories": 500,
+                  "protein": 40},
+        )
+    client_b.post("/api/water", json={"date": TODAY.isoformat(), "ml": 250})
+    client_b.post("/api/weights", json={"date": TODAY.isoformat(), "weight_kg": 80})
+    client_b.post(
+        "/api/foods",
+        json={"name": "Demo oats", "serving_size": 40, "calories": 150,
+              "protein": 5, "carbs": 27, "fat": 3},
+    )
+    demo_id = mark_demo(client_b)
+    with Session(get_engine()) as db_session:
+        db_session.add(
+            AIAnalysis(user_id=demo_id, user_text="", analysis_json="{}",
+                       kind="analysis", provider_ms=900)
+        )
+        db_session.commit()
+
+    make_admin(client, monkeypatch)
+    stats = client.get("/api/admin/stats").json()
+
+    assert stats["total_users"] == 1, "only the admin's own account is real"
+    assert stats["total_meals"] == 0
+    assert stats["signups_7d"] == 1
+    assert stats["active_7d"] == 0
+    assert stats["meals_7d"] == 0
+    assert all(point["meals"] == 0 for point in stats["activity"])
+    assert all(point["active_users"] == 0 for point in stats["activity"])
+    assert stats["activation"] == {
+        "total_users": 1, "logged_a_meal": 0, "logged_on_two_days": 0,
+    }
+    assert stats["time_to_first_meal"]["count"] == 0
+    assert sum(stats["signup_hours"]["by_hour"]) == 1
+    assert set(stats["feature_adoption"].values()) == {0}
+    assert stats["ai_calls_30d_by_kind"] == {}
+    assert stats["ai_latency_30d_by_kind"] == {}
+    # The quota guard is not a metric: it counts every call, whoever made it,
+    # or a demo would be a way around the app-wide ceiling.
+    assert stats["ai_calls_today"] == 1
+
+    emails = [row["email"] for row in client.get("/api/admin/users").json()]
+    assert emails == [email_of(client)], "a demo account is not listed"

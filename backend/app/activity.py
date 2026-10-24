@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import date as date_type
 from datetime import datetime, time
 
-from sqlalchemy import or_, select
+from sqlalchemy import false, or_, select
 from sqlalchemy.orm import Session
 
 from .models import (
@@ -24,9 +24,30 @@ from .models import (
     Meal,
     StepEntry,
     SupplementLog,
+    User,
     WaterLog,
     WeightEntry,
 )
+
+# Who counts. A "Try the demo" account is a visitor looking around a made-up
+# month, not someone using the app, so every usage number leaves it out: the
+# live charts, the frozen daily_stats history, the funnel and the users table.
+#
+# One definition here, beside the definition of "active", for the reason this
+# module exists at all: if the chart filtered demos and the snapshot did not,
+# the two would disagree about the same Tuesday and nothing would say which was
+# right. Every metric query imports these rather than writing its own filter.
+#
+# Two forms of one rule. REAL_USER is the condition for a query on `users`;
+# REAL_USERS is the same accounts as an id subquery, for every table that only
+# carries a user_id. An IN over a subquery rather than a join so each call site
+# stays the one-line `.where(...)` it already was; at this app's size the
+# planner makes the same choice either way.
+#
+# Not filtered on purpose: routers/ai.py calls_today. It is the quota guard,
+# not a metric, and has to count every call whoever made it.
+REAL_USER = User.is_demo.is_(false())
+REAL_USERS = select(User.id).where(REAL_USER)
 
 # Tables that record a real creation timestamp, so activity can be read off
 # them directly. Meals are handled separately: see meal_activity_at.
@@ -108,7 +129,8 @@ def daily_activity(
     # the real day and anything outside the window is dropped below.
     meal_rows = db.execute(
         select(Meal.user_id, Meal.created_at, Meal.date).where(
-            or_(Meal.created_at >= window_start, Meal.date >= first_day)
+            or_(Meal.created_at >= window_start, Meal.date >= first_day),
+            Meal.user_id.in_(REAL_USERS),
         )
     ).all()
     for user_id, created_at, eaten_on in meal_rows:
@@ -120,7 +142,8 @@ def daily_activity(
     for model in TIMESTAMPED:
         rows = db.execute(
             select(model.user_id, model.created_at).where(
-                model.created_at >= window_start
+                model.created_at >= window_start,
+                model.user_id.in_(REAL_USERS),
             )
         ).all()
         for user_id, created_at in rows:
