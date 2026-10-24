@@ -150,7 +150,10 @@ export default function LogMeal() {
   // isn't a saved meal yet (lib/hints). Saved meals are fetched only when the
   // count already qualifies, so most copies cost no extra request.
   const [savedMealTip, setSavedMealTip] = useState(false)
-  const [analysisId, setAnalysisId] = useState<number | null>(null)
+  // The AI estimate this form was filled from, if any. Kept whole rather than
+  // as its analysis id: a demo's replayed estimate has no stored analysis, so
+  // its id is null, and "was this meal estimated?" needs its own answer.
+  const [applied, setApplied] = useState<MealAnalysisResponse | null>(null)
   // The AI estimate lives in AnalysisProvider, not here, so it outlasts this
   // page; reset() clears it once its meal is saved.
   const { reset: resetAnalysis, analysis: estimate, attached, library } = useAnalysis()
@@ -208,12 +211,12 @@ export default function LogMeal() {
     // `meals`, which exist because `date` and `created_at` answer different
     // questions. `created_at` needs nothing here: POST /api/meals stamps it.
     setMealDate(editMeal?.date ?? logDate ?? localIsoDate())
-    setAnalysisId(null)
+    setApplied(null)
     setLibraryFoods([])
     setFromCode(Boolean(shared))
     setCopiedFrom(copyMeal?.date ?? null)
     setMessage(null)
-    // Below the resets on purpose: the estimate brings its own analysisId and
+    // Below the resets on purpose: the estimate brings its own analysis and
     // library, which the lines above would otherwise clear.
     const pending = estimateRef.current
     if (fromEstimate && pending.estimate && !editMeal && !shared && !template && !copyMeal) {
@@ -284,7 +287,7 @@ export default function LogMeal() {
     setRows(analysis.items.map((item) => rowFromAnalyzedItem(item, foods.attached)))
     setLibraryFoods(foods.library)
     setMealName((current) => current.trim() || analysis.meal_name)
-    setAnalysisId(analysis.analysis_id)
+    setApplied(analysis)
     setMessage(null)
   }
 
@@ -315,11 +318,11 @@ export default function LogMeal() {
         name: mealName,
         date: mealDate,
         editId: editMeal?.id ?? null,
-        analysisId,
+        analysisId: applied?.analysis_id ?? null,
       })
       // Whether the estimate in AnalysisProvider went into this meal.
-      const usedEstimate = analysisId !== null
-      setAnalysisId(null)
+      const usedEstimate = applied !== null
+      setApplied(null)
 
       // The estimate outlives this screen, so one that went into this meal is
       // cleared (photos, note, the estimate itself), or the next meal would
