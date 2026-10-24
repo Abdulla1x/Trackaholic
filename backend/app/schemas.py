@@ -1523,6 +1523,12 @@ class AdminStats(BaseModel):
     window_days: int
     signups: list[AdminDailyCount] = []
     activity: list[AdminDailyActivity] = []
+    # "Try the demo" starts, from the demo_starts counter rather than from
+    # accounts: a demo account is deleted a day after it is made, so counting
+    # accounts would only ever show about one day. Visits, not accounts, which
+    # is why it is its own series and not a third line on the accounts chart.
+    demos_started_30d: int = 0
+    demo_starts: list[AdminDailyCount] = []
     # The funnel figures. All computed from rows that already existed -- none of
     # these needed a column, only somebody to ask.
     activation: Activation = Activation()

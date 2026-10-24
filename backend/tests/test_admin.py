@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app import keep_warm
 from app.db import get_engine
-from app.models import AIAnalysis, Meal, User, utcnow
+from app.models import AIAnalysis, DemoStart, Meal, User, utcnow
 from app.routers import admin as admin_router
 from app.routers.admin import CHART_DAYS
 from conftest import utc_today
@@ -1015,3 +1015,23 @@ def test_a_demo_account_moves_no_admin_number(client, client_b, monkeypatch):
 
     emails = [row["email"] for row in client.get("/api/admin/users").json()]
     assert emails == [email_of(client)], "a demo account is not listed"
+
+
+def test_demos_started_are_counted_per_day_from_the_counter(client, monkeypatch):
+    """From demo_starts, not from accounts: a demo account is deleted a day
+    after it is made, so a count of accounts would erase the history."""
+    with Session(get_engine()) as db_session:
+        db_session.add(DemoStart(date=TODAY, count=3))
+        db_session.add(DemoStart(date=YESTERDAY, count=2))
+        # Outside the window: kept in the table, left out of the figures.
+        db_session.add(DemoStart(date=TODAY - timedelta(days=CHART_DAYS), count=9))
+        db_session.commit()
+
+    make_admin(client, monkeypatch)
+    stats = client.get("/api/admin/stats").json()
+    assert stats["demos_started_30d"] == 5
+    series = stats["demo_starts"]
+    assert len(series) == stats["window_days"], "every day, empty ones too"
+    assert series[-1] == {"date": TODAY.isoformat(), "count": 3}
+    assert series[-2] == {"date": YESTERDAY.isoformat(), "count": 2}
+    assert sum(point["count"] for point in series) == 5

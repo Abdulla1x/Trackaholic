@@ -77,4 +77,5 @@ export const adminHues = {
   active: chartInk,
   signups: chartInk2,
   meals: chartInk,
+  demos: chartInk,
 } as const

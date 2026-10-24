@@ -49,6 +49,7 @@ from ..models import (
     AIAnalysis,
     CaloriePlanDay,
     DailyStat,
+    DemoStart,
     Food,
     Meal,
     MealTemplate,
@@ -450,6 +451,13 @@ def stats(
             seen |= active_per_day.get(day, set())
         return len(seen)
 
+    demo_starts = {
+        row.date: row.count
+        for row in db.scalars(
+            select(DemoStart).where(DemoStart.date >= first_day)
+        ).all()
+    }
+
     recent = days[-ACTIVE_WINDOW_DAYS:]
     ai_by_kind = db.execute(
         select(AIAnalysis.kind, func.count())
@@ -532,6 +540,11 @@ def stats(
         # the app.
         signups=[
             AdminDailyCount(date=day, count=signups_per_day.get(day, 0))
+            for day in days
+        ],
+        demos_started_30d=sum(demo_starts.get(day, 0) for day in days),
+        demo_starts=[
+            AdminDailyCount(date=day, count=demo_starts.get(day, 0))
             for day in days
         ],
         activity=[

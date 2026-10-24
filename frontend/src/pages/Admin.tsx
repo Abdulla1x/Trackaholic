@@ -641,6 +641,39 @@ export default function Admin() {
             </ResponsiveContainer>
           </Block>
 
+          <Block label="Demos started per day">
+            <p className="text-small text-ink-2">
+              Last {stats.window_days} days ·{' '}
+              {plural(stats.demos_started_30d ?? 0, 'demo')} started. Demo
+              accounts are left out of every other number on this page.
+            </p>
+            {/* Its own chart, not a third series above: a demo is a visit, not
+                an account, so it does not share that chart's y-axis. */}
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={stats.demo_starts ?? []} margin={chartMargin}>
+                <CartesianGrid stroke={chartRule} vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={chartTick}
+                  tickFormatter={axisDate}
+                  stroke={chartRule}
+                />
+                <YAxis tick={chartTick} stroke={chartRule} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={chartTooltip}
+                  labelStyle={chartTooltipLabel}
+                />
+                <Bar
+                  name="Demos started"
+                  dataKey="count"
+                  fill={adminHues.demos}
+                  radius={barRadius}
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </Block>
+
           <Block label="Meals logged per day">
             <p className="text-small text-ink-2">
               Counted on the day the meal was entered, not the day it was eaten.
