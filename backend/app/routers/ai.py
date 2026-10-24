@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..auth.deps import get_current_user
+from ..auth.deps import AI_NOT_IN_DEMO, get_current_user, refuse_demo
 from ..calibration import CalibrationSummary, Pair, parse_estimate, summarise
 from .. import keep_warm
 from ..db import get_db
@@ -415,7 +415,9 @@ async def ai_status(
     global _probe_cache
     base = {"configured": meal_ai.is_configured(), **meal_ai.provider_info()}
 
-    if not probe:
+    # A demo account gets the free form only: the probe spends a provider
+    # call, which a demo never does (routers/demo.py).
+    if not probe or user.is_demo:
         return AIStatus(**base)
     if not base["configured"]:
         return AIStatus(**base, probe=AIProbe(status="not_configured"))
@@ -489,7 +491,7 @@ async def analyze(
     # this file for "a list in a multipart form". Only ids travel: see
     # _attached_foods for why the macros are read here rather than sent.
     food_id: list[int] = Form(default=[]),
-    user: User = Depends(get_current_user),
+    user: User = Depends(refuse_demo(AI_NOT_IN_DEMO)),
     db: Session = Depends(get_db),
 ):
     text = (text or "").strip() or None
@@ -611,7 +613,7 @@ async def analyze(
 @router.post("/transcribe", response_model=TranscriptionResponse)
 async def transcribe(
     audio: UploadFile = File(...),
-    user: User = Depends(get_current_user),
+    user: User = Depends(refuse_demo(AI_NOT_IN_DEMO)),
     db: Session = Depends(get_db),
 ):
     """Voice note in, editable text out.

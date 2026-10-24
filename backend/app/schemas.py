@@ -60,6 +60,12 @@ class DeleteAccountRequest(BaseModel):
     google_credential: str | None = Field(default=None, min_length=1, max_length=4096)
 
 
+class DemoStartRequest(BaseModel):
+    # The visitor's own calendar date, which the seeded month ends on. Optional,
+    # and only taken within a day of the server's (see routers/demo.py).
+    today: date_type | None = None
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
@@ -97,6 +103,9 @@ class UserOut(BaseModel):
     # password" or "delete account". Defaulted for the same reason as is_admin.
     has_password: bool = True
     google_linked: bool = False
+    # A temporary "Try the demo" account, so the client shows the demo banner
+    # and its End demo button. Defaulted for the same reason as is_admin.
+    is_demo: bool = False
 
 
 class TokenResponse(BaseModel):

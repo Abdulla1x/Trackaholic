@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from .. import review as review_module
 from ..services import meal_ai
-from ..auth.deps import get_current_user
+from ..auth.deps import AI_NOT_IN_DEMO, get_current_user, refuse_demo
 from ..calculations import (
     RATE_MIN_POINTS,
     RATE_WINDOW_DAYS,
@@ -311,7 +311,7 @@ def weekly_review(
 @router.post("/summary", response_model=ReviewSummary)
 async def review_summary(
     end: date_type | None = Query(default=None),
-    user: User = Depends(get_current_user),
+    user: User = Depends(refuse_demo(AI_NOT_IN_DEMO)),
     db: Session = Depends(get_db),
 ):
     """The same review, put into words by the model. Explicitly requested only.

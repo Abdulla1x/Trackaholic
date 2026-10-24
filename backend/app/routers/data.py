@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..auth.deps import get_current_user
+from ..auth.deps import get_current_user, get_real_user
 from ..auth.security import create_export_ticket, decode_export_ticket
 from ..db import get_db
 from ..models import (
@@ -428,7 +428,7 @@ def _parse_steps(raw) -> tuple[int | None, bool]:
 @router.post("/import/steps", response_model=ImportResult)
 async def import_steps_csv(
     file: UploadFile,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_real_user),
     db: Session = Depends(get_db),
 ):
     """Import a step history from a two-column `date,steps` CSV.
@@ -523,7 +523,7 @@ async def import_steps_csv(
 @router.post("/import", response_model=ImportResult)
 async def import_csv(
     file: UploadFile,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_real_user),
     db: Session = Depends(get_db),
 ):
     raw = await file.read(MAX_IMPORT_BYTES + 1)
