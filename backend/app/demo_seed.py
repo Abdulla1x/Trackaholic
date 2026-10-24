@@ -23,6 +23,7 @@ import math
 from datetime import date as date_type
 from datetime import timedelta
 
+from sqlalchemy import null
 from sqlalchemy.orm import Session
 
 from .models import (
@@ -154,8 +155,15 @@ def seed_demo(db: Session, user: User, setting: Setting, today: date_type) -> No
         # deterministic +/-6% breaks the period; it is symmetric, so mean
         # intake, and the measured burn derived from it, is unmoved.
         jitter = 1 + (((day * 37) % 13) - 6) / 100
+        # No logged time: every row is written the moment the demo is made,
+        # and that moment would show beside today's two meals (the app shows
+        # the time only for a meal logged on its own day), both at the same
+        # minute, breakfast included. Null is what the app already reads as
+        # "no time kept", so they show none, and a meal the visitor logs
+        # shows its real time. ⚠️ null(), not None: SQLAlchemy fills a None
+        # from the column default (utcnow), so None would stamp it anyway.
         db.add_all(
-            Meal(user_id=uid, date=on, name=name,
+            Meal(user_id=uid, date=on, name=name, created_at=null(),
                  calories=_round(kcal * jitter), protein=_round(protein * jitter),
                  carbs=_round(carbs * jitter), fat=_round(fat * jitter))
             for name, kcal, protein, carbs, fat in meals

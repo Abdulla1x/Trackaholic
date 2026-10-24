@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { MAX_ATTACHED_FOODS, MAX_IMAGES, useAnalysis } from '../analysis/AnalysisContext'
+import { useAuth } from '../auth/AuthContext'
 import type { LibraryContext } from '../lib/libraryMatch'
 import type { MealAnalysisResponse } from '../types'
+import SampleMeals from './demo/SampleMeals'
 import AiTips from './log/AiTips'
 import EstimateResult from './log/EstimateResult'
 import EstimateStages from './log/EstimateStages'
@@ -61,6 +63,7 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
   } = useAnalysis()
   useLiveMessage(error)
   const headingId = useId()
+  const demo = useAuth().user?.is_demo === true
 
   // The hidden-extras question (UA-25): a photo-only estimate stops to ask
   // what the photos cannot show before it is sent. Answering adds one line to
@@ -120,6 +123,10 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
     libraryRequested.current = true
     loadLibrary()
   }, [expanded, loadLibrary])
+
+  // A demo never reaches the model, so the note, voice and photo inputs would
+  // only lead to a refusal; it picks a sample plate instead.
+  if (demo) return <SampleMeals mode={alwaysOpen ? 'save' : 'apply'} onApply={onApply} />
 
   if (!expanded) {
     return (

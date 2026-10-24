@@ -62,6 +62,18 @@ def test_seed_writes_thirty_days_ending_today(anon_client):
         assert _count(db, SupplementLog, uid) == 2
 
 
+
+def test_seeded_meals_carry_no_logged_time(anon_client):
+    # Written all at once, so a stamp would show the same minute beside
+    # today's breakfast and lunch. Explicit None must beat the column default.
+    uid = _seeded_user(date.today())
+    with Session(get_engine()) as db:
+        stamped = db.scalar(
+            select(func.count()).select_from(Meal)
+            .where(Meal.user_id == uid, Meal.created_at.is_not(None))
+        )
+    assert stamped == 0
+
 def test_seeded_account_reads_like_a_real_one(anon_client):
     today = date.today()
     uid = _seeded_user(today)

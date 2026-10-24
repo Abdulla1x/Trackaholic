@@ -1293,6 +1293,8 @@ class DemoSampleOut(BaseModel):
     note: str
     # On the frontend's origin.
     photo: str
+    # The plate's lab-weighed calories (Nutrition5k).
+    measured_calories: float
 
 
 class TranscriptionResponse(BaseModel):

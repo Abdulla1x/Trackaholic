@@ -16,7 +16,7 @@ import type { AnalysisInputs } from '../lib/analysisInputs'
 import { photosCutMessage, sameInputs } from '../lib/analysisInputs'
 import { clearNoteDraft, readNoteDraft, writeNoteDraft } from '../lib/draft'
 import { downscaleForUpload } from '../lib/photoDownscale'
-import type { Food, MealAnalysisResponse } from '../types'
+import type { DemoSample, Food, MealAnalysisResponse } from '../types'
 import { useToast } from '../ui/toast'
 import { EstimateDayContext } from '../components/log/estimateDay'
 import { dateParam, logDate } from '../components/log/logPanelUrl'
@@ -70,6 +70,11 @@ interface AnalysisState {
    *  what the model was told is what the user sees (the hidden-extras question
    *  adds a line this way). */
   analyze: (refine: boolean, evenIfUnchanged?: boolean, note?: string) => Promise<void>
+  /** A demo's sample plate, sent by id: the server replays the estimate saved
+   *  for it instead of calling the model. */
+  analyzeSample: (sample: DemoSample) => Promise<void>
+  /** The sample plate behind the estimate, for a demo; null otherwise. */
+  sample: DemoSample | null
   correctAssumption: (assumption: string) => void
   /** An estimate arrived while nothing was showing it (the Log button says
    *  "Ready" until it is looked at). */
@@ -119,6 +124,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [files, setFiles] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [analysis, setAnalysis] = useState<MealAnalysisResponse | null>(null)
+  const [sample, setSample] = useState<DemoSample | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -335,6 +341,30 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       setUnchangedRerun(refine ? 'refine' : 'again')
       return
     }
+    // Shrunk on this device first (lib/photoDownscale.ts). Usually already
+    // finished, since it started when each photo was picked; it never rejects,
+    // and anything it cannot shrink comes back as the original.
+    const build = async () => {
+      const uploads = await Promise.all(files.map(preparedFor))
+      const form = new FormData()
+      // Repeated under one field name -- the backend reads `image` as a list.
+      uploads.forEach((item) => form.append('image', item))
+      // Ids only: the server reads the macros out of the library itself, so a
+      // request cannot claim a saved food has numbers it does not have.
+      attached.forEach((food) => form.append('food_id', String(food.id)))
+      if (text.trim()) form.append('text', text.trim())
+      if (refine && analysis) form.append('prior_analysis', JSON.stringify(analysis))
+      return form
+    }
+    // Photos are what make a body worth showing a bar for. A note-only analysis
+    // uploads a few hundred bytes and goes straight to waiting on the model.
+    await send(build, files.length > 0, inputs)
+  }
+
+  /** The call and everything that follows it: the Log button's state, the
+   *  toasts when nobody is watching, the error. `sent` is remembered once an
+   *  estimate arrives, for the re-roll question above. */
+  const send = async (build: () => Promise<FormData>, photos: boolean, sent: AnalysisInputs<File> | null) => {
     setUnchangedRerun(null)
     setAnalyzing(true)
     setUnseen(false)
@@ -347,28 +377,15 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     // The toasts below reopen the panel on this day. This provider sits above
     // its own EstimateDayContext, so useLogPanel cannot read it here.
     const reopen = () => openLogRef.current('start', { date: dateParam(forDay, localIsoDate()) })
-    // Photos are what make a body worth showing a bar for. A note-only analysis
-    // uploads a few hundred bytes and goes straight to waiting on the model.
-    // Shrunk on this device first (lib/photoDownscale.ts). Usually already
-    // finished, since it started when each photo was picked; it never rejects,
-    // and anything it cannot shrink comes back as the original.
-    const uploads = await Promise.all(files.map(preparedFor))
-    const hooks = progress.start(uploads.length > 0)
+    const form = await build()
+    const hooks = progress.start(photos)
     try {
-      const form = new FormData()
-      // Repeated under one field name -- the backend reads `image` as a list.
-      uploads.forEach((item) => form.append('image', item))
-      // Ids only: the server reads the macros out of the library itself, so a
-      // request cannot claim a saved food has numbers it does not have.
-      attached.forEach((food) => form.append('food_id', String(food.id)))
-      if (text.trim()) form.append('text', text.trim())
-      if (refine && analysis) form.append('prior_analysis', JSON.stringify(analysis))
       const result = await api.analyzeMeal(form, hooks)
       if (!mounted.current) return
       setAnalysis(result)
       // Only an estimate that arrived counts: after a failure, trying again
       // with the same inputs is exactly what the user should be able to do.
-      lastSent.current = inputs
+      lastSent.current = sent
       // The items are all new, so the "saved ✓" marks against the old ones no
       // longer describe anything on screen. Refining in particular re-portions
       // and often renames, so even a name that survives is a different estimate.
@@ -400,6 +417,18 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Through the same send() as any estimate, so the Log button, the toasts
+  // and the error behave exactly as they do for a real one.
+  const analyzeSample = async (picked: DemoSample) => {
+    setSample(picked)
+    const build = async () => {
+      const form = new FormData()
+      form.append('sample', picked.id)
+      return form
+    }
+    await send(build, false, null)
+  }
+
   const correctAssumption = (assumption: string) => {
     setNote((current) => {
       const prefix = current.trim() ? `${current.trim()}\n` : ''
@@ -423,6 +452,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     setError(null)
     setUnseen(false)
     setDay(null)
+    setSample(null)
     lastSent.current = null
   }
 
@@ -460,6 +490,8 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         progress,
         audio,
         analyze,
+        analyzeSample,
+        sample,
         correctAssumption,
         unseen,
         watch,

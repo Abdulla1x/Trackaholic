@@ -153,6 +153,7 @@ def list_samples(_user: User = Depends(get_current_user)):
             meal_name=sample.analysis.meal_name,
             note=sample.note,
             photo=sample.photo,
+            measured_calories=sample.measured_calories,
         )
         for sample in SAMPLES.values()
     ]
