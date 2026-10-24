@@ -144,8 +144,9 @@ export default function Privacy() {
             The demo gives you a temporary account of your own, filled with a month of made-up data, without
             asking for an email or a password. Anything you change or add stays in that account. It is deleted,
             with everything in it, about a day after it starts, or straight away when you end the demo. The demo
-            doesn&rsquo;t run the AI, so it never sends anything to Google. The app only keeps a count of how
-            many demos start each day.
+            doesn&rsquo;t run the AI, so it never sends anything to Google. The AI estimates on its sample meals
+            are saved examples from earlier runs, on photos from the Nutrition5k dataset (Google Research, CC BY
+            4.0). The app only keeps a count of how many demos start each day.
           </p>
         </Section>
 

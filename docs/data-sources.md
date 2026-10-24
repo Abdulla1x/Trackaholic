@@ -13,6 +13,14 @@ The generic foods in the search come from open national food-composition tables,
 | [Canadian Nutrient File 2015](https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data.html) | Health Canada | [OGL – Canada](https://open.canada.ca/en/open-government-licence-canada) |
 | [Open Food Facts](https://world.openfoodfacts.org/) (packaged products, searched live) | Open Food Facts contributors | [ODbL](https://opendatacommons.org/licenses/odbl/1-0/) |
 
+## Demo sample meals
+
+The demo's sample meals are plates from Nutrition5k: overhead photos of cafeteria dishes, each weighed ingredient by ingredient. The photos were converted from PNG to JPEG. The AI estimates beside them are this app's own, saved from one run each, so the demo never calls the model. Details are in [`backend/app/data/demo_samples.json`](../backend/app/data/demo_samples.json).
+
+| Dataset | By | Licence |
+|---|---|---|
+| [Nutrition5k](https://github.com/google-research-datasets/Nutrition5k) — Thames et al., Nutrition5k: Towards Automatic Nutritional Understanding of Generic Food, CVPR 2021 | Google Research | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+
 ## Fonts and icons
 
 | Font or icon set | By | Licence |
