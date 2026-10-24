@@ -8,7 +8,8 @@
 <p align="center"><b>A calorie and macro tracker that estimates a meal from a photo, a voice note or a sentence, and tells you how sure it is.</b></p>
 
 <p align="center">
-  <a href="https://trackaholic.app"><b>Open the app</b></a> ·
+  <a href="https://trackaholic.app/demo"><b>Try the demo</b></a> ·
+  <a href="https://trackaholic.app">Open the app</a> ·
   <a href="https://story.trackaholic.app/?ref=gh-readme">The story so far</a> ·
   <a href="#read-more">Docs</a> ·
   <a href="#engineering-notes">Engineering notes</a>
@@ -74,6 +75,7 @@ FastAPI + PostgreSQL behind a React PWA, with migrations, nightly backups and AI
 - **A weekly review** computed from the week you actually logged.
 - **Optional trackers** for water, steps (with a Samsung Health import) and supplements, plus calorie banking across the week.
 - **Saved meals, copy a recent meal, share a meal by code.**
+- **A demo with no sign-up**: a temporary account with a month of made-up data, and sample plates whose AI estimates are saved real runs, shown beside what each plate weighed in at.
 - **Installs on your phone as an app**, nine colour palettes in light and dark, and your data is yours: meals out as CSV, everything as JSON.
 
 Everything, in detail: [docs/features.md](docs/features.md).
