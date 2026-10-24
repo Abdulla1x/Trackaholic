@@ -6,11 +6,14 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth.deps import AI_NOT_IN_DEMO
 from app.auth.security import get_jwt_secret
 from app.db import get_engine
 from app.demo import PURGE_BATCH
+from app.demo_samples import SAMPLES
 from app.models import AIAnalysis, DemoStart, Meal, User, utcnow
 from app.rate_limit import limiter
+from app.routers.ai import KIND_ANALYSIS, calls_today
 
 from conftest import utc_today
 from test_admin import make_admin
@@ -295,6 +298,110 @@ def test_a_demo_spends_no_ai_quota(anon_client, monkeypatch):
     assert status.json().get("probe") is None
     with session() as db:
         assert db.scalar(select(func.count()).select_from(AIAnalysis)) == 0
+
+
+# --- The AI replay -------------------------------------------------------------
+
+
+FIRST = next(iter(SAMPLES))
+
+
+def _analyze_sample(client, headers, sample_id, **extra):
+    return client.post(
+        "/api/ai/analyze", headers=headers, data={"sample": sample_id, **extra}
+    )
+
+
+def test_a_demo_gets_the_saved_estimate_for_each_sample(anon_client, monkeypatch):
+    _ai_looks_configured(monkeypatch)
+    headers = auth(start(anon_client)["access_token"])
+    for sample_id, sample in SAMPLES.items():
+        response = _analyze_sample(anon_client, headers, sample_id)
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body.pop("analysis_id") is None
+        assert body.pop("replayed") is True
+        assert body == sample.analysis.model_dump()
+
+
+def test_the_replay_needs_no_provider_key(anon_client, monkeypatch):
+    # The demo must keep working on a server whose key was pulled.
+    from app.services import meal_ai
+
+    monkeypatch.setattr(meal_ai, "is_configured", lambda: False)
+    headers = auth(start(anon_client)["access_token"])
+    assert _analyze_sample(anon_client, headers, FIRST).status_code == 200
+
+
+def test_a_replay_stores_nothing_and_spends_no_quota(anon_client, monkeypatch):
+    _ai_looks_configured(monkeypatch)
+    payload = start(anon_client)
+    headers = auth(payload["access_token"])
+    # A note and a "photo" alongside: still the replay. The bytes are not an
+    # image, so reading them would have been refused.
+    response = anon_client.post(
+        "/api/ai/analyze", headers=headers,
+        data={"sample": FIRST, "text": "ignored"},
+        files={"image": ("plate.jpg", b"not an image", "image/jpeg")},
+    )
+    assert response.status_code == 200
+    with session() as db:
+        assert db.scalar(select(func.count()).select_from(AIAnalysis)) == 0
+        assert calls_today(db) == 0
+        assert calls_today(db, user_id=payload["user"]["id"], kind=KIND_ANALYSIS) == 0
+
+
+@pytest.mark.parametrize("sample_id", ["dish_0", "", "../../etc/passwd"])
+def test_an_unknown_sample_is_refused(anon_client, monkeypatch, sample_id):
+    _ai_looks_configured(monkeypatch)
+    headers = auth(start(anon_client)["access_token"])
+    response = _analyze_sample(anon_client, headers, sample_id, text="an apple")
+    assert response.status_code == 403
+    assert response.json()["detail"] == AI_NOT_IN_DEMO
+
+
+def test_a_real_account_sending_a_sample_gets_a_real_analysis(client, monkeypatch):
+    from app.services import meal_ai
+
+    calls = []
+
+    async def fake_analyze(images, text, *_args, **_kwargs):
+        calls.append(text)
+        return SAMPLES[FIRST].analysis
+
+    monkeypatch.setattr(meal_ai, "is_configured", lambda: True)
+    monkeypatch.setattr(meal_ai, "analyze_meal", fake_analyze)
+    response = client.post("/api/ai/analyze", data={"sample": FIRST, "text": "an apple"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["replayed"] is False
+    assert isinstance(body["analysis_id"], int)
+    assert calls == ["an apple"]
+
+
+def test_a_real_account_cannot_get_a_replay_for_free(client, monkeypatch):
+    # A sample alone is no input at all for a real account: refused before
+    # anything is reserved, exactly as an empty request is.
+    from app.services import meal_ai
+
+    monkeypatch.setattr(meal_ai, "is_configured", lambda: True)
+    assert client.post("/api/ai/analyze", data={"sample": FIRST}).status_code == 422
+
+
+def test_the_samples_are_listed(anon_client):
+    headers = auth(start(anon_client)["access_token"])
+    listed = anon_client.get("/api/demo/samples", headers=headers).json()
+    assert [s["id"] for s in listed] == list(SAMPLES)
+    assert listed[0] == {
+        "id": FIRST,
+        "meal_name": SAMPLES[FIRST].analysis.meal_name,
+        "note": SAMPLES[FIRST].note,
+        "photo": SAMPLES[FIRST].photo,
+    }
+
+
+def test_the_sample_list_needs_a_token(anon_client):
+    assert anon_client.get("/api/demo/samples").status_code == 401
 
 
 def test_a_demo_address_cannot_ask_for_a_reset(anon_client):
