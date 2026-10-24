@@ -335,6 +335,30 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       setUnchangedRerun(refine ? 'refine' : 'again')
       return
     }
+    // Shrunk on this device first (lib/photoDownscale.ts). Usually already
+    // finished, since it started when each photo was picked; it never rejects,
+    // and anything it cannot shrink comes back as the original.
+    const build = async () => {
+      const uploads = await Promise.all(files.map(preparedFor))
+      const form = new FormData()
+      // Repeated under one field name -- the backend reads `image` as a list.
+      uploads.forEach((item) => form.append('image', item))
+      // Ids only: the server reads the macros out of the library itself, so a
+      // request cannot claim a saved food has numbers it does not have.
+      attached.forEach((food) => form.append('food_id', String(food.id)))
+      if (text.trim()) form.append('text', text.trim())
+      if (refine && analysis) form.append('prior_analysis', JSON.stringify(analysis))
+      return form
+    }
+    // Photos are what make a body worth showing a bar for. A note-only analysis
+    // uploads a few hundred bytes and goes straight to waiting on the model.
+    await send(build, files.length > 0, inputs)
+  }
+
+  /** The call and everything that follows it: the Log button's state, the
+   *  toasts when nobody is watching, the error. `sent` is remembered once an
+   *  estimate arrives, for the re-roll question above. */
+  const send = async (build: () => Promise<FormData>, photos: boolean, sent: AnalysisInputs<File> | null) => {
     setUnchangedRerun(null)
     setAnalyzing(true)
     setUnseen(false)
@@ -347,28 +371,15 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     // The toasts below reopen the panel on this day. This provider sits above
     // its own EstimateDayContext, so useLogPanel cannot read it here.
     const reopen = () => openLogRef.current('start', { date: dateParam(forDay, localIsoDate()) })
-    // Photos are what make a body worth showing a bar for. A note-only analysis
-    // uploads a few hundred bytes and goes straight to waiting on the model.
-    // Shrunk on this device first (lib/photoDownscale.ts). Usually already
-    // finished, since it started when each photo was picked; it never rejects,
-    // and anything it cannot shrink comes back as the original.
-    const uploads = await Promise.all(files.map(preparedFor))
-    const hooks = progress.start(uploads.length > 0)
+    const form = await build()
+    const hooks = progress.start(photos)
     try {
-      const form = new FormData()
-      // Repeated under one field name -- the backend reads `image` as a list.
-      uploads.forEach((item) => form.append('image', item))
-      // Ids only: the server reads the macros out of the library itself, so a
-      // request cannot claim a saved food has numbers it does not have.
-      attached.forEach((food) => form.append('food_id', String(food.id)))
-      if (text.trim()) form.append('text', text.trim())
-      if (refine && analysis) form.append('prior_analysis', JSON.stringify(analysis))
       const result = await api.analyzeMeal(form, hooks)
       if (!mounted.current) return
       setAnalysis(result)
       // Only an estimate that arrived counts: after a failure, trying again
       // with the same inputs is exactly what the user should be able to do.
-      lastSent.current = inputs
+      lastSent.current = sent
       // The items are all new, so the "saved ✓" marks against the old ones no
       // longer describe anything on screen. Refining in particular re-portions
       // and often renames, so even a name that survives is a different estimate.
