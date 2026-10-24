@@ -9,6 +9,7 @@ import type {
   CaloriePlan,
   CaloriePlanCreate,
   DaySurplus,
+  DemoSample,
   Food,
   FoodCreate,
   FoodDuplicatePair,
@@ -328,6 +329,7 @@ export const api = {
   // Deletes the signed-in demo account and its data now, rather than at the
   // 24-hour purge. A real account gets a 403.
   endDemo: () => request<void>('/api/demo', { method: 'DELETE' }),
+  demoSamples: () => request<DemoSample[]>('/api/demo/samples'),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<TokenResponse>('/api/auth/change-password', {
       method: 'POST',

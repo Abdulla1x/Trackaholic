@@ -664,6 +664,17 @@ export interface MealAnalysisResponse extends MealAnalysis {
   replayed: boolean
 }
 
+/** One of the plates a demo account can "analyse" (GET /api/demo/samples).
+ *  Its estimate is a saved real run, replayed; `photo` is on this origin. */
+export interface DemoSample {
+  id: string
+  meal_name: string
+  note: string
+  photo: string
+  /** What Nutrition5k weighed the plate at. */
+  measured_calories: number
+}
+
 /** A voice note turned into text, for the user to edit before analysing. */
 export interface Transcription {
   transcript: string

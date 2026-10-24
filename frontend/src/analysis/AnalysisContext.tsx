@@ -16,7 +16,7 @@ import type { AnalysisInputs } from '../lib/analysisInputs'
 import { photosCutMessage, sameInputs } from '../lib/analysisInputs'
 import { clearNoteDraft, readNoteDraft, writeNoteDraft } from '../lib/draft'
 import { downscaleForUpload } from '../lib/photoDownscale'
-import type { Food, MealAnalysisResponse } from '../types'
+import type { DemoSample, Food, MealAnalysisResponse } from '../types'
 import { useToast } from '../ui/toast'
 import { EstimateDayContext } from '../components/log/estimateDay'
 import { dateParam, logDate } from '../components/log/logPanelUrl'
@@ -70,6 +70,11 @@ interface AnalysisState {
    *  what the model was told is what the user sees (the hidden-extras question
    *  adds a line this way). */
   analyze: (refine: boolean, evenIfUnchanged?: boolean, note?: string) => Promise<void>
+  /** A demo's sample plate, sent by id: the server replays the estimate saved
+   *  for it instead of calling the model. */
+  analyzeSample: (sample: DemoSample) => Promise<void>
+  /** The sample plate behind the estimate, for a demo; null otherwise. */
+  sample: DemoSample | null
   correctAssumption: (assumption: string) => void
   /** An estimate arrived while nothing was showing it (the Log button says
    *  "Ready" until it is looked at). */
@@ -119,6 +124,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [files, setFiles] = useState<File[]>([])
   const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [analysis, setAnalysis] = useState<MealAnalysisResponse | null>(null)
+  const [sample, setSample] = useState<DemoSample | null>(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -411,6 +417,18 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Through the same send() as any estimate, so the Log button, the toasts
+  // and the error behave exactly as they do for a real one.
+  const analyzeSample = async (picked: DemoSample) => {
+    setSample(picked)
+    const build = async () => {
+      const form = new FormData()
+      form.append('sample', picked.id)
+      return form
+    }
+    await send(build, false, null)
+  }
+
   const correctAssumption = (assumption: string) => {
     setNote((current) => {
       const prefix = current.trim() ? `${current.trim()}\n` : ''
@@ -434,6 +452,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     setError(null)
     setUnseen(false)
     setDay(null)
+    setSample(null)
     lastSent.current = null
   }
 
@@ -471,6 +490,8 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         progress,
         audio,
         analyze,
+        analyzeSample,
+        sample,
         correctAssumption,
         unseen,
         watch,

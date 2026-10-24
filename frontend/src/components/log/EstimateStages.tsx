@@ -27,11 +27,15 @@ export default function EstimateStages({
   photos,
   hasNote,
   savedFoods,
+  replay = false,
 }: {
   state: AnalysisProgressState
   photos: number
   hasNote: boolean
   savedFoods: number
+  /** A demo's sample plate: the server looks up a saved estimate, so saying
+   *  it is estimating would not be true. */
+  replay?: boolean
 }) {
   const { phase, uploadFraction, retrying, sentAt } = state
   if (phase === 'idle') return null
@@ -53,7 +57,7 @@ export default function EstimateStages({
     })
   }
   stages.push({
-    label: from ? `Estimating from ${from}` : 'Estimating',
+    label: replay ? 'Fetching the saved estimate for this plate' : from ? `Estimating from ${from}` : 'Estimating',
     // Said only once the wait stops looking normal (useAnalysisProgress). Wry
     // in small doses (DESIGN.md Voice), and still says what to expect.
     detail: retrying ? "Still looking. This one's got layers. Busy days can take up to a minute." : undefined,

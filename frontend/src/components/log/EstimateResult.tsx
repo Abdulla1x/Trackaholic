@@ -53,7 +53,7 @@ export default function EstimateResult({
   mode: 'save' | 'apply'
   onApply: () => void
 }) {
-  const { attached, library, savedToLibrary, markSaved, correctAssumption, reset } = useAnalysis()
+  const { attached, library, savedToLibrary, markSaved, correctAssumption, reset, sample } = useAnalysis()
   const { settings } = useSettings()
   const { search } = useLocation()
   const { close } = useLogPanel()
@@ -152,6 +152,33 @@ export default function EstimateResult({
         <p className="text-small text-ink-2 tabular-nums">{macroLine}</p>
       </div>
 
+      {analysis.replayed && (
+        <div className="grid justify-items-start gap-1.5">
+          <span className="rounded-tag border-[1.5px] border-ink px-1.5 text-field-label text-ink">Saved example</span>
+          {/* The date is the one run every saved estimate came from
+              (backend/app/data/demo_samples.json). */}
+          <p className="text-small text-ink-2">
+            A real AI run on this plate, saved on 24 Oct 2026 and shown again here. The demo doesn&rsquo;t call the AI.
+          </p>
+        </div>
+      )}
+      {analysis.replayed && sample && (
+        // The proof a demo can offer: what the plate weighed in at, beside the
+        // estimate. Ink, like any figure; the range holding is the point, and
+        // a test holds every sample to it.
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1 border-l-2 border-ink bg-field px-3 py-2.5">
+          <span className="text-field-label text-ink">Measured in the lab</span>
+          <span className="text-row-number tabular-nums">
+            {round(sample.measured_calories).toLocaleString()}
+            <span className="ml-1 text-small font-semibold text-ink-2">kcal</span>
+          </span>
+          <span className="col-span-2 text-small text-ink-2">
+            Nutrition5k weighed every ingredient of this plate. The estimate&rsquo;s range was{' '}
+            {round(analysis.calories.low).toLocaleString()} to {round(analysis.calories.high).toLocaleString()}.
+          </span>
+        </div>
+      )}
+
       {mode === 'save' && (
         <label className="grid gap-1">
           <span className="text-small text-ink-2">Meal name</span>
@@ -219,7 +246,19 @@ export default function EstimateResult({
         })}
       </ol>
 
-      {analysis.assumptions.length > 0 && (
+      {analysis.assumptions.length > 0 && analysis.replayed && (
+        // Read-only: correcting one means editing a note and asking again,
+        // which the demo can't do.
+        <div className="grid gap-1">
+          <p className="text-small text-ink-2">It assumed:</p>
+          <ul className="grid list-disc gap-0.5 pl-5 text-small">
+            {analysis.assumptions.map((assumption) => (
+              <li key={assumption}>{assumption}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {analysis.assumptions.length > 0 && !analysis.replayed && (
         <div className="grid gap-2">
           <p className="text-small text-ink-2">Assumed. Tap one to correct it in your note:</p>
           <div className="flex flex-wrap gap-1.5">
