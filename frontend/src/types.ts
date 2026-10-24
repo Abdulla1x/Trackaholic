@@ -780,6 +780,10 @@ export interface AdminStats {
   window_days: number
   signups: AdminDailyCount[]
   activity: AdminDailyActivity[]
+  /** "Try the demo" starts per day, from a counter (demo accounts are deleted
+   *  after a day). Optional: an API deployed before this field reads as none. */
+  demos_started_30d?: number
+  demo_starts?: AdminDailyCount[]
   /** The funnel figures. Every one is computed from rows that already existed —
    *  none of them needed a column, only somebody to ask.
    *

@@ -11,7 +11,7 @@ from sqlalchemy import event, select
 from sqlalchemy.orm import Session
 
 from app.db import get_engine
-from app.models import DailyStat, User, WaterLog, utcnow
+from app.models import DailyStat, Meal, User, WaterLog, utcnow
 from app.snapshots import MAX_BACKFILL_DAYS, ensure_snapshots
 
 from conftest import TEST_PASSWORD, utc_today
@@ -263,6 +263,68 @@ def test_churn_lowers_retention_instead_of_vanishing(make_authed_client):
     row = next(r for r in rows() if r.date == day)
     assert row.signups == 2, "the frozen denominator moved"
     assert row.cohort_d7_retained == 1, "1 of 2, not 1 of 1"
+
+
+# --- Demo accounts -------------------------------------------------------------
+
+
+def mark_demo(email: str) -> None:
+    with session() as db:
+        db.scalars(select(User).where(User.email == email)).one().is_demo = True
+        db.commit()
+
+
+def add_meal(user_id: int, days_ago: int) -> None:
+    day = utc_today() - timedelta(days=days_ago)
+    with session() as db:
+        db.add(
+            Meal(user_id=user_id, date=day, name="Demo", calories=500, protein=40,
+                 created_at=datetime.combine(day, time(12, 0)))
+        )
+        db.commit()
+
+
+def test_a_demo_account_never_enters_frozen_history(make_authed_client):
+    """⚠️ The reason the exclusion shipped before the demo itself.
+
+    A frozen row is never rewritten, so a demo account counted on the day it
+    was frozen would stay in that day's signups, its totals and its retention
+    cohort for good. Here a real account and a demo account sign up the same
+    day and both come back three days later; only the real one may show.
+    """
+    real = make_authed_client()
+    demo = make_authed_client()
+    # Both addresses before any backdating: see the churn test above.
+    real_email, demo_email = email_of(real), email_of(demo)
+    real_id = backdate_signup(real_email, days_ago=10)
+    demo_id = backdate_signup(demo_email, days_ago=10)
+    mark_demo(demo_email)
+    add_water(real_id, days_ago=7)
+    for days_ago in (10, 7):
+        add_water(demo_id, days_ago=days_ago)
+        add_meal(demo_id, days_ago=days_ago)
+
+    run()
+    by_day = {row.date: row for row in rows()}
+    signup_day = by_day[utc_today() - timedelta(days=10)]
+    return_day = by_day[utc_today() - timedelta(days=7)]
+
+    assert signup_day.signups == 1
+    assert signup_day.total_users == 1
+    assert signup_day.active_users == 0, "only the demo was active that day"
+    assert signup_day.meals == 0 and signup_day.total_meals == 0
+    assert return_day.active_users == 1
+    assert signup_day.cohort_d7_retained == 1, "1 of 1, not 2 of 2"
+
+
+def test_only_demo_accounts_freeze_nothing(client):
+    """Freezing starts at the first signup. A demo account is not one, or the
+    first visitor to try the demo would decide where history begins."""
+    email = email_of(client)
+    backdate_signup(email, days_ago=5)
+    mark_demo(email)
+    assert run() == 0
+    assert rows() == []
 
 
 # --- last_seen_at ------------------------------------------------------------

@@ -65,6 +65,20 @@ class User(Base):
     # Stored as a timestamp rather than a date only because the rest of this
     # schema is; nothing reads below the day.
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # A temporary "Try the demo" account: made-up data, no password, deleted a
+    # day after it was created. Migration 0026.
+    #
+    # ⚠️ Every usage number leaves these out (app/activity.py REAL_USERS), and
+    # that had to ship before the first one could exist. daily_stats rows are
+    # frozen and never rewritten, so a demo counted on the day it was frozen
+    # would stay in the signups and the cohorts forever. The seeded data is
+    # backdated too, so a counted demo would also read as someone who "logged
+    # on two days" within minutes of arriving.
+    #
+    # A column rather than an email pattern: `demo-…@demo.invalid` is how the
+    # account is named, not how it is recognised, and a filter on a LIKE would
+    # be one typo away from counting them again.
+    is_demo: Mapped[bool] = mapped_column(default=False, server_default=sa_false())
 
 
 class PasswordReset(Base):
@@ -772,3 +786,31 @@ class DailyStat(Base):
     # two is the width of the residual described above, so it is worth being
     # able to read it back.
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class DemoStart(Base):
+    """How many demo accounts were started on each UTC day. No `user_id`.
+
+    The number the front door is judged by, and the reason it is a counter
+    rather than a count of `users.is_demo` rows: a demo account is deleted a
+    day after it is made, so counting rows would always read about one day's
+    worth and the history would be gone. Like daily_stats, it outlives its
+    subjects by holding nothing about them.
+
+    It is also the daily cap. POST /api/demo refuses once today's count reaches
+    DEMO_DAILY_LIMIT, so the figure on /admin and the figure the limit reads are
+    the same row and cannot disagree.
+
+    UTC days, like every other counter here (see the two day conventions in
+    routers/admin.py and routers/ai.py): it counts events, not calendar dates a
+    person chose.
+    """
+
+    __tablename__ = "demo_starts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Unique, so two demos started in the same second cannot make two rows for
+    # one day: app/upsert.py turns the loser's IntegrityError into a retry that
+    # finds the winner's row and adds to it.
+    date: Mapped[date_type] = mapped_column(Date, unique=True, index=True)
+    count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
