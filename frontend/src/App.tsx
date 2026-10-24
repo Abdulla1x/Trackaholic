@@ -17,6 +17,7 @@ import RequireAdmin from './components/RequireAdmin'
 import RequireAuth from './components/RequireAuth'
 import UpdateReadyBar from './components/UpdateReadyBar'
 import SettingsRedirect from './components/you/SettingsRedirect'
+import Demo from './pages/Demo'
 import ForgotPassword from './pages/ForgotPassword'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
@@ -88,6 +89,10 @@ const router = createBrowserRouter(
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      {/* Public, so the README, LinkedIn and the story page can link
+          straight into a demo. Not lazy: for those visitors it is the first
+          screen, like the auth pages. */}
+      <Route path="/demo" element={<Demo />} />
       {/* Public: Google's consent screen links here, and anyone deciding
           whether to sign up should be able to read it first. */}
       <Route path="/privacy" lazy={page(() => import('./pages/Privacy'))} />

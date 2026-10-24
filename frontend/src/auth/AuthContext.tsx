@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { api } from '../api/client'
 import type { User } from '../types'
+import { localIsoDate } from '../lib/dates'
 import { clearToken, getToken, setToken } from './token'
 import { isInvalidSession } from './session'
 
@@ -19,6 +20,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>
   signup: (email: string, password: string) => Promise<void>
   loginWithGoogle: (credential: string) => Promise<void>
+  startDemo: () => Promise<void>
   logout: () => void
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
   deleteAccount: (confirm: { password: string } | { google_credential: string }) => Promise<void>
@@ -76,6 +78,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(response.user)
   }, [])
 
+  // A demo is an account the server makes on the spot, so it signs in like
+  // the other ways in; only its token is marked as a demo's (auth/token.ts).
+  // The visitor's own date, so the made-up month ends on their today.
+  const startDemo = useCallback(async () => {
+    const response = await api.startDemo(localIsoDate())
+    setToken(response.access_token, true)
+    setUser(response.user)
+  }, [])
+
   const logout = useCallback(() => {
     clearToken()
     setUnreachable(false)
@@ -109,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         signup,
         loginWithGoogle,
+        startDemo,
         logout,
         changePassword,
         deleteAccount,

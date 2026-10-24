@@ -21,6 +21,8 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false)
   // Set by the reset page, which sends people here rather than logging them in.
   const notice = (location.state as { notice?: string } | null)?.notice ?? null
+  // Ended from the demo banner, or its 24 hours ran out (api/client.ts).
+  const demoEnded = new URLSearchParams(location.search).get('demo') === 'ended'
 
   // Both ways in end the same way: where the visitor was headed, or Today.
   async function enter(attempt: () => Promise<void>, fallback: string) {
@@ -55,6 +57,19 @@ export default function Login() {
           </p>
         )}
         {notice && <p className="text-small font-semibold">{notice}</p>}
+        {demoEnded && (
+          <p className={AUTH_NOTE}>
+            Your demo has ended and its made-up data is gone.{' '}
+            <Link to="/demo" className={AUTH_LINK}>
+              Start a new one
+            </Link>
+            , or{' '}
+            <Link to="/signup" className={AUTH_LINK}>
+              create an account
+            </Link>
+            .
+          </p>
+        )}
         <AuthField label="Email">
           <input
             type="email"
@@ -84,6 +99,19 @@ export default function Login() {
         <GoogleButton
           onCredential={(credential) => void enter(() => loginWithGoogle(credential), 'Google sign-in failed')}
         />
+        {/* For visitors who only want to look: a temporary account with a
+            month of made-up data. Under both ways in, so it never sits between
+            someone with an account and their form (chosen on a prototype,
+            2026-10-24). */}
+        <div className="flex items-center gap-3 text-small text-ink-2" aria-hidden="true">
+          <span className="h-px flex-1 bg-rule" />
+          or just looking
+          <span className="h-px flex-1 bg-rule" />
+        </div>
+        <Button asChild variant="secondary" className="w-full">
+          <Link to="/demo">Try the demo</Link>
+        </Button>
+        <p className="-mt-1.5 text-center text-small text-ink-2">A month of made-up data. No sign-up.</p>
         {/* Underlined, not told apart by colour alone (WCAG 1.4.1). Each of
             these is the only thing in its paragraph, so strictly the rule does
             not reach it; it is underlined anyway, because a reader who has

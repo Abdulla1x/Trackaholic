@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { demoHasEnded } from '../auth/token'
 import AuthFrame, { AUTH_TITLE } from './auth/AuthFrame'
 import Retry from '@/ui/retry'
 
@@ -30,8 +31,9 @@ export default function RequireAuth() {
       </AuthFrame>
     )
   }
+  // A demo whose 24 hours are up lands here when its token is refused.
   if (!user) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />
+    return <Navigate to={demoHasEnded() ? '/login?demo=ended' : '/login'} state={{ from: location.pathname }} replace />
   }
   return <Outlet />
 }

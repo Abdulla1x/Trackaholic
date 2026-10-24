@@ -16,6 +16,8 @@ export interface User {
   has_password: boolean
   /** Has signed in with Google at least once. */
   google_linked: boolean
+  /** A temporary demo account (POST /api/demo), deleted after 24 hours. */
+  is_demo: boolean
 }
 
 export interface HealthStatus {
