@@ -96,6 +96,32 @@ def _mark_seen(db: Session, user: User) -> None:
     purge_expired_demos_quietly(db, spare_user_id=user.id)
 
 
+NOT_IN_DEMO = "Not available in the demo. Create an account to use it."
+AI_NOT_IN_DEMO = "The demo doesn't run the AI. Create an account to try it on your own meals."
+
+
+def refuse_demo(detail: str = NOT_IN_DEMO):
+    """`get_current_user`, plus a 403 for a demo account (routers/demo.py).
+
+    For the routes a demo has no business on: the ones that act on the
+    account itself (its password, deleting it), that bring in someone's real
+    data (the imports), or that spend the AI quota real accounts share. A
+    dependency rather than a check in each handler, so the refusal runs
+    before any of the handler does: before an upload is read, and before an
+    AI call is reserved. A factory so each route can say why in its own words.
+    """
+
+    def dependency(user: User = Depends(get_current_user)) -> User:
+        if user.is_demo:
+            raise HTTPException(status_code=403, detail=detail)
+        return user
+
+    return dependency
+
+
+get_real_user = refuse_demo()
+
+
 def admin_emails() -> set[str]:
     """The admin allowlist, lowercased, read fresh on every call.
 

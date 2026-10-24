@@ -37,7 +37,7 @@ from ..schemas import (
 from ..services import email as email_service
 # A module import for the same reason: tests swap verify_credential.
 from . import google
-from .deps import get_current_user, is_admin
+from .deps import get_current_user, get_real_user, is_admin, refuse_demo
 from .security import create_access_token, hash_password, verify_password
 
 logger = logging.getLogger(__name__)
@@ -354,7 +354,7 @@ def me(user: User = Depends(get_current_user)):
 def change_password(
     request: Request,
     body: ChangePasswordRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_real_user),
     db: Session = Depends(get_db),
 ):
     if user.password_hash is None:
@@ -411,7 +411,11 @@ def forgot_password(
 
     address = body.email.strip().lower()
     user = db.scalars(select(User).where(func.lower(User.email) == address)).first()
-    if user is not None and _may_send(db, user):
+    # A demo account is skipped with the same reply. Its address cannot reach
+    # here today (EmailStr refuses the reserved .invalid name), so this keeps
+    # the rule from resting on a validator's list of reserved names: a demo
+    # must never get a reset link and with it a password.
+    if user is not None and not user.is_demo and _may_send(db, user):
         raw_token = secrets.token_urlsafe(TOKEN_BYTES)
         db.add(
             PasswordReset(
@@ -504,7 +508,7 @@ def reset_password(
 def delete_account(
     request: Request,
     body: DeleteAccountRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(refuse_demo("Use End demo to end a demo account.")),
     db: Session = Depends(get_db),
 ):
     """Permanently delete the account; FK cascades remove all owned data.

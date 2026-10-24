@@ -2,13 +2,14 @@
 from datetime import date, timedelta
 
 import jwt
+import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth.security import get_jwt_secret
 from app.db import get_engine
 from app.demo import PURGE_BATCH
-from app.models import DemoStart, Meal, User, utcnow
+from app.models import AIAnalysis, DemoStart, Meal, User, utcnow
 from app.rate_limit import limiter
 
 from conftest import utc_today
@@ -236,3 +237,82 @@ def test_backdate_helper_moves_the_clock(anon_client):
     backdate(uid, hours=25)
     with session() as db:
         assert db.get(User, uid).created_at < utcnow() - timedelta(hours=24)
+
+
+# --- What a demo account can't do --------------------------------------------
+
+CSV = ("data.csv", b"date,name,calories,protein\n", "text/csv")
+
+# (method, path, request kwargs). Each is refused for a demo before the handler
+# runs, and reaches the handler as before for a real account.
+BLOCKED = [
+    ("POST", "/api/auth/change-password",
+     {"json": {"current_password": "wrong-password", "new_password": "a-new-password-1"}}),
+    ("DELETE", "/api/auth/account", {"json": {"password": "wrong-password"}}),
+    ("POST", "/api/data/import", {"files": {"file": CSV}}),
+    ("POST", "/api/data/import/steps", {"files": {"file": CSV}}),
+    ("POST", "/api/ai/analyze", {"data": {"text": "an apple"}}),
+    ("POST", "/api/ai/transcribe", {"files": {"audio": ("note.webm", b"x", "audio/webm")}}),
+    ("POST", "/api/review/summary", {}),
+]
+
+
+def _never_called(*_args, **_kwargs):
+    raise AssertionError("a demo account reached the AI provider")
+
+
+def _ai_looks_configured(monkeypatch):
+    from app.services import meal_ai
+
+    monkeypatch.setattr(meal_ai, "is_configured", lambda: True)
+    for name in ("analyze_meal", "transcribe_audio", "phrase_review", "probe"):
+        monkeypatch.setattr(meal_ai, name, _never_called)
+
+
+@pytest.mark.parametrize(("method", "path", "kwargs"), BLOCKED)
+def test_a_demo_is_refused(anon_client, monkeypatch, method, path, kwargs):
+    _ai_looks_configured(monkeypatch)
+    headers = auth(start(anon_client)["access_token"])
+    response = anon_client.request(method, path, headers=headers, **kwargs)
+    assert response.status_code == 403, response.text
+    assert "demo" in response.json()["detail"].lower()
+
+
+@pytest.mark.parametrize(("method", "path", "kwargs"), BLOCKED)
+def test_a_real_account_is_not_refused(client, method, path, kwargs):
+    # Whatever the route answered before (a wrong password, an empty CSV, no
+    # provider key, nothing logged): anything but the demo's 403.
+    assert client.request(method, path, **kwargs).status_code != 403
+
+
+def test_a_demo_spends_no_ai_quota(anon_client, monkeypatch):
+    _ai_looks_configured(monkeypatch)
+    headers = auth(start(anon_client)["access_token"])
+    anon_client.post("/api/ai/analyze", headers=headers, data={"text": "an apple"})
+    status = anon_client.get("/api/ai/status?probe=true", headers=headers)
+    assert status.status_code == 200
+    # The free form, without running or reserving a probe.
+    assert status.json().get("probe") is None
+    with session() as db:
+        assert db.scalar(select(func.count()).select_from(AIAnalysis)) == 0
+
+
+def test_a_demo_address_cannot_ask_for_a_reset(anon_client):
+    address = start(anon_client)["user"]["email"]
+    # Refused at validation: .invalid is a reserved name.
+    response = anon_client.post("/api/auth/forgot-password", json={"email": address})
+    assert response.status_code == 422
+
+
+def test_forgot_password_skips_a_demo_row(anon_client, monkeypatch):
+    # The skip behind the validator: a demo row whose address would pass it.
+    from test_password_reset import configure_email, forgot, signup
+
+    sent = configure_email(monkeypatch)
+    signup(anon_client)
+    with session() as db:
+        db.scalars(select(User).where(User.email == "reset-me@example.com")).one().is_demo = True
+        db.commit()
+    response = forgot(anon_client)
+    assert response.status_code == 200
+    assert sent == []
