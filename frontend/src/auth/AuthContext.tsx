@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { api } from '../api/client'
 import type { User } from '../types'
+import { localIsoDate } from '../lib/dates'
 import { clearToken, getToken, setToken } from './token'
 import { isInvalidSession } from './session'
 
@@ -19,6 +20,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>
   signup: (email: string, password: string) => Promise<void>
   loginWithGoogle: (credential: string) => Promise<void>
+  startDemo: () => Promise<void>
+  endDemo: (options?: { quiet?: boolean }) => Promise<void>
   logout: () => void
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
   deleteAccount: (confirm: { password: string } | { google_credential: string }) => Promise<void>
@@ -76,6 +79,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(response.user)
   }, [])
 
+  // A demo is an account the server makes on the spot, so it signs in like
+  // the other ways in; only its token is marked as a demo's (auth/token.ts).
+  // The visitor's own date, so the made-up month ends on their today.
+  const startDemo = useCallback(async () => {
+    const response = await api.startDemo(localIsoDate())
+    setToken(response.access_token, true)
+    setUser(response.user)
+  }, [])
+
+  // Throws if the server didn't delete it, so End demo can say so and keep
+  // the visitor where they are. `quiet` signs out either way: Create an
+  // account has already moved on to sign-up, and a demo the server missed is
+  // purged with the rest after 24 hours.
+  const endDemo = useCallback(async ({ quiet = false } = {}) => {
+    const token = getToken()
+    try {
+      await api.endDemo()
+    } catch (err) {
+      if (!quiet) throw err
+    }
+    // Unless someone signed in meanwhile: sign-up is already on screen when
+    // Create an account ends the demo, and its new token must survive.
+    if (getToken() !== token) return
+    clearToken()
+    setUser(null)
+  }, [])
+
   const logout = useCallback(() => {
     clearToken()
     setUnreachable(false)
@@ -109,6 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         signup,
         loginWithGoogle,
+        startDemo,
+        endDemo,
         logout,
         changePassword,
         deleteAccount,

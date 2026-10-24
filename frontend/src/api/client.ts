@@ -44,7 +44,7 @@ import type {
   WeightEntryCreate,
   WeightTrend,
 } from '../types'
-import { clearToken, getToken } from '../auth/token'
+import { clearToken, getToken, isDemoSession } from '../auth/token'
 
 export const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -110,8 +110,11 @@ function authHeaders(
  * login. Auth endpoints surface their 401s as normal form errors instead. */
 function enforceAuth(path: string, status: number): void {
   if (status === 401 && !path.startsWith('/api/auth/')) {
+    // A demo's token expires after 24 hours. Its visitor is told the demo
+    // ended, not shown a login form for an account they never made.
+    const demo = isDemoSession()
     clearToken()
-    window.location.assign('/login')
+    window.location.assign(demo ? '/login?demo=ended' : '/login')
   }
 }
 
@@ -314,6 +317,17 @@ export const api = {
       body: JSON.stringify({ credential }),
     }),
   me: () => request<User>('/api/auth/me'),
+  // Public: makes a temporary account with a month of made-up data, ending on
+  // the visitor's own date, and signs them in. Not under /api/auth/, but it
+  // never answers 401, so enforceAuth has nothing to do with it.
+  startDemo: (today: string) =>
+    request<TokenResponse>('/api/demo', {
+      method: 'POST',
+      body: JSON.stringify({ today }),
+    }),
+  // Deletes the signed-in demo account and its data now, rather than at the
+  // 24-hour purge. A real account gets a 403.
+  endDemo: () => request<void>('/api/demo', { method: 'DELETE' }),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<TokenResponse>('/api/auth/change-password', {
       method: 'POST',

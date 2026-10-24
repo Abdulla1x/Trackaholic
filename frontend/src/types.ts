@@ -16,6 +16,8 @@ export interface User {
   has_password: boolean
   /** Has signed in with Google at least once. */
   google_linked: boolean
+  /** A temporary demo account (POST /api/demo), deleted after 24 hours. */
+  is_demo: boolean
 }
 
 export interface HealthStatus {
@@ -655,7 +657,11 @@ export interface MealAnalysis {
 }
 
 export interface MealAnalysisResponse extends MealAnalysis {
-  analysis_id: number
+  /** The stored analysis a saved meal links back to. Null for a demo's
+   *  replayed estimate, which stores nothing, so there is nothing to link. */
+  analysis_id: number | null
+  /** A saved estimate shown again (the demo's sample meals), not a new run. */
+  replayed: boolean
 }
 
 /** A voice note turned into text, for the user to edit before analysing. */

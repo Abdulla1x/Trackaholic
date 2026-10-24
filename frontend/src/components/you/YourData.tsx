@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { api } from '../../api/client'
+import { useAuth } from '../../auth/AuthContext'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
 import { downloadExport } from '../../lib/downloadExport'
 import type { ImportResult } from '../../types'
@@ -39,6 +40,7 @@ const BUSY: Record<Job, string> = {
  *  while you are on the page. A toast would be gone in five seconds, and an
  *  import's counts are the thing you came to read. */
 export default function YourData() {
+  const demo = useAuth().user?.is_demo === true
   const [busy, setBusy] = useState<Job | null>(null)
   const [said, setSaid] = useState<Partial<Record<Job, string>>>({})
   const [latest, setLatest] = useState('')
@@ -89,12 +91,16 @@ export default function YourData() {
         disabled={busy !== null}
         onClick={() => exportFile('export', 'meals')}
       />
-      <RowButton
-        label="Import meals"
-        detail={detail('import')}
-        disabled={busy !== null}
-        onClick={() => fileInput.current?.click()}
-      />
+      {/* Not in the demo: its made-up month is the point, and the server
+          refuses the import. */}
+      {!demo && (
+        <RowButton
+          label="Import meals"
+          detail={detail('import')}
+          disabled={busy !== null}
+          onClick={() => fileInput.current?.click()}
+        />
+      )}
       <RowButton
         label="Download all my data"
         detail={detail('all')}

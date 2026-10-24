@@ -18,8 +18,11 @@ import WarmupNotice from '../WarmupNotice'
  *  warm-up ping, so that stays in one place too.
  *
  *  No card around the form: in the Fields style a box is for things you press
- *  (DESIGN.md: Blocks and rows). */
-export default function AuthFrame({ children }: { children: ReactNode }) {
+ *  (DESIGN.md: Blocks and rows).
+ *
+ *  `warmup={false}` leaves the warm-up notice out, for /demo, which runs its
+ *  own warm-up because it has to know when the server is ready. */
+export default function AuthFrame({ children, warmup = true }: { children: ReactNode; warmup?: boolean }) {
   const announcements = useAnnouncements()
   return (
     <div className="grid min-h-dvh place-items-center px-5 py-6">
@@ -28,7 +31,7 @@ export default function AuthFrame({ children }: { children: ReactNode }) {
         <StatusBanner banner={announcements?.banner ?? null} />
         <MovedNotice />
         {children}
-        <WarmupNotice />
+        {warmup && <WarmupNotice />}
       </div>
     </div>
   )

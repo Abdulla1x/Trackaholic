@@ -67,12 +67,13 @@ export default function EstimateResult({
   // Brought into view when a new estimate arrives (and when the panel opens
   // on one, from the toast's View): the inputs sit above it, so on a phone the
   // answer would otherwise land below the fold, behind the very scroll the
-  // user did not know to make. Instant under reduced motion.
+  // user did not know to make. Instant under reduced motion. Keyed on the
+  // estimate itself: a demo's replays all have a null analysis_id.
   const top = useRef<HTMLElement>(null)
   useEffect(() => {
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     top.current?.scrollIntoView({ block: 'start', behavior: still ? 'auto' : 'smooth' })
-  }, [analysis.analysis_id])
+  }, [analysis])
 
   const rows = analysis.items.map((item) => rowFromAnalyzedItem(item, attached))
   const totals = mealTotals(rows)

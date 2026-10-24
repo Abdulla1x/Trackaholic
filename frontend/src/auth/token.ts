@@ -17,10 +17,14 @@
 
 const TOKEN_KEY = 'macros_token'
 const PROBE_KEY = 'macros_storage_probe'
+// Set beside a demo's token. /api/auth/me says whether a live account is a
+// demo, but a demo's token stops working after 24 hours and a 401 says nothing
+// more, so this is the only way to tell "your demo ended" from "signed out".
+const DEMO_KEY = 'macros_demo'
 
-function readStored(): string | null {
+function readStored(key: string): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY)
+    return localStorage.getItem(key)
   } catch {
     return null
   }
@@ -30,28 +34,50 @@ function readStored(): string | null {
 // so a normal browser behaves exactly as before. Reads never go back to
 // localStorage: if a write failed, storage holds a stale token or none, and
 // memory holds the real one.
-let memoryToken: string | null = readStored()
+let memoryToken: string | null = readStored(TOKEN_KEY)
+let memoryDemo = readStored(DEMO_KEY) !== null
+// Whether the session this page last cleared was a demo's. Memory only: it is
+// read by the next navigation to /login, never after a reload.
+let demoEnded = false
 
 export function getToken(): string | null {
   return memoryToken
 }
 
-export function setToken(token: string) {
+export function setToken(token: string, demo = false) {
   memoryToken = token
+  memoryDemo = demo
+  demoEnded = false
   try {
     localStorage.setItem(TOKEN_KEY, token)
+    if (demo) localStorage.setItem(DEMO_KEY, '1')
+    else localStorage.removeItem(DEMO_KEY)
   } catch {
     /* Session still works; it just won't survive a reload. */
   }
 }
 
 export function clearToken() {
+  if (memoryDemo) demoEnded = true
   memoryToken = null
+  memoryDemo = false
   try {
     localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(DEMO_KEY)
   } catch {
     /* Nothing was stored, so there is nothing to remove. */
   }
+}
+
+/** Whether the stored session is a demo's. */
+export function isDemoSession(): boolean {
+  return memoryDemo
+}
+
+/** Whether the session this page last cleared was a demo's, so the login page
+ *  can say the demo ended rather than show a bare form. */
+export function demoHasEnded(): boolean {
+  return demoEnded
 }
 
 /** Whether a signed-in session will survive closing the tab.

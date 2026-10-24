@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { api } from '../../api/client'
+import { useAuth } from '../../auth/AuthContext'
 import SettingsScreen from '../../components/you/SettingsScreen'
 import { useSettingsScreen } from '../../components/you/screenContext'
 import { useLiveMessage } from '../../hooks/useLiveMessage'
@@ -40,6 +41,7 @@ export default function StepsScreen() {
 }
 
 function Steps() {
+  const demo = useAuth().user?.is_demo === true
   const { settings, update, guard } = useSettingsScreen()
   const fileInput = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
@@ -80,30 +82,33 @@ function Steps() {
         </p>
       </Block>
 
-      <Block label="Step history">
-        <p className="text-small text-ink-2">Bring in past days from a phone export.</p>
-        <div>
-          <Button variant="secondary" onClick={() => fileInput.current?.click()} disabled={importing}>
-            {importing ? 'Importing…' : 'Import a CSV file'}
-          </Button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            aria-hidden="true"
-            tabIndex={-1}
-            onChange={(event) => event.target.files?.[0] && importFile(event.target.files[0])}
-          />
-        </div>
-        {result && <p className="text-small">{result}</p>}
-        {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
-        <Explainer label="What files work?">
-          A CSV with a date column and a steps column, one row per day. Samsung Health's export works as it comes; for
-          other apps, pick out those two columns first. Days you already have are kept. There's no live sync: Health
-          Connect and Apple Health only open to apps from a store.
-        </Explainer>
-      </Block>
+      {/* Not in the demo, whose history is made up; the server refuses it. */}
+      {!demo && (
+        <Block label="Step history">
+          <p className="text-small text-ink-2">Bring in past days from a phone export.</p>
+          <div>
+            <Button variant="secondary" onClick={() => fileInput.current?.click()} disabled={importing}>
+              {importing ? 'Importing…' : 'Import a CSV file'}
+            </Button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              aria-hidden="true"
+              tabIndex={-1}
+              onChange={(event) => event.target.files?.[0] && importFile(event.target.files[0])}
+            />
+          </div>
+          {result && <p className="text-small">{result}</p>}
+          {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
+          <Explainer label="What files work?">
+            A CSV with a date column and a steps column, one row per day. Samsung Health's export works as it comes; for
+            other apps, pick out those two columns first. Days you already have are kept. There's no live sync: Health
+            Connect and Apple Health only open to apps from a store.
+          </Explainer>
+        </Block>
+      )}
     </>
   )
 }
