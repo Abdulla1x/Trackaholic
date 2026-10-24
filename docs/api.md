@@ -2,7 +2,7 @@
 
 # 🔌 API overview
 
-61 paths. All of them require an `Authorization: Bearer <token>` header and operate
+62 paths. All of them require an `Authorization: Bearer <token>` header and operate
 only on the caller's data, except these public ones: `/api/health`,
 `/api/announcements`, `/api/auth/signup|login|google`,
 `/api/auth/forgot-password|reset-password`, and `POST /api/demo`.
@@ -21,8 +21,9 @@ only on the caller's data, except these public ones: `/api/health`,
 | DELETE | `/api/auth/account` | Permanently delete the account and all its data; confirmed by the password, or by a fresh Google sign-in for an account without one |
 | POST | `/api/demo` | Start a demo (public) → JWT + user: a new temporary account with 30 days of made-up data, ending on the optional `today` (the visitor's date, used within a day of the server's). The token lasts 24 h and the account is deleted after 24 h. 5 an hour per client; 503 once `DEMO_DAILY_LIMIT` demos have started that UTC day |
 | DELETE | `/api/demo` | End the demo now: deletes the demo account and its data; 403 for a real account |
+| GET | `/api/demo/samples` | The sample meals a demo can analyse: id, meal name, note, and the photo's path on the frontend |
 
-A demo account (`is_demo` on the user) gets 403 on change-password, account deletion, both CSV imports, and every route that calls the AI (analyze, transcribe, the review summary); `GET /api/ai/status?probe=true` answers it without probing. Demo accounts are left out of every `/api/admin` number.
+A demo account (`is_demo` on the user) gets 403 on change-password, account deletion, both CSV imports, transcribe and the review summary. It never reaches the AI: on analyze it sends `sample=<id>` (one of `/api/demo/samples`) and gets back the estimate saved for that plate, with `replayed: true` and `analysis_id: null`; anything else is 403. `GET /api/ai/status?probe=true` answers it without probing. Demo accounts are left out of every `/api/admin` number.
 
 ## Meals, foods and sharing
 
@@ -48,7 +49,7 @@ A demo account (`is_demo` on the user) gets 403 on change-password, account dele
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/ai/analyze` | AI meal analysis from any of photo, audio, text (multipart) |
+| POST | `/api/ai/analyze` | AI meal analysis from any of photo, audio, text (multipart); a demo sends `sample` instead and gets a saved estimate (see Accounts) |
 | POST | `/api/ai/transcribe` | Voice note (multipart audio) → editable text |
 | PATCH | `/api/ai/analyses/{id}` | Link an analysis to the meal it was saved as |
 | GET | `/api/ai/calibration` | How your corrections compare with the estimates — coverage, bias, sample size |

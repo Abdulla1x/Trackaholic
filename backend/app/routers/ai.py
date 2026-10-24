@@ -14,6 +14,7 @@ from ..auth.deps import AI_NOT_IN_DEMO, get_current_user, refuse_demo
 from ..calibration import CalibrationSummary, Pair, parse_estimate, summarise
 from .. import keep_warm
 from ..db import get_db
+from ..demo_samples import SAMPLES
 from ..env import env_int
 from ..models import AIAnalysis, Food as FoodRow, Meal, User
 from ..schemas import (
@@ -491,9 +492,22 @@ async def analyze(
     # this file for "a list in a multipart form". Only ids travel: see
     # _attached_foods for why the macros are read here rather than sent.
     food_id: list[int] = Form(default=[]),
-    user: User = Depends(refuse_demo(AI_NOT_IN_DEMO)),
+    # A demo account's only way in: the id of one of app/demo_samples.py's
+    # plates. Ignored for a real account.
+    sample: str | None = Form(default=None, max_length=64),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # First, before any of the handler can run for a demo: no upload read, no
+    # configuration check, no _reserve_call, no provider. A sample replays the
+    # estimate saved for it; anything else is the demo's refusal.
+    if user.is_demo:
+        if sample not in SAMPLES:
+            raise HTTPException(status_code=403, detail=AI_NOT_IN_DEMO)
+        return MealAnalysisResponse(
+            **SAMPLES[sample].analysis.model_dump(), analysis_id=None, replayed=True
+        )
+
     text = (text or "").strip() or None
     # Drop the empty parts described above, so a browser quirk can't make a
     # text-only request look like it carried a photo.

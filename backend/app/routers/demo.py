@@ -11,7 +11,8 @@ What bounds it, since anyone can call it without an account:
 - DEMO_DAILY_LIMIT accounts a day for the whole app, counted in demo_starts:
   the same row /admin reads, so the cap and the chart cannot disagree.
 - No AI. A demo never reaches the provider (routers/ai.py), so it cannot
-  spend the daily quota real accounts share.
+  spend the daily quota real accounts share. Its sample meals replay estimates
+  saved from real runs (app/demo_samples.py, listed by GET /api/demo/samples).
 
 Every usage number leaves demo accounts out (app/activity.py REAL_USERS).
 """
@@ -28,11 +29,12 @@ from ..auth.router import _user_out
 from ..auth.security import create_access_token
 from ..db import get_db
 from ..demo import DEMO_LIFETIME, purge_expired_demos_quietly
+from ..demo_samples import SAMPLES
 from ..demo_seed import seed_demo
 from ..env import env_int
 from ..models import DemoStart, Setting, User
 from ..rate_limit import DEMO_LIMIT, limiter
-from ..schemas import DemoStartRequest, TokenResponse
+from ..schemas import DemoSampleOut, DemoStartRequest, TokenResponse
 from ..upsert import upsert
 
 router = APIRouter(prefix="/api/demo", tags=["demo"])
@@ -135,3 +137,22 @@ def end_demo(user: User = Depends(get_current_user), db: Session = Depends(get_d
         raise HTTPException(status_code=403, detail="Only a demo account can be ended.")
     db.delete(user)
     db.commit()
+
+
+@router.get("/samples", response_model=list[DemoSampleOut])
+def list_samples(_user: User = Depends(get_current_user)):
+    """The plates a demo can send to /api/ai/analyze as `sample`.
+
+    Served from the same file the replay reads, so the client never keeps its
+    own copy of the ids. Any signed-in account may read it: it is the same
+    public data for everyone.
+    """
+    return [
+        DemoSampleOut(
+            id=sample.id,
+            meal_name=sample.analysis.meal_name,
+            note=sample.note,
+            photo=sample.photo,
+        )
+        for sample in SAMPLES.values()
+    ]

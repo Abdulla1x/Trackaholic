@@ -1277,7 +1277,22 @@ class MealAnalysis(BaseModel):
 
 
 class MealAnalysisResponse(MealAnalysis):
-    analysis_id: int
+    # None for a demo's replayed sample: nothing was stored, so there is no
+    # row for a saved meal to link to.
+    analysis_id: int | None
+    # True when this is a saved estimate replayed for a demo account
+    # (app/demo_samples.py), not a fresh answer from the model.
+    replayed: bool = False
+
+
+class DemoSampleOut(BaseModel):
+    """One of the sample meals a demo account can analyse."""
+
+    id: str
+    meal_name: str
+    note: str
+    # On the frontend's origin.
+    photo: str
 
 
 class TranscriptionResponse(BaseModel):

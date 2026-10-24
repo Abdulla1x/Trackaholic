@@ -10,6 +10,12 @@ Usage:
 If DATABASE_URL is also set, the script additionally connects to the database
 and asserts row-level ownership directly.
 
+It also starts a demo account (POST /api/demo) and checks what a demo can and
+can't do, ending it before it finishes. If ADMIN_TOKEN is set (the bearer
+token of an account on ADMIN_EMAILS), it checks that the demo moved no
+/api/admin total. Against production the demo shows up as one start in
+"Demos started", which is what that chart is for.
+
 Removes both throwaway accounts when it finishes, however it finishes. Pass
 --keep to leave them behind for inspection; it then prints the email and
 password of each.
@@ -42,15 +48,20 @@ _checks = 0
 # because the runs that strand accounts are the ones that FAILED. Two smoke
 # accounts and one throwaway survived in production this way.
 _created: list[tuple[str, dict[str, str]]] = []
+# Demo accounts, by token. They have no password, and DELETE /api/auth/account
+# refuses them, so they are ended through DELETE /api/demo instead.
+_demos: list[dict[str, str]] = []
 
 
 def _remove_accounts() -> None:
-    if not _created:
+    if not _created and not _demos:
         return
     if KEEP:
         print("\n--keep: leaving these accounts behind")
         for email, _ in _created:
             print(f"  {email}  password: {PASSWORD}")
+        if _demos:
+            print(f"  {len(_demos)} demo account(s), deleted by the server after 24 h")
         return
     print("\nRemoving throwaway accounts:")
     # A fresh client: this runs after main's `with` block has closed its own.
@@ -75,6 +86,16 @@ def _remove_accounts() -> None:
             )
             if not ok:
                 print(f"       STILL EXISTS — password is {PASSWORD!r}")
+        for headers in _demos:
+            gone = client.delete("/api/demo", headers=headers)
+            me = client.get("/api/auth/me", headers=headers)
+            ok = gone.status_code == 204 and me.status_code == 401
+            print(
+                f"  [{'ok' if ok else '!!'}] demo account — "
+                f"DELETE {gone.status_code}, /me {me.status_code}"
+            )
+            if not ok:
+                print("       STILL EXISTS — the server purges it after 24 h")
 
 
 atexit.register(_remove_accounts)
@@ -727,6 +748,91 @@ def main() -> None:
             headers=headers_a,
         ).json()
         check(result["skipped_duplicates"] == 1, "same row IS a duplicate for A")
+
+        # -- A demo account: its own data, saved AI estimates, no AI ----------
+        admin_headers = None
+        if os.environ.get("ADMIN_TOKEN"):
+            admin_headers = {"Authorization": f"Bearer {os.environ['ADMIN_TOKEN']}"}
+            before = client.get("/api/admin/stats", headers=admin_headers)
+            check(before.status_code == 200, "ADMIN_TOKEN reads /api/admin/stats")
+            before = before.json()
+
+        response = client.post("/api/demo")
+        check(response.status_code == 201, "POST /api/demo starts a demo")
+        demo = response.json()
+        demo_headers = {"Authorization": f"Bearer {demo['access_token']}"}
+        # Recorded first, like make_user, so a failed run still ends it.
+        _demos.append(demo_headers)
+        check(demo["user"]["is_demo"] is True, "the demo account says it is one")
+
+        for path in ("/api/meals", "/api/weights", "/api/foods"):
+            rows = client.get(path, headers=demo_headers).json()
+            check(len(rows) > 0, f"demo is seeded: {path} has rows")
+
+        samples = client.get("/api/demo/samples", headers=demo_headers).json()
+        check(len(samples) > 0, f"GET /api/demo/samples lists {len(samples)} plates")
+        replay = client.post(
+            "/api/ai/analyze", headers=demo_headers, data={"sample": samples[0]["id"]}
+        )
+        check(replay.status_code == 200, "demo analyse of a sample -> 200")
+        replay = replay.json()
+        check(
+            replay["replayed"] is True and replay["analysis_id"] is None,
+            "the sample is a replay: replayed, no stored analysis",
+        )
+        check(
+            replay["meal_name"] == samples[0]["meal_name"],
+            "the replay is the estimate saved for that plate",
+        )
+        response = client.post(
+            "/api/ai/analyze", headers=demo_headers, data={"text": "an apple"}
+        )
+        check(response.status_code == 403, "demo analyse of its own text -> 403")
+        response = client.post(
+            "/api/auth/change-password",
+            headers=demo_headers,
+            json={"current_password": PASSWORD, "new_password": "a-new-password-1"},
+        )
+        check(response.status_code == 403, "demo change-password -> 403")
+
+        if admin_headers:
+            after = client.get("/api/admin/stats", headers=admin_headers).json()
+            check(
+                (after["total_users"], after["total_meals"])
+                == (before["total_users"], before["total_meals"]),
+                "the demo moved no /api/admin total",
+            )
+            check(
+                after["demos_started_30d"] == before["demos_started_30d"] + 1,
+                "/api/admin counts the demo as one start",
+            )
+        else:
+            print("  [skip] ADMIN_TOKEN not set — /api/admin totals not checked")
+
+        if os.environ.get("DATABASE_URL"):
+            from sqlalchemy import create_engine, func, select
+            from sqlalchemy.orm import Session
+
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from app.models import AIAnalysis
+
+            engine = create_engine(os.environ["DATABASE_URL"])
+            with Session(engine) as session:
+                rows = session.scalar(
+                    select(func.count()).select_from(AIAnalysis)
+                    .where(AIAnalysis.user_id == demo["user"]["id"])
+                )
+            engine.dispose()
+            # While the account still exists: after the delete, zero proves nothing.
+            check(rows == 0, "DB: the replay wrote no AI analysis row")
+
+        response = client.delete("/api/demo", headers=demo_headers)
+        check(response.status_code == 204, "DELETE /api/demo ends the demo")
+        check(
+            client.get("/api/auth/me", headers=demo_headers).status_code == 401,
+            "the ended demo's token no longer works",
+        )
+        _demos.remove(demo_headers)
 
         # -- Optional: row-level ownership straight from the database ----------
         if os.environ.get("DATABASE_URL"):
