@@ -1,9 +1,9 @@
 """Per-client rate limiting (in-memory — fine on a single instance).
 
-Only the auth endpoints are limited: everything else already requires a valid
-token, while these are reachable by anyone. Login and signup are the
-brute-force surface; the password-reset pair is the abuse surface, since one of
-them sends mail to a third party at our expense.
+Only the endpoints anyone can reach are limited: everything else already
+requires a valid token. Login and signup are the brute-force surface; the
+password-reset pair is the abuse surface, since one of them sends mail to a
+third party at our expense; starting a demo creates an account each time.
 """
 from fastapi import Request
 from slowapi import Limiter
@@ -40,3 +40,7 @@ FORGOT_PASSWORD_LIMIT = "5/hour"
 # Abuse control only. Guessing a 256-bit token is not a threat model, so this
 # exists to stop someone hammering the endpoint, not to protect the token.
 RESET_PASSWORD_LIMIT = "10/hour"
+# Each demo is a new account with about 250 rows, so this bounds how fast one
+# client can fill the database; DEMO_DAILY_LIMIT (routers/demo.py) bounds the
+# whole app. Five an hour is more than anyone reloading the front page needs.
+DEMO_LIMIT = "5/hour"

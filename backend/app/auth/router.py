@@ -225,6 +225,7 @@ def _user_out(user: User) -> UserOut:
         is_admin=is_admin(user),
         has_password=user.password_hash is not None,
         google_linked=user.google_sub is not None,
+        is_demo=user.is_demo,
     )
 
 

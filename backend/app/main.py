@@ -23,6 +23,7 @@ from .routers import (
     analytics,
     announcements,
     data,
+    demo,
     foods,
     meal_templates,
     meals,
@@ -181,6 +182,7 @@ app.include_router(plan.router)
 app.include_router(supplements.router)
 app.include_router(announcements.router)
 app.include_router(admin.router)
+app.include_router(demo.router)
 
 
 @app.get("/api/health")

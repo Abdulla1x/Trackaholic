@@ -26,6 +26,9 @@ server boots, so the schema is created/updated on deploy. In the Render dashboar
   model; read the real limits at [aistudio.google.com/rate-limit](https://aistudio.google.com/rate-limit))
 - `AI_PROBE_DAILY_LIMIT` / `MEAL_AI_STATUS_DETAIL` — optional, govern
   [`GET /api/ai/status`](runbook-ai-provider.md)
+- `DEMO_DAILY_LIMIT` — optional, how many demo accounts the app may start per UTC day
+  (default `40`; `0` turns the demo off). Demo accounts never call the AI and are
+  deleted a day after they start, so this bounds database growth
 - `CORS_ORIGINS` — your exact frontend origin (scheme included, no trailing slash)
 - `ADMIN_EMAILS` — optional, comma-separated addresses allowed to read
   `/api/admin` (usage metrics: signups, active accounts, per-account counts,

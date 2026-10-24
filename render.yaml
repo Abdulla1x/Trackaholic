@@ -80,6 +80,11 @@ services:
       # models in the chain. Read the real limits at aistudio.google.com/rate-limit.
       - key: AI_GLOBAL_DAILY_LIMIT
         value: "40"
+      # Demo accounts (POST /api/demo) the whole app may start per UTC day. Each
+      # is a temporary account with a month of made-up data, deleted after a
+      # day, and none of them can call the AI. 0 turns the demo off.
+      - key: DEMO_DAILY_LIMIT
+        value: "40"
       # Resend API key for password-reset email, sending access only. Set in
       # the dashboard; the feature 503s without it (uniformly, for known and
       # unknown addresses).

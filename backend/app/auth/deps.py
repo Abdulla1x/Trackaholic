@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..demo import purge_expired_demos_quietly
 from ..models import User, utcnow
 from ..snapshots import ensure_snapshots_quietly
 from .security import decode_token
@@ -89,6 +90,10 @@ def _mark_seen(db: Session, user: User) -> None:
         logger.exception("last_seen_at write failed")
         return
     ensure_snapshots_quietly(db, today)
+    # The second trigger for the demo purge (app/demo.py explains why it has
+    # two), riding the same once-a-day branch for the same reason the
+    # snapshot does. Spares this account: see purge_expired_demos.
+    purge_expired_demos_quietly(db, spare_user_id=user.id)
 
 
 def admin_emails() -> set[str]:

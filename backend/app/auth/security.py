@@ -77,12 +77,14 @@ def token_lifetime() -> timedelta:
     return timedelta(days=days)
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, lifetime: timedelta | None = None) -> str:
+    """`lifetime` is for the demo's one-day token; everything else takes the
+    configured default."""
     now = datetime.now(timezone.utc)
     claims = {
         "sub": str(user_id),  # PyJWT requires a string subject
         "iat": now,
-        "exp": now + token_lifetime(),
+        "exp": now + (lifetime or token_lifetime()),
     }
     return jwt.encode(claims, get_jwt_secret(), algorithm=ALGORITHM)
 
