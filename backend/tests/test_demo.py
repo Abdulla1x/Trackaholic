@@ -397,7 +397,17 @@ def test_the_samples_are_listed(anon_client):
         "meal_name": SAMPLES[FIRST].analysis.meal_name,
         "note": SAMPLES[FIRST].note,
         "photo": SAMPLES[FIRST].photo,
+        "measured_calories": SAMPLES[FIRST].measured_calories,
     }
+
+
+@pytest.mark.parametrize("sample", SAMPLES.values(), ids=lambda s: s.id)
+def test_each_sample_is_close_to_its_lab_value(sample):
+    # How the 18 were picked, and the promise the result screen makes when it
+    # shows the lab value beside the range: inside it, and within 10%.
+    calories = sample.analysis.calories
+    assert calories.low <= sample.measured_calories <= calories.high
+    assert abs(calories.estimate - sample.measured_calories) <= 0.10 * sample.measured_calories
 
 
 def test_the_sample_list_needs_a_token(anon_client):

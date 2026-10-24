@@ -27,6 +27,9 @@ class DemoSample:
     # A path on the frontend's origin, not this API's.
     photo: str
     analysis: MealAnalysis
+    # What Nutrition5k weighed this plate at, shown beside the estimate so a
+    # visitor can see how close it came.
+    measured_calories: float
 
 
 def _load(path: Path) -> dict[str, DemoSample]:
@@ -39,6 +42,7 @@ def _load(path: Path) -> dict[str, DemoSample]:
             note=entry["note"],
             photo=entry["photo"],
             analysis=MealAnalysis.model_validate(entry["analysis"]),
+            measured_calories=float(entry["measured"]["calories"]),
         )
     return samples
 
