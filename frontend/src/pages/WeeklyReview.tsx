@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import ScreenBar from '../components/shell/ScreenBar'
 import { addDays, localIsoDate, shortDate } from '../lib/dates'
 import { hideReview } from '../lib/dismissals'
@@ -126,6 +127,7 @@ function Check({ check, turn }: { check: ReviewCheck; turn: number }) {
 /** "Put this into words": the AI reads the figures above back as prose. It is
  *  given those figures and nothing else, and may not add a number or advice. */
 function InWords({ end }: { end: string }) {
+  const { user } = useAuth()
   const [summary, setSummary] = useState<string | null>(null)
   const [writing, setWriting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -158,6 +160,13 @@ function InWords({ end }: { end: string }) {
             Worded by the AI; the numbers are the ones above.
           </p>
         </>
+      ) : user?.is_demo ? (
+        // The server refuses the AI for a demo, so the button isn't offered
+        // only to fail; this says what it would do instead.
+        <p className="text-small text-ink-2">
+          With your own account, the AI can put these figures into a couple of paragraphs. The demo doesn&rsquo;t run
+          the AI.
+        </p>
       ) : (
         <>
           <p className="text-small text-ink-2">

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { isSessionPersistent } from '../auth/token'
 import AuthFrame, { AUTH_LINK, AUTH_NOTE, AUTH_TITLE, AuthField } from '../components/auth/AuthFrame'
@@ -11,6 +11,8 @@ import { useLiveMessage } from '../hooks/useLiveMessage'
 export default function Signup() {
   const { signup, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
+  // Arrived from the demo's Create an account, which ends the demo.
+  const fromDemo = Boolean((useLocation().state as { fromDemo?: boolean } | null)?.fromDemo)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +58,11 @@ export default function Signup() {
     <AuthFrame>
       <form className="grid gap-3.5" onSubmit={handleSubmit}>
         <h1 className={AUTH_TITLE}>Create your account</h1>
+        {fromDemo && (
+          <p className={AUTH_NOTE}>
+            Your demo has ended. A new account starts empty, so every number you see from here on is yours.
+          </p>
+        )}
         {!persistentSession && (
           <p className={AUTH_NOTE}>
             This browser is blocking site data, so you&rsquo;ll stay signed in

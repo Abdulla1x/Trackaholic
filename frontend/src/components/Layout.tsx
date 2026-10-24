@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext'
 import { useAnnouncements } from '../hooks/useAnnouncements'
 import { useSettings } from '../settings/SettingsContext'
 import AnnouncementsModal from './AnnouncementsModal'
+import DemoBanner from './demo/DemoBanner'
 import NewTrackaholicPrompt from './today/NewTrackaholicPrompt'
 import InstallPrompt from './install/InstallPrompt'
 import { announcementsWaiting } from '../lib/dismissals'
@@ -87,10 +88,13 @@ export default function Layout() {
   // `installed_at` undefined is an API that predates it: nothing to tell.
   const { installed } = useInstallState()
   const installedAt = settings?.installed_at
+  // Not for a demo: it is gone in a day, and the account a visitor makes
+  // afterwards would never learn the app was installed.
+  const demo = user?.is_demo === true
   useEffect(() => {
-    if (installedAt !== null) return
+    if (installedAt !== null || demo) return
     if (installed || isStandalone()) markInstalled().catch(() => {})
-  }, [installedAt, installed, markInstalled])
+  }, [installedAt, installed, markInstalled, demo])
   const [coldStart, setColdStart] = useState(false)
   // When the wait actually began, which is not when the notice appears. The
   // notice is held back COLD_START_NOTICE_AFTER_MS, so a progress bar started
@@ -134,8 +138,8 @@ export default function Layout() {
         <RailNav active={section} />
         {/* Who is signed in, where the old header said it. Truncated, with the
             full address on hover; the You page states it in full. */}
-        <p className="mt-auto truncate text-small text-ink-2" title={user?.email}>
-          {user?.email}
+        <p className="mt-auto truncate text-small text-ink-2" title={demo ? undefined : user?.email}>
+          {demo ? 'Demo account' : user?.email}
         </p>
       </aside>
 
@@ -152,6 +156,7 @@ export default function Layout() {
         className="min-w-0 flex-1 overflow-x-clip px-4 pt-[calc(env(safe-area-inset-top)+1.5rem)] pb-[calc(var(--shell-bottom)+1.5rem)] desk:px-8 desk:py-8"
       >
         <div className={`mx-auto ${wide ? 'max-w-7xl' : 'max-w-5xl'}`}>
+          <DemoBanner />
           <StatusBanner banner={announcements?.banner ?? null} />
           <MovedNotice />
           {coldStart && (
@@ -176,10 +181,11 @@ export default function Layout() {
       {/* Over every page, opened by the Log button through the address. */}
       <LogPanelSlot />
       {/* Held until the account has a target, and until settings say whether
-          it has one: release notes are not for someone getting started. */}
+          it has one: release notes are not for someone getting started, nor
+          for a visitor trying the demo. */}
       <AnnouncementsModal
         items={announcements?.items ?? []}
-        hold={!settings || !targetIsSet(settings)}
+        hold={!settings || !targetIsSet(settings) || demo}
         onShownChange={setNotesShown}
       />
       {/* Asked on Today only, and only once the release notes (if any) are
@@ -191,8 +197,9 @@ export default function Layout() {
         />
       )}
       {/* Last in the queue: after the release notes and The new Trackaholic,
-          and never over the Log panel. */}
-      {pathname === '/' && (
+          and never over the Log panel. Never for a demo, which is gone in a
+          day. */}
+      {pathname === '/' && !demo && (
         <InstallPrompt
           ready={
             announcements !== null &&

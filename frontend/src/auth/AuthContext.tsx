@@ -21,6 +21,7 @@ interface AuthState {
   signup: (email: string, password: string) => Promise<void>
   loginWithGoogle: (credential: string) => Promise<void>
   startDemo: () => Promise<void>
+  endDemo: (options?: { quiet?: boolean }) => Promise<void>
   logout: () => void
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
   deleteAccount: (confirm: { password: string } | { google_credential: string }) => Promise<void>
@@ -87,6 +88,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(response.user)
   }, [])
 
+  // Throws if the server didn't delete it, so End demo can say so and keep
+  // the visitor where they are. `quiet` signs out either way: Create an
+  // account has already moved on to sign-up, and a demo the server missed is
+  // purged with the rest after 24 hours.
+  const endDemo = useCallback(async ({ quiet = false } = {}) => {
+    const token = getToken()
+    try {
+      await api.endDemo()
+    } catch (err) {
+      if (!quiet) throw err
+    }
+    // Unless someone signed in meanwhile: sign-up is already on screen when
+    // Create an account ends the demo, and its new token must survive.
+    if (getToken() !== token) return
+    clearToken()
+    setUser(null)
+  }, [])
+
   const logout = useCallback(() => {
     clearToken()
     setUnreachable(false)
@@ -121,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         loginWithGoogle,
         startDemo,
+        endDemo,
         logout,
         changePassword,
         deleteAccount,

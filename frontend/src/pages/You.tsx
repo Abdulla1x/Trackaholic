@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import { useAppearance } from '../appearance/AppearanceContext'
 import { useAuth } from '../auth/AuthContext'
 import InstallSheet from '../components/install/InstallSheet'
+import { useLeaveDemo } from '../components/demo/DemoBanner'
 import TrackersSheet from '../components/today/TrackersSheet'
 import YourData from '../components/you/YourData'
 import { useLiveMessage } from '../hooks/useLiveMessage'
@@ -121,6 +122,7 @@ function trackersDetail(settings: Settings): string | undefined {
 export default function You() {
   const { settings, error } = useSettings()
   const { user, logout } = useAuth()
+  const leaveDemo = useLeaveDemo()
   const { appearance } = useAppearance()
   const saveNow = useInstantSave()
   const [choosingTrackers, setChoosingTrackers] = useState(false)
@@ -168,7 +170,11 @@ export default function You() {
     <Screen>
       <header className="border-b border-rule pb-1.5 text-center desk:text-left label:border-b-[5px]">
         <h1 className="pt-2.5 text-title label:text-[18px] label:font-black label:tracking-[-0.01em]">You</h1>
-        {user && <p className="truncate pb-1 text-small text-ink-2">{user.email}</p>}
+        {user && (
+          <p className="truncate pb-1 text-small text-ink-2">
+            {user.is_demo ? 'Demo account · made-up data, gone in 24 h' : user.email}
+          </p>
+        )}
       </header>
 
       {!settings ? (
@@ -239,13 +245,33 @@ export default function You() {
           </Group>
 
           <Group label="Account">
-            <RowLink to="/you/password" label={user?.has_password === false ? 'Set a password' : 'Change password'} />
-            <RowButton label="Log out" onClick={() => setLoggingOut(true)} />
-            <RowLink to="/you/delete" label="Delete account" detail="Deletes everything for good" />
+            {user?.is_demo ? (
+              // A demo has no password, nothing worth logging back into, and
+              // ends rather than being deleted (the server refuses the rest).
+              <>
+                <RowButton
+                  label="Create an account"
+                  detail="Starts empty. The demo ends."
+                  chevron
+                  onClick={leaveDemo.createAccount}
+                />
+                <RowButton
+                  label="End demo"
+                  detail="Deletes this demo and its made-up data now"
+                  onClick={leaveDemo.askToEnd}
+                />
+              </>
+            ) : (
+              <>
+                <RowLink to="/you/password" label={user?.has_password === false ? 'Set a password' : 'Change password'} />
+                <RowButton label="Log out" onClick={() => setLoggingOut(true)} />
+                <RowLink to="/you/delete" label="Delete account" detail="Deletes everything for good" />
+              </>
+            )}
           </Group>
 
           <Group label="Help">
-            {canInstall && (
+            {canInstall && !user?.is_demo && (
               <RowButton
                 label="Add to home screen"
                 detail="Open it in one tap, like any other app"
@@ -259,6 +285,7 @@ export default function You() {
             <RowLink to="/privacy" label="Privacy" detail="What's stored, and where it goes" />
           </Group>
 
+          {leaveDemo.dialog}
           <TrackersSheet open={choosingTrackers} onOpenChange={setChoosingTrackers} />
           <InstallSheet open={installing} onClose={() => setInstalling(false)} />
           <AlertDialog

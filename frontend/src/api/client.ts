@@ -325,6 +325,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ today }),
     }),
+  // Deletes the signed-in demo account and its data now, rather than at the
+  // 24-hour purge. A real account gets a 403.
+  endDemo: () => request<void>('/api/demo', { method: 'DELETE' }),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<TokenResponse>('/api/auth/change-password', {
       method: 'POST',
