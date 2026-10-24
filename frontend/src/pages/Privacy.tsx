@@ -11,7 +11,7 @@ import Wordmark from '../components/shell/Wordmark'
  *  ⚠️ Every sentence here is a claim about the code, checked against it when
  *  written (2026-10-21). Changing what is stored, sent or kept means changing
  *  this page in the same PR, and moving the date below. */
-const UPDATED = '21 October 2026'
+const UPDATED = '24 October 2026'
 const PRIVACY_EMAIL = 'privacy@trackaholic.app'
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -137,6 +137,16 @@ export default function Privacy() {
               people signed up or logged a meal that day), which say nothing about who.
             </li>
           </List>
+        </Section>
+
+        <Section title="Trying the demo">
+          <p>
+            The demo gives you a temporary account of your own, filled with a month of made-up data, without
+            asking for an email or a password. Anything you change or add stays in that account. It is deleted,
+            with everything in it, about a day after it starts, or straight away when you end the demo. The demo
+            doesn&rsquo;t run the AI, so it never sends anything to Google. The app only keeps a count of how
+            many demos start each day.
+          </p>
         </Section>
 
         <Section title="Questions">
