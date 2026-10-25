@@ -162,6 +162,16 @@ export default function EstimateResult({
           </p>
         </div>
       )}
+      {/* On the estimate only, not on the saved meal (chosen from the
+          prototype): the analysis row keeps which model made it either way. */}
+      {analysis.lighter && (
+        <div className="grid justify-items-start gap-1.5">
+          <span className="rounded-tag border-[1.5px] border-ink px-1.5 text-field-label text-ink">Lighter AI</span>
+          <p className="text-small text-ink-2">
+            Estimated by the lighter AI while the main AI was out. Check the portions before you save.
+          </p>
+        </div>
+      )}
       {analysis.replayed && sample && (
         // The proof a demo can offer: what the plate weighed in at, beside the
         // estimate. Ink, like any figure; the range holding is the point, and
