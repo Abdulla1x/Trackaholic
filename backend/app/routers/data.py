@@ -364,7 +364,17 @@ def _everything(user: User, db: Session) -> dict:
             {"created_at": a.created_at.isoformat(), "kind": a.kind,
              "user_text": a.user_text,
              "analysis": json.loads(a.analysis_json) if a.analysis_json else None,
-             "meal_id": a.meal_id}
+             "meal_id": a.meal_id,
+             # Which model answered and what it took, from migration 0027 on;
+             # null on older rows, which were never measured.
+             "model": a.model, "attempts": a.attempts,
+             "input_tokens": a.input_tokens,
+             "audio_input_tokens": a.audio_input_tokens,
+             "output_tokens": a.output_tokens,
+             "thinking_tokens": a.thinking_tokens,
+             "attached_food_ids": (
+                 json.loads(a.attached_food_ids) if a.attached_food_ids else None
+             )}
             for a in analyses if a.kind != "probe"
         ],
     }

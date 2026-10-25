@@ -40,9 +40,11 @@ from ..targets import WEIGHT_LOOKBACK_DAYS, _latest_trend_weight, compute_target
 from .ai import (
     KIND_REVIEW,
     _provider_http_error,
+    _record_report,
     _record_timing,
     _reserve_call,
     calibration_summary,
+    refund,
     review_daily_limit,
 )
 from .settings import _get_or_create
@@ -332,8 +334,8 @@ async def review_summary(
     nothing. Storing it would mean owning the question of when it goes stale,
     which is a feature and not a side effect.
 
-    A refusal costs nothing: the row is deleted on a provider failure, per
-    `_reserve_call`'s contract.
+    A refusal costs nothing: the row is refunded on a provider failure, per
+    `_reserve_call`'s contract, and counted in ai_refusals.
     """
     review = build_review(db, user.id, _window_end(end))
     if review.logged_days == 0:
@@ -363,16 +365,17 @@ async def review_summary(
         # The model ran and burned tokens; only its output was unusable, so the
         # slot stays spent -- the same rule /analyze applies.
         _record_timing(record, started)
+        _record_report(record, exc.report)
         db.commit()
         raise _provider_http_error(exc)
     except Exception as exc:
-        db.delete(record)
-        db.commit()
+        refund(db, record, exc)
         raise _provider_http_error(exc)
 
     # Timed for the same reason /analyze is: two kinds measured turns the panel
     # from descriptive into diagnostic, because "is analysis slow, or is
     # everything slow" is unanswerable with one.
     _record_timing(record, started)
+    _record_report(record, report)
     db.commit()
     return ReviewSummary(summary=summary)
