@@ -52,6 +52,7 @@ Filter Application logs on `Gemini`. Every branch logs a distinct string.
 | `Gemini model not found (model=…): skipping it` | **Google no longer serves that model id to this project** (retired, or "no longer available to new users"; `gemini-2.5-flash` already is for new projects). The call carries on with the rest of the chain, and the model is re-asked hourly | Replace it in `MEAL_AI_MODEL` / `MEAL_AI_FALLBACK_MODEL`, and in `MEAL_AI_TRANSCRIBE_MODELS` / `MEAL_AI_REVIEW_MODELS` if set; Google's message, quoted in the line, usually names a successor |
 | `No configured Gemini model is served to this project; not calling` | **Every model in the chain 404s.** Users see "AI analysis is misconfigured" | Set `MEAL_AI_MODEL` to a served model now (or the failing kind's `MEAL_AI_*_MODELS`); no reset will fix this |
 | `Not retrying Gemini: Ns of budget left …, under the Ns an attempt needs` | Attempts to spare, but not enough time for one to answer, so none is started: it would still reach Google and spend a request. Expected on bad overload days, when refusals themselves take 2–30 s | — (the `Giving up` line follows) |
+| `Gemini busy and this may be the last try that fits (…); asking gemini-3.5-flash-lite instead of …` | A voice note's Flash model was busy, so its next try went to the backup at the end of its chain, while one still fits | — (an `answered (model=gemini-3.5-flash-lite …)` line should follow) |
 | `Giving up on Gemini after …` | The retry budget was spent — the attempt cap (`MEAL_AI_MAX_ATTEMPTS`) or the deadline, whichever came first | On a paid key, raise `MEAL_AI_MAX_ATTEMPTS` and/or `MEAL_AI_DEADLINE_S` (and the frontend timeout with it). On the free tier, don't: refused attempts spend the per-day quota |
 
 Only the **final** attempt logs a full traceback; earlier ones log a one-line WARNING,
@@ -104,7 +105,9 @@ Before escalating, note these are automatic:
   overload is per pool.
 - **A chain per kind of call.** `MEAL_AI_MODEL` and `MEAL_AI_FALLBACK_MODEL` steer meal
   analysis only. Voice notes try `MEAL_AI_TRANSCRIBE_MODELS` (default 3.6 → 3.8 → 2.5 Flash →
-  3.5 Flash-Lite, so a busy day still gets a transcript to edit) and the weekly review
+  3.5 Flash-Lite). Lite is last in line but is asked as soon as a Flash model has been busy and
+  only one more try may fit the 25 s budget, so a busy day still gets a transcript to edit. Before
+  2026-10-25 two slow refusals spent the budget and Lite was never reached. The weekly review
   `MEAL_AI_REVIEW_MODELS` (default: 3.5 Flash-Lite alone, which has 500 free requests a day
   against Flash's 20; if Google ever stops serving it, the review's wording fails as
   "misconfigured" until this var names a served model, and the computed review still shows). So when you swap a model during an

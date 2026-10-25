@@ -74,7 +74,10 @@ CHAIN_ENV = {
 # that rule it is not good enough for voice. It is kept, last, on purpose: the
 # transcript is shown and editable before anything is estimated, so a misheard
 # word is a typo the user fixes, and the alternative on a day the Flash models
-# are out is no transcript at all. Lite has its own per-day quota.
+# are out is no transcript at all. Lite has its own per-day quota and its own
+# serving pool, so it is usually free when Flash is busy. Last in the chain,
+# but asked as soon as Flash is busy and only one more try may fit; see
+# _call_with_retry's last_resort.
 #
 # The review is Lite alone. It only rewords figures app/review.py has already
 # computed, and side by side on three of the owner's real weeks (2026-10-25)
@@ -112,8 +115,10 @@ RETRY_MAX_DELAY = 8.0  # ceiling, so late attempts stay frequent enough to matte
 # everyone's AI. On a paid key a refused attempt costs no money, which is why
 # MEAL_AI_MAX_ATTEMPTS can raise it from the dashboard.
 ANALYZE_MAX_ATTEMPTS = 4
-# Four, so a voice note on an overloaded day reaches the fourth model in its
-# chain (Flash-Lite) once, when the deadline leaves room for it.
+# Four, so a voice note whose models refuse instantly can try all four. When
+# they refuse slowly, the deadline allows about two, and the second goes to
+# Flash-Lite (transcribe_audio's last_resort): the attempt count alone never
+# reached it on a busy day.
 TRANSCRIBE_MAX_ATTEMPTS = 4
 REVIEW_MAX_ATTEMPTS = 2
 
@@ -718,6 +723,7 @@ async def _call_with_retry(
     deadline_s: float,
     max_attempts: int,
     min_attempt_s: float,
+    last_resort: bool = False,
 ) -> tuple[object, CallReport]:
     """Run one provider call, retrying only what another attempt can fix.
 
@@ -749,6 +755,13 @@ async def _call_with_retry(
     `kind` picks the chain. What a model has said about itself (out for the
     day, not served) holds for every kind: Google's quota is per model, not
     per kind of call, so the caches are shared.
+
+    `last_resort` makes the chain's last model a backup that is always asked
+    once Google is busy: after a 503/504 or a timeout, the try that may be the
+    last one to fit goes to it, instead of to whichever model the rotation was
+    on. Without it a backup fourth in line is reached only when the models
+    before it refuse instantly, which a busy Google does not do (2026-10-25:
+    two slow 503s spent a voice note's 25 s and Lite was never asked).
     """
     http_options = types.HttpOptions(timeout=timeout_ms)
     chain = _chain(kind)
@@ -770,13 +783,46 @@ async def _call_with_retry(
     started = _now()
     turn = 0
     last: MealAIError | None = None
+    timeout_s = timeout_ms / 1000
+    backup = chain[-1] if last_resort else None
+    asked: set[str] = set()
+    # Only a busy refusal says the clock is the problem. A 429 or 404 skip is
+    # instant, so after one the next model in line still has its full chance.
+    busy = False
 
     for attempt in range(1, max_attempts + 1):
         # Alternate through the chain rather than exhausting the primary first,
         # so a sustained overload reaches the other serving pool on attempt two
         # instead of after the budget is half gone.
         model = pool[turn % len(pool)]
-        turn += 1
+        # Worst case, not the jittered wait: this try runs its whole timeout and
+        # the longest backoff follows it. If another try could then not start,
+        # this may be the last one, and it goes to the backup. Planned against
+        # the worst case so that whenever a second try happens at all after a
+        # busy refusal, the backup is guaranteed to be among the tries.
+        jumped = (
+            backup is not None
+            and busy
+            and model != backup
+            and backup in pool
+            and backup not in asked
+            and (
+                attempt == max_attempts
+                or (_now() - started) + timeout_s + _backoff_ceiling(attempt)
+                + min_attempt_s > deadline_s
+            )
+        )
+        if jumped:
+            logger.info(
+                "Gemini busy and this may be the last try that fits (%.0fs of "
+                "budget left); asking %s instead of %s",
+                deadline_s - (_now() - started), backup, model,
+            )
+            # turn stays put, so the rotation resumes with the model skipped.
+            model = backup
+        else:
+            turn += 1
+        asked.add(model)
         delay = _backoff(attempt)
         # Whether there is room for another attempt after this one. Decided up
         # front so the last failure is the one that pays for a full traceback;
@@ -801,9 +847,10 @@ async def _call_with_retry(
                 if isinstance(exc, MealAIDailyQuotaExhausted):
                     _mark_exhausted(model)
             # Out of the rotation; turn steps back so the model that slid into
-            # this slot is the one asked next.
+            # this slot is the one asked next. A backup try never moved it.
             pool.remove(model)
-            turn -= 1
+            if not jumped:
+                turn -= 1
             if not pool:
                 last.attempts = attempt
                 raise last
@@ -814,6 +861,7 @@ async def _call_with_retry(
             continue
         except _RETRYABLE as exc:
             last = exc
+            busy = True
         else:
             logger.info(
                 "Gemini answered (model=%s, attempts=%d, rss_mb=%s)",
@@ -1053,6 +1101,7 @@ async def transcribe_audio(
         deadline_s=TRANSCRIBE_DEADLINE_S,
         max_attempts=TRANSCRIBE_MAX_ATTEMPTS,
         min_attempt_s=TRANSCRIBE_MIN_ATTEMPT_S,
+        last_resort=True,
     )
 
     try:

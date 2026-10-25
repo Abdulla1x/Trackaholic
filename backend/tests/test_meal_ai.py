@@ -926,14 +926,29 @@ def test_the_review_is_flash_lite_alone_by_default(monkeypatch, no_chain_env):
 
 
 def test_a_voice_note_on_an_overloaded_day_reaches_flash_lite(monkeypatch, no_chain_env):
-    """Three busy Flash models, then Lite answers on the fourth and last try."""
+    """Instant refusals leave time for 3.8 too, then Lite before 2.5: the third
+    try is the first that might be the last to fit a 25 s budget."""
+    calls = _install_scripted_provider(
+        monkeypatch,
+        [_server_error()] * 2 + [SimpleNamespace(parsed=None, text="two eggs")],
+    )
+    text, report = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert text == "two eggs"
+    assert calls["models"] == ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite"]
+    assert report.model == "gemini-3.5-flash-lite"
+    assert report.attempts == 3
+
+
+def test_instant_refusals_still_try_every_voice_model(monkeypatch, no_chain_env):
+    """Asking Lite early only swaps it with 2.5; nothing is dropped."""
     calls = _install_scripted_provider(
         monkeypatch,
         [_server_error()] * 3 + [SimpleNamespace(parsed=None, text="two eggs")],
     )
-    text, report = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
-    assert text == "two eggs"
-    assert calls["models"][-1] == report.model == "gemini-3.5-flash-lite"
+    _, report = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert calls["models"] == [
+        "gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-2.5-flash",
+    ]
     assert report.attempts == meal_ai.TRANSCRIBE_MAX_ATTEMPTS == 4
 
 
@@ -1159,6 +1174,86 @@ def test_a_retry_with_time_to_answer_still_runs(monkeypatch):
     )
     assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert calls["n"] == 2
+
+
+# 2026-10-25 17:12 UTC: a voice note's 3.6 and 3.8 both took slow 503s, 20.3 s
+# of a 25 s budget between them, and it gave up with Lite -- the backup for
+# exactly this -- never asked. The second try after a busy refusal now goes to
+# Lite whenever it may be the last one to fit.
+
+LITE = "gemini-3.5-flash-lite"
+
+
+def test_a_busy_voice_note_asks_lite_while_a_try_still_fits(monkeypatch, no_chain_env, caplog):
+    calls, now = _install_timed_provider(
+        monkeypatch,
+        [(10, _server_error()), (4, SimpleNamespace(text="two eggs", candidates=None))],
+    )
+    with caplog.at_level(logging.INFO, logger="app.services.meal_ai"):
+        text, report = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert text == "two eggs"
+    assert calls["models"] == ["gemini-3.6-flash", LITE]
+    assert (report.model, report.attempts) == (LITE, 2)
+    assert now["t"] <= meal_ai.TRANSCRIBE_DEADLINE_S
+    assert f"asking {LITE} instead of gemini-3.8-flash" in caplog.text
+
+
+def test_a_voice_note_with_flash_out_for_the_day_keeps_the_chain_order(
+    monkeypatch, no_chain_env
+):
+    """A 429 skip is instant, so it is not a reason to give up on 3.8."""
+    calls, _ = _install_timed_provider(
+        monkeypatch,
+        [(0.2, _quota_error(DAILY_QUOTA_ID)),
+         (5, SimpleNamespace(text="two eggs", candidates=None))],
+    )
+    asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert calls["models"] == ["gemini-3.6-flash", "gemini-3.8-flash"]
+
+
+def test_the_estimate_has_no_backup_jump(monkeypatch, no_chain_env):
+    """The 17:13 estimate on the same busy evening, replayed: 2.5 answered on the
+    third try, and nothing about the voice fix changes that order."""
+    calls, _ = _install_timed_provider(
+        monkeypatch,
+        [(9.5, _server_error()), (2.4, _server_error()),
+         (14.5, SimpleNamespace(parsed=SAMPLE, text=None))],
+    )
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
+    assert calls["models"] == ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-2.5-flash"]
+
+
+def test_a_lite_out_for_the_day_is_not_jumped_to(monkeypatch, no_chain_env):
+    meal_ai._mark_exhausted(LITE)
+    calls, _ = _install_timed_provider(
+        monkeypatch,
+        [(10, _server_error()), (4, SimpleNamespace(text="two eggs", candidates=None))],
+    )
+    asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert calls["models"] == ["gemini-3.6-flash", "gemini-3.8-flash"]
+
+
+def test_the_last_try_by_count_goes_to_lite_too(monkeypatch, no_chain_env):
+    """MEAL_AI_MAX_ATTEMPTS can end the call with time to spare."""
+    monkeypatch.setenv("MEAL_AI_MAX_ATTEMPTS", "2")
+    calls = _install_scripted_provider(
+        monkeypatch, [_server_error(), SimpleNamespace(parsed=None, text="two eggs")]
+    )
+    asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert calls["models"] == ["gemini-3.6-flash", LITE]
+
+
+def test_a_refused_lite_try_leaves_the_rotation_where_it_was(monkeypatch, no_chain_env):
+    """The Lite try never advanced the rotation, so dropping Lite must not step
+    it back: 3.8 is next, not 3.6 again."""
+    calls, _ = _install_timed_provider(
+        monkeypatch,
+        [(10, _server_error()), (0.2, _quota_error(DAILY_QUOTA_ID)),
+         (5, SimpleNamespace(text="two eggs", candidates=None))],
+    )
+    _, report = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert calls["models"] == ["gemini-3.6-flash", LITE, "gemini-3.8-flash"]
+    assert report.model == "gemini-3.8-flash"
 
 
 @pytest.mark.parametrize(
