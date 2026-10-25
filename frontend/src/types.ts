@@ -48,6 +48,22 @@ export interface AIStatus {
   chains?: Record<string, string[]>
   sdk_version: string
   probe: AIProbe | null
+  /** Set when the server already knows the main AI is out for the day, so the
+   *  Log panel can offer the lighter AI before Estimate. Optional: an API
+   *  deployed before the lighter AI doesn't send it. */
+  main_out?: MainAIOut | null
+}
+
+/** Why the main AI can't take a meal estimate now, and what can: on
+ *  /api/ai/status, and beside `detail` on a refused estimate (see ApiError). */
+export interface MainAIOut {
+  /** `busy` (Google turning requests away) only comes with a refused estimate. */
+  reason: 'busy' | 'daily_quota' | 'app_limit'
+  /** When the main AI is back, as an ISO datetime. For `busy` it's Google's
+   *  daily reset, which is where a yes for the rest of today ends. */
+  back_at: string
+  /** Whether the lighter AI can take this estimate now. */
+  lighter: boolean
 }
 
 export interface TokenResponse {
@@ -664,6 +680,8 @@ export interface MealAnalysisResponse extends MealAnalysis {
   analysis_id: number | null
   /** A saved estimate shown again (the demo's sample meals), not a new run. */
   replayed: boolean
+  /** Made by the lighter AI. Optional: an API deployed before it doesn't send it. */
+  lighter?: boolean
 }
 
 /** One of the plates a demo account can "analyse" (GET /api/demo/samples).
@@ -846,6 +864,11 @@ export interface AdminStats {
    *  tier, so the real bill is $0), and every call that got no answer. */
   ai_usage_30d?: AIUsage
   ai_refusals_30d?: AIRefusalCount[]
+  /** The lighter AI's offer on the Log panel over the window, and today's
+   *  estimates against its own ceiling. Optional, like the two above. */
+  lighter_offers_30d?: { shown: number; used: number; declined: number }
+  ai_lite_calls_today?: number
+  ai_lite_daily_limit?: number
 }
 
 /** One day's effective calorie and macro targets — what its rings are drawn

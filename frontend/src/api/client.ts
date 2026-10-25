@@ -16,6 +16,7 @@ import type {
   HealthStatus,
   KeepWarmStatus,
   ImportResult,
+  MainAIOut,
   Meal,
   MealAnalysisResponse,
   MealCreate,
@@ -51,10 +52,14 @@ export const API_BASE = import.meta.env.VITE_API_URL ?? ''
 
 export class ApiError extends Error {
   status: number
+  /** Sent beside `detail` when a meal estimate was refused because the main AI
+   *  is out: what the lighter-AI offer needs. Null on every other error. */
+  mainOut: MainAIOut | null
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, mainOut: MainAIOut | null = null) {
     super(message)
     this.status = status
+    this.mainOut = mainOut
   }
 }
 
@@ -156,7 +161,14 @@ function errorFrom(status: number, body: unknown): ApiError {
       detail = typeof field === 'string' ? `${field}: ${first.msg}` : first.msg
     }
   }
-  return new ApiError(detail, status)
+  return new ApiError(detail, status, mainOutFrom(body))
+}
+
+/** The `main_out` beside a refused estimate's detail, if it is one. */
+function mainOutFrom(body: unknown): MainAIOut | null {
+  const out = (body as { main_out?: unknown } | null)?.main_out as Partial<MainAIOut> | null | undefined
+  if (!out || typeof out.reason !== 'string' || typeof out.back_at !== 'string') return null
+  return { reason: out.reason, back_at: out.back_at, lighter: out.lighter === true }
 }
 
 /** The error for a request that never produced a response at all.
@@ -609,10 +621,13 @@ export const api = {
       { method: 'POST', body: form },
       TRANSCRIBE_TIMEOUT_MS,
     ),
-  // Operator diagnostic, not wired into any UI: answers "is the AI down, and
-  // why" without a log dig. `probe` spends one provider call.
+  // Answers "is the AI down, and why" without a log dig. The Log panel reads
+  // its `main_out` to offer the lighter AI up front; only an operator passes
+  // `probe`, which spends one provider call.
   getAIStatus: (probe = false) =>
     request<AIStatus>(`/api/ai/status${probe ? '?probe=true' : ''}`),
+  reportLighterOffer: (event: 'shown' | 'used' | 'declined') =>
+    request<void>('/api/ai/lighter-offer', { method: 'POST', body: JSON.stringify({ event }) }),
   getCalibration: () => request<Calibration>('/api/ai/calibration'),
   linkAnalysis: (analysisId: number, mealId: number) =>
     request<void>(`/api/ai/analyses/${analysisId}`, {
