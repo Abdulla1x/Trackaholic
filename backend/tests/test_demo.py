@@ -15,7 +15,7 @@ from app.models import AIAnalysis, DemoStart, Meal, User, utcnow
 from app.rate_limit import limiter
 from app.routers.ai import KIND_ANALYSIS, calls_today
 
-from conftest import utc_today
+from conftest import reporting, utc_today
 from test_admin import make_admin
 
 
@@ -370,7 +370,7 @@ def test_a_real_account_sending_a_sample_gets_a_real_analysis(client, monkeypatc
         return SAMPLES[FIRST].analysis
 
     monkeypatch.setattr(meal_ai, "is_configured", lambda: True)
-    monkeypatch.setattr(meal_ai, "analyze_meal", fake_analyze)
+    monkeypatch.setattr(meal_ai, "analyze_meal", reporting(fake_analyze))
     response = client.post("/api/ai/analyze", data={"sample": FIRST, "text": "an apple"})
     assert response.status_code == 200, response.text
     body = response.json()

@@ -593,7 +593,7 @@ async def analyze(
 
     started = time_module.monotonic()
     try:
-        analysis = await meal_ai.analyze_meal(
+        analysis, report = await meal_ai.analyze_meal(
             loaded_images, text, prior,
             audio_bytes=audio_bytes, audio_mime=audio_mime,
             library_foods=library_foods,
@@ -656,7 +656,7 @@ async def transcribe(
 
     started = time_module.monotonic()
     try:
-        transcript = await meal_ai.transcribe_audio(audio_bytes, audio_mime)
+        transcript, report = await meal_ai.transcribe_audio(audio_bytes, audio_mime)
     except meal_ai.MealAIBadResponse as exc:
         # Silence, or speech the model couldn't make out. It listened either
         # way, so the slot stays spent — otherwise uploading silence on a loop

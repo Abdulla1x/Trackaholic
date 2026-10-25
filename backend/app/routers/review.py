@@ -358,7 +358,7 @@ async def review_summary(
     )
     started = time_module.monotonic()
     try:
-        summary = await meal_ai.phrase_review([fact for fact in facts if fact])
+        summary, report = await meal_ai.phrase_review([fact for fact in facts if fact])
     except meal_ai.MealAIBadResponse as exc:
         # The model ran and burned tokens; only its output was unusable, so the
         # slot stays spent -- the same rule /analyze applies.

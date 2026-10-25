@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.db import dispose_engine
 from app.main import app
 from app.rate_limit import limiter
+from app.services import meal_ai
 
 TEST_PASSWORD = "test-password-123"
 
@@ -50,6 +51,32 @@ def post_raw_json(client, path, body):
     return client.post(
         path, content=json.dumps(body), headers={"Content-Type": "application/json"}
     )
+
+
+# What the fakes below report: one request, answered by a model no real chain
+# names, with token counts round enough to price by eye.
+FAKE_REPORT = meal_ai.CallReport(
+    model="fake-model",
+    attempts=1,
+    input_tokens=1000,
+    audio_input_tokens=0,
+    output_tokens=200,
+    thinking_tokens=300,
+)
+
+
+def reporting(fake, report=FAKE_REPORT):
+    """Wrap a fake that returns a value into one that returns (value, report).
+
+    meal_ai's three calls return their CallReport beside the answer. Most tests
+    only care about the answer, so they keep writing fakes that return it and
+    let this add the report, rather than every fake restating one.
+    """
+
+    async def wrapped(*args, **kwargs):
+        return await fake(*args, **kwargs), report
+
+    return wrapped
 
 
 def put_raw_json(client, path, body):

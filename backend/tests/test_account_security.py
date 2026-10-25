@@ -8,7 +8,7 @@ import pytest
 from app.auth.security import get_jwt_secret
 from app.rate_limit import limiter
 from app.services import meal_ai
-from tests.conftest import TEST_PASSWORD
+from tests.conftest import TEST_PASSWORD, reporting
 
 NEW_PASSWORD = "new-password-456"
 
@@ -181,7 +181,7 @@ def test_export_all_survives_a_voice_note(client, monkeypatch):
     async def fake_transcribe(audio_bytes, audio_mime):
         return "a hundred grams of chicken"
 
-    monkeypatch.setattr(meal_ai, "transcribe_audio", fake_transcribe)
+    monkeypatch.setattr(meal_ai, "transcribe_audio", reporting(fake_transcribe))
     assert client.post(
         "/api/ai/transcribe",
         files={"audio": ("note.webm", io.BytesIO(b"fake-audio"), "audio/webm")},

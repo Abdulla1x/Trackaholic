@@ -15,6 +15,7 @@ import ssl
 import time
 from collections.abc import Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -144,7 +145,16 @@ REVIEW_MIN_ATTEMPT_S = 10
 
 
 class MealAIError(Exception):
-    """Base for provider failures, so callers never import provider symbols."""
+    """Base for provider failures, so callers never import provider symbols.
+
+    `attempts` is how many requests the failed action sent to Google, set by
+    _call_with_retry on whatever it raises. Zero for a call refused before any
+    request (every model already out for the day). The router counts it into
+    ai_refusals, because Google counts those requests whether or not one
+    answered.
+    """
+
+    attempts: int = 0
 
 
 class MealAIRateLimited(MealAIError):
@@ -208,7 +218,64 @@ class MealAIModelNotFound(MealAIBadRequest):
 
 
 class MealAIBadResponse(MealAIError):
-    """Provider replied with something that isn't a usable MealAnalysis."""
+    """Provider replied with something that isn't a usable MealAnalysis.
+
+    Unlike every other failure, this one was answered and billed, so it carries
+    the call's report: the router keeps its row, and the row records the cost.
+    """
+
+    report: "CallReport | None" = None
+
+
+@dataclass(frozen=True)
+class CallReport:
+    """What one user action cost: who answered, how many requests, how many tokens.
+
+    Provider-neutral on purpose, like MealAnalysis: the router stores these
+    numbers and /admin prices them, and neither has to know what usage_metadata
+    is. Token counts are None when the provider didn't report them -- a
+    missing count is "not measured", never zero.
+    """
+
+    model: str
+    attempts: int
+    input_tokens: int | None = None
+    # The audio share of input_tokens. Kept apart because some models bill
+    # audio input at a higher rate than text and images.
+    audio_input_tokens: int | None = None
+    output_tokens: int | None = None
+    # Billed at the output price, and invisible in the answer itself.
+    thinking_tokens: int | None = None
+
+
+def _report(model: str, attempts: int, response) -> CallReport:
+    """Read Google's usage_metadata into a CallReport, never raising.
+
+    getattr all the way down: this runs after the answer arrived, and a
+    diagnostic that threw here would turn a good estimate into an error.
+    """
+    usage = getattr(response, "usage_metadata", None)
+
+    def count(name: str) -> int | None:
+        value = getattr(usage, name, None)
+        return value if isinstance(value, int) else None
+
+    audio = None
+    details = getattr(usage, "prompt_tokens_details", None)
+    if isinstance(details, list):
+        audio = sum(
+            getattr(item, "token_count", None) or 0
+            for item in details
+            if "AUDIO" in str(getattr(item, "modality", "")).upper()
+        )
+    return CallReport(
+        model=model,
+        attempts=attempts,
+        input_tokens=count("prompt_token_count"),
+        audio_input_tokens=audio,
+        output_tokens=count("candidates_token_count"),
+        thinking_tokens=count("thoughts_token_count"),
+    )
 
 
 SYSTEM_PROMPT = """\
@@ -585,12 +652,14 @@ async def _call_with_retry(
     deadline_s: float,
     max_attempts: int,
     min_attempt_s: float,
-) -> tuple[str, object]:
+) -> tuple[object, CallReport]:
     """Run one provider call, retrying only what another attempt can fix.
 
-    Returns the model that actually answered alongside its response, because
-    with a fallback chain "which model produced this" stops being a constant —
-    and it is the first thing you want in the log when the output is unusable.
+    Returns the response with a CallReport: the model that actually answered
+    (with a fallback chain "which model produced this" stops being a
+    constant, and it is the first thing you want in the log when the output is
+    unusable), the requests sent, and the tokens. Whatever it raises carries
+    `attempts` too, because a refused request is still one Google counted.
 
     The retry lives here rather than in the router on purpose: the router has
     already reserved exactly one quota slot for this user action, and one user
@@ -618,6 +687,7 @@ async def _call_with_retry(
         # Not "come back tomorrow": no reset will bring these models back.
         logger.error("No configured Gemini model is served to this project; not calling")
         raise MealAIModelNotFound("No configured Gemini model is served to this project.")
+    # attempts stays 0 on the two refusals above and below: no request left.
     if not pool:
         resets_at = next_quota_reset()
         logger.warning(
@@ -665,6 +735,7 @@ async def _call_with_retry(
             pool.remove(model)
             turn -= 1
             if not pool:
+                last.attempts = attempt
                 raise last
             logger.info(
                 "Gemini %s refused (%s); trying %s now",
@@ -678,7 +749,7 @@ async def _call_with_retry(
                 "Gemini answered (model=%s, attempts=%d, rss_mb=%s)",
                 model, attempt, _rss_mb(),
             )
-            return model, response
+            return response, _report(model, attempt, response)
 
         elapsed = _now() - started
         if attempt == max_attempts:
@@ -703,6 +774,7 @@ async def _call_with_retry(
         "max_attempts=%d, rss_mb=%s)",
         _now() - started, attempt, deadline_s, max_attempts, _rss_mb(),
     )
+    last.attempts = attempt
     raise last
 
 
@@ -831,7 +903,7 @@ async def analyze_meal(
     audio_bytes: bytes | None = None,
     audio_mime: str | None = None,
     library_foods: Sequence[Food] | None = None,
-) -> MealAnalysis:
+) -> tuple[MealAnalysis, CallReport]:
     async def call(model: str, http_options: types.HttpOptions):
         return await _generate(
             model,
@@ -845,7 +917,7 @@ async def analyze_meal(
     # Parsing stays outside the retry: a response that arrived and failed to
     # parse already burned tokens, and a second call bills them again for the
     # same broken output.
-    model, response = await _call_with_retry(
+    response, report = await _call_with_retry(
         call,
         timeout_ms=ANALYZE_TIMEOUT_MS,
         deadline_s=ANALYZE_DEADLINE_S,
@@ -856,13 +928,13 @@ async def analyze_meal(
     # response.parsed is populated when the SDK validated the schema itself;
     # fall back to validating the raw JSON text.
     if isinstance(response.parsed, MealAnalysis):
-        return response.parsed
+        return response.parsed, report
     try:
         raw = response.text or ""
     except Exception:  # safety-blocked responses raise on .text
         raw = ""
     try:
-        return MealAnalysis.model_validate_json(raw)
+        return MealAnalysis.model_validate_json(raw), report
     except ValidationError as exc:
         # Almost always a truncated response (thinking tokens ate the budget)
         # or a safety block, so record why the model stopped.
@@ -874,12 +946,16 @@ async def analyze_meal(
         logger.error(
             "Gemini returned an unusable response (model=%s, finish_reason=%s, "
             "chars=%d, audio_mime=%s, audio_bytes=%s)",
-            model, finish, len(raw), audio_mime, len(audio_bytes or b""),
+            report.model, finish, len(raw), audio_mime, len(audio_bytes or b""),
         )
-        raise MealAIBadResponse("Model returned no usable JSON.") from exc
+        error = MealAIBadResponse("Model returned no usable JSON.")
+        error.report = report
+        raise error from exc
 
 
-async def transcribe_audio(audio_bytes: bytes, audio_mime: str | None) -> str:
+async def transcribe_audio(
+    audio_bytes: bytes, audio_mime: str | None
+) -> tuple[str, CallReport]:
     """A voice note in, plain text out — no estimating, no JSON.
 
     Kept separate from analyze_meal so the transcript can be shown and edited
@@ -899,7 +975,7 @@ async def transcribe_audio(audio_bytes: bytes, audio_mime: str | None) -> str:
             types.GenerateContentConfig(temperature=0.0, http_options=http_options),
         )
 
-    model, response = await _call_with_retry(
+    response, report = await _call_with_retry(
         call,
         timeout_ms=TRANSCRIBE_TIMEOUT_MS,
         deadline_s=TRANSCRIBE_DEADLINE_S,
@@ -922,13 +998,15 @@ async def transcribe_audio(audio_bytes: bytes, audio_mime: str | None) -> str:
         logger.error(
             "Gemini returned no transcript (model=%s, finish_reason=%s, "
             "audio_mime=%s, audio_bytes=%d)",
-            model, finish, audio_mime, len(audio_bytes),
+            report.model, finish, audio_mime, len(audio_bytes),
         )
-        raise MealAIBadResponse("No speech was recognised in the recording.")
-    return text
+        error = MealAIBadResponse("No speech was recognised in the recording.")
+        error.report = report
+        raise error
+    return text, report
 
 
-async def phrase_review(facts: Sequence[str]) -> str:
+async def phrase_review(facts: Sequence[str]) -> tuple[str, CallReport]:
     """Computed facts in, one short paragraph out. No numbers of its own.
 
     **This is a phrasing layer and the constraint is the whole design.** Every
@@ -953,7 +1031,7 @@ async def phrase_review(facts: Sequence[str]) -> str:
             types.GenerateContentConfig(temperature=0.2, http_options=http_options),
         )
 
-    model, response = await _call_with_retry(
+    response, report = await _call_with_retry(
         call,
         timeout_ms=REVIEW_TIMEOUT_MS,
         deadline_s=REVIEW_DEADLINE_S,
@@ -970,10 +1048,12 @@ async def phrase_review(facts: Sequence[str]) -> str:
         finish = candidates[0].finish_reason if candidates else None
         logger.error(
             "Gemini returned no review summary (model=%s, finish_reason=%s, facts=%d)",
-            model, finish, len(facts),
+            report.model, finish, len(facts),
         )
-        raise MealAIBadResponse("The AI did not return a summary. Try again.")
-    return text
+        error = MealAIBadResponse("The AI did not return a summary. Try again.")
+        error.report = report
+        raise error
+    return text, report
 
 
 def provider_info() -> dict[str, str | None]:
