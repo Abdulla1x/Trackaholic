@@ -690,6 +690,15 @@ def _max_attempts(default: int) -> int:
     return value if value >= 1 else default
 
 
+def _backoff_ceiling(attempt: int) -> float:
+    """The longest the wait after `attempt` can be, before jitter.
+
+    Its own function because planning needs the worst case: a prediction made
+    with the jittered figure would change from one run to the next.
+    """
+    return min(RETRY_BASE_DELAY * 2 ** (attempt - 1), RETRY_MAX_DELAY)
+
+
 def _backoff(attempt: int) -> float:
     """Exponential up to a ceiling, then jittered down.
 
@@ -698,9 +707,7 @@ def _backoff(attempt: int) -> float:
     frequent sampling. Jitter keeps concurrent users from retrying in lockstep
     and handing Google back the burst that caused the overload.
     """
-    return min(RETRY_BASE_DELAY * 2 ** (attempt - 1), RETRY_MAX_DELAY) * random.uniform(
-        0.5, 1.0
-    )
+    return _backoff_ceiling(attempt) * random.uniform(0.5, 1.0)
 
 
 async def _call_with_retry(

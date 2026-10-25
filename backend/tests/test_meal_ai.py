@@ -1093,12 +1093,13 @@ def _install_timed_provider(monkeypatch, outcomes):
     one production ran.
     """
     now = {"t": 0.0}
-    calls = {"n": 0}
+    calls = {"n": 0, "models": []}
 
     async def fake_sleep(seconds):
         now["t"] += seconds
 
-    async def generate_content(**_kwargs):
+    async def generate_content(**kwargs):
+        calls["models"].append(kwargs.get("model"))
         seconds, outcome = outcomes[calls["n"]]
         calls["n"] += 1
         now["t"] += seconds
