@@ -1513,6 +1513,20 @@ class AIUsage(BaseModel):
     prices_checked: date_type | None = None
 
 
+class LighterOfferEvent(BaseModel):
+    """What happened to one lighter-AI offer on the Log panel."""
+
+    event: Literal["shown", "used", "declined"]
+
+
+class LighterOffers(BaseModel):
+    """Lighter-AI offers over the window, from ai_lighter_offers."""
+
+    shown: int = 0
+    used: int = 0
+    declined: int = 0
+
+
 class AIRefusalCount(BaseModel):
     """Calls of one kind that ended without an answer for one cause, over the
     window: from ai_refusals, so deleting an account does not erase them."""
@@ -1648,6 +1662,11 @@ class AdminStats(BaseModel):
     # that ended without an answer. G3 prices against the first.
     ai_usage_30d: AIUsage = AIUsage()
     ai_refusals_30d: list[AIRefusalCount] = []
+    # The lighter AI: what happened to its offer over the window, and today's
+    # estimates against its own ceiling (outside ai_global_daily_limit).
+    lighter_offers_30d: LighterOffers = LighterOffers()
+    ai_lite_calls_today: int = 0
+    ai_lite_daily_limit: int = 0
 
 
 class AdminUserRow(BaseModel):

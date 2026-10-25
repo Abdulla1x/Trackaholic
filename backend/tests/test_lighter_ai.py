@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_engine
-from app.models import AIAnalysis, AIRefusal
+from app.models import AIAnalysis, AILighterOffer, AIRefusal
 from app.services import meal_ai
 from conftest import utc_today
 from tests.test_demo import auth, start
@@ -338,3 +338,63 @@ def test_other_kinds_at_the_shared_limit_offer_nothing(client, monkeypatch):
     response = post_voice_note(client)
     assert response.status_code == 503
     assert "main_out" not in response.json()
+
+
+# --- counting the offer -----------------------------------------------------------
+
+
+def _offers() -> list[tuple]:
+    with Session(get_engine()) as db:
+        return [
+            (row.date, row.shown, row.used, row.declined)
+            for row in db.scalars(select(AILighterOffer)).all()
+        ]
+
+
+def test_the_log_panel_counts_each_offer_shown_used_and_declined(client):
+    for event in ("shown", "shown", "used", "declined"):
+        response = client.post("/api/ai/lighter-offer", json={"event": event})
+        assert response.status_code == 204
+    assert _offers() == [(utc_today(), 2, 1, 1)]
+
+
+def test_an_unknown_offer_event_is_refused(client):
+    response = client.post("/api/ai/lighter-offer", json={"event": "ignored"})
+    assert response.status_code == 422
+    assert _offers() == []
+
+
+def test_a_demo_and_a_stranger_cannot_count_offers(anon_client):
+    assert anon_client.post("/api/ai/lighter-offer", json={"event": "shown"}).status_code == 401
+    headers = auth(start(anon_client)["access_token"])
+    response = anon_client.post(
+        "/api/ai/lighter-offer", json={"event": "shown"}, headers=headers
+    )
+    assert response.status_code == 403
+    assert _offers() == []
+
+
+def test_the_offer_counter_holds_nothing_that_belongs_to_a_person():
+    """No user_id and no foreign key, so it outlives the accounts and can't leak."""
+    table = AILighterOffer.__table__
+    assert {column.name for column in table.columns} == {
+        "id", "date", "shown", "used", "declined",
+    }
+    assert not [fk for column in table.columns for fk in column.foreign_keys]
+
+
+def test_admin_shows_the_offers_and_the_lighter_ceiling(client, monkeypatch):
+    from tests.test_admin import make_admin
+
+    make_admin(client, monkeypatch)
+    configure(monkeypatch)
+    monkeypatch.setenv("AI_LITE_DAILY_LIMIT", "150")
+    for event in ("shown", "used"):
+        client.post("/api/ai/lighter-offer", json={"event": event})
+    _estimate(client, lighter=True)
+    _estimate(client)
+
+    stats = client.get("/api/admin/stats").json()
+    assert stats["lighter_offers_30d"] == {"shown": 1, "used": 1, "declined": 0}
+    assert (stats["ai_lite_calls_today"], stats["ai_lite_daily_limit"]) == (1, 150)
+    assert stats["ai_calls_today"] == 1

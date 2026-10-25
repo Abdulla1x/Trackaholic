@@ -876,3 +876,27 @@ class AIRefusal(Base):
     cause: Mapped[str] = mapped_column(String(32))
     count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class AILighterOffer(Base):
+    """How often the lighter-AI offer was shown, used and declined, per UTC day.
+    No `user_id`.
+
+    The Log panel offers the lighter AI when the main AI is out or busy, and
+    reports what happened (POST /api/ai/lighter-offer): `shown` once per panel
+    opening where the offer appeared, `used` when someone chose it, `declined`
+    for "Not now". Estimates made after a yes "for the rest of today" are not
+    offers; they show in ai_analyses as kind analysis_lite.
+
+    A counter like demo_starts and ai_refusals, so the history outlives the
+    accounts that saw the offer.
+    """
+
+    __tablename__ = "ai_lighter_offers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Unique, for app/upsert.py's same-second retry, as in demo_starts.
+    date: Mapped[date_type] = mapped_column(Date, unique=True, index=True)
+    shown: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    used: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    declined: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

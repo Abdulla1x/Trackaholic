@@ -6,7 +6,7 @@ import time as time_module
 from collections.abc import Collection, Sequence
 from datetime import datetime, time, timedelta, timezone
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -17,13 +17,15 @@ from .. import keep_warm
 from ..db import get_db
 from ..demo_samples import SAMPLES
 from ..env import env_int
-from ..models import AIAnalysis, AIRefusal, Food as FoodRow, Meal, User
+from ..models import AIAnalysis, AILighterOffer, AIRefusal, Food as FoodRow, Meal, User
+from ..rate_limit import LIGHTER_OFFER_LIMIT, limiter
 from ..schemas import (
     AIProbe,
     AIStatus,
     AnalysisLink,
     Calibration,
     Food,
+    LighterOfferEvent,
     MainAIOut,
     MealAnalysis,
     MealAnalysisResponse,
@@ -853,6 +855,34 @@ async def analyze(
     return MealAnalysisResponse(
         **analysis.model_dump(), analysis_id=record.id, lighter=lighter
     )
+
+
+@router.post("/lighter-offer", status_code=204)
+@limiter.limit(LIGHTER_OFFER_LIMIT)
+def lighter_offer(
+    request: Request,
+    body: LighterOfferEvent,
+    user: User = Depends(refuse_demo(AI_NOT_IN_DEMO)),
+    db: Session = Depends(get_db),
+):
+    """Count what happened to a lighter-AI offer: shown, used or declined.
+
+    Reported by the Log panel, since only it knows the offer was on screen.
+    Counted for /admin with nothing about who (ai_lighter_offers).
+    """
+    today = datetime.now(timezone.utc).date()
+
+    def build() -> AILighterOffer:
+        row = db.scalars(
+            select(AILighterOffer).where(AILighterOffer.date == today)
+        ).first()
+        if row is None:
+            row = AILighterOffer(date=today, shown=0, used=0, declined=0)
+            db.add(row)
+        setattr(row, body.event, getattr(row, body.event) + 1)
+        return row
+
+    upsert(db, build)
 
 
 @router.post("/transcribe", response_model=TranscriptionResponse)

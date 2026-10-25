@@ -47,6 +47,7 @@ from ..keep_warm import (
 )
 from ..models import (
     AIAnalysis,
+    AILighterOffer,
     AIRefusal,
     CaloriePlanDay,
     DailyStat,
@@ -72,13 +73,21 @@ from ..schemas import (
     AIModelUsage,
     AIRefusalCount,
     AIUsage,
+    LighterOffers,
     KeepWarmStatus,
     Retention,
     SignupHours,
     TimeToFirstMeal,
 )
 from ..services import meal_ai
-from .ai import KIND_PROBE, global_calls_today, global_daily_limit
+from .ai import (
+    KIND_ANALYSIS_LITE,
+    KIND_PROBE,
+    calls_today,
+    global_calls_today,
+    global_daily_limit,
+    lite_daily_limit,
+)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -171,6 +180,18 @@ def _ai_usage(db: Session, window_start: datetime, active_accounts: int) -> AIUs
         usage.cost_usd_per_call = round(usage.cost_usd / usage.priced_calls, 5)
     usage.cost_usd = round(usage.cost_usd, 4)
     return usage
+
+
+def _lighter_offers(db: Session, first_day: date_type) -> LighterOffers:
+    """The lighter-AI offer's shown / used / declined over the window."""
+    shown, used, declined = db.execute(
+        select(
+            func.coalesce(func.sum(AILighterOffer.shown), 0),
+            func.coalesce(func.sum(AILighterOffer.used), 0),
+            func.coalesce(func.sum(AILighterOffer.declined), 0),
+        ).where(AILighterOffer.date >= first_day)
+    ).one()
+    return LighterOffers(shown=shown, used=used, declined=declined)
 
 
 def _ai_refusals(db: Session, first_day: date_type) -> list[AIRefusalCount]:
@@ -617,6 +638,9 @@ def stats(
         # actually use it.
         ai_usage_30d=_ai_usage(db, window_start, distinct_active(days)),
         ai_refusals_30d=_ai_refusals(db, first_day),
+        lighter_offers_30d=_lighter_offers(db, first_day),
+        ai_lite_calls_today=calls_today(db, kind=KIND_ANALYSIS_LITE),
+        ai_lite_daily_limit=lite_daily_limit(),
         signups_7d=sum(signups_per_day.get(day, 0) for day in recent),
         signups_30d=sum(signups_per_day.get(day, 0) for day in days),
         active_7d=distinct_active(recent),
