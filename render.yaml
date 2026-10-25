@@ -45,10 +45,11 @@ services:
       # before anything is estimated. Empty uses the analysis chain above.
       - key: MEAL_AI_TRANSCRIBE_MODELS
         value: gemini-3.6-flash,gemini-3.8-flash,gemini-2.5-flash,gemini-3.5-flash-lite
-      # The models the weekly review's wording tries. Empty uses the analysis
-      # chain above.
+      # The models the weekly review's wording tries. Lite alone: it has 500
+      # free requests a day against each Flash model's 20, and a failed
+      # summary loses nothing. Empty uses the analysis chain above.
       - key: MEAL_AI_REVIEW_MODELS
-        value: ""
+        value: gemini-3.5-flash-lite
       # How long one analysis may keep retrying a busy provider before giving
       # up, in seconds. Raise it from the dashboard during a provider overload;
       # no deploy needed — but the frontend's own request timeout must stay

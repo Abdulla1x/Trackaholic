@@ -18,8 +18,8 @@ server boots, so the schema is created/updated on deploy. In the Render dashboar
   primary is overloaded or out of quota (default `gemini-3.8-flash,gemini-2.5-flash`; set empty to disable)
 - `MEAL_AI_TRANSCRIBE_MODELS` / `MEAL_AI_REVIEW_MODELS` — optional, the full comma-separated
   chain a voice note or the weekly review's wording tries (voice defaults to
-  `gemini-3.6-flash,gemini-3.8-flash,gemini-2.5-flash,gemini-3.5-flash-lite`; the review
-  defaults to the analysis chain; set empty to use the analysis chain)
+  `gemini-3.6-flash,gemini-3.8-flash,gemini-2.5-flash,gemini-3.5-flash-lite`, the review to
+  `gemini-3.5-flash-lite` alone; set empty to use the analysis chain)
 - `MEAL_AI_DEADLINE_S` — optional, seconds one analysis may keep retrying a busy
   provider (default `60`; the frontend timeout must stay above it)
 - `MEAL_AI_MAX_ATTEMPTS` — optional, provider attempts per user action (defaults 4 /

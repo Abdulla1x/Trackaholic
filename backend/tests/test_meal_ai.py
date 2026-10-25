@@ -914,6 +914,17 @@ def test_voice_ends_on_flash_lite_by_default(no_chain_env):
     assert "gemini-3.5-flash-lite" not in meal_ai._chain(meal_ai.ANALYSIS)
 
 
+def test_the_review_is_flash_lite_alone_by_default(monkeypatch, no_chain_env):
+    """Both tries stay on Lite: a fallback would spend Flash's 20 a day on wording."""
+    assert meal_ai._chain(meal_ai.REVIEW) == ["gemini-3.5-flash-lite"]
+    calls = _install_scripted_provider(
+        monkeypatch, [_server_error(), SimpleNamespace(parsed=None, text="A calm week.")]
+    )
+    _, report = asyncio.run(meal_ai.phrase_review(["You logged 7 of 7 days."]))
+    assert calls["models"] == ["gemini-3.5-flash-lite"] * 2
+    assert report.model == "gemini-3.5-flash-lite"
+
+
 def test_a_voice_note_on_an_overloaded_day_reaches_flash_lite(monkeypatch, no_chain_env):
     """Three busy Flash models, then Lite answers on the fourth and last try."""
     calls = _install_scripted_provider(

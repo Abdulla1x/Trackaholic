@@ -75,9 +75,19 @@ CHAIN_ENV = {
 # transcript is shown and editable before anything is estimated, so a misheard
 # word is a typo the user fixes, and the alternative on a day the Flash models
 # are out is no transcript at all. Lite has its own per-day quota.
+#
+# The review is Lite alone. It only rewords figures app/review.py has already
+# computed, and side by side on three of the owner's real weeks (2026-10-25)
+# Lite kept every number to the facts and stayed closer to their wording than
+# 3.6 Flash, at about a tenth of the paid price. On the free tier Lite allows
+# 500 requests a day against each Flash model's 20 (read from AI Studio's
+# rate-limit page for the production project, 2026-10-25), so the review no
+# longer spends the analyses' allowance. No Flash fallback, on purpose: a
+# failed summary loses nothing, because the computed review has already
+# rendered, while a fallback would spend one of those 20 on wording.
 DEFAULT_CHAINS: dict[str, str | None] = {
     TRANSCRIPTION: "gemini-3.6-flash,gemini-3.8-flash,gemini-2.5-flash,gemini-3.5-flash-lite",
-    REVIEW: None,
+    REVIEW: "gemini-3.5-flash-lite",
 }
 
 # Retries are bounded by the DEADLINE, not by an attempt count. Gemini's

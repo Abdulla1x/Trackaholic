@@ -105,7 +105,9 @@ Before escalating, note these are automatic:
 - **A chain per kind of call.** `MEAL_AI_MODEL` and `MEAL_AI_FALLBACK_MODEL` steer meal
   analysis only. Voice notes try `MEAL_AI_TRANSCRIBE_MODELS` (default 3.6 → 3.8 → 2.5 Flash →
   3.5 Flash-Lite, so a busy day still gets a transcript to edit) and the weekly review
-  `MEAL_AI_REVIEW_MODELS` (default: the analysis chain). So when you swap a model during an
+  `MEAL_AI_REVIEW_MODELS` (default: 3.5 Flash-Lite alone, which has 500 free requests a day
+  against Flash's 20; if Google ever stops serving it, the review's wording fails as
+  "misconfigured" until this var names a served model, and the computed review still shows). So when you swap a model during an
   outage, swap it in each chain that names it. `GET /api/ai/status` lists every chain under
   `chains`. A model out for the day is skipped by every kind, because Google's quota is per model.
 - **A model Google no longer serves (404) leaves the chain** for the call and the next hour, and the
