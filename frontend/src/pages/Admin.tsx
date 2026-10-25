@@ -386,6 +386,7 @@ function AIUsageCard({ stats }: { stats: AdminStats }) {
   const refusals = stats.ai_refusals_30d ?? []
   const models = Object.entries(usage?.by_model ?? {})
   const refused = refusals.reduce((sum, row) => sum + row.count, 0)
+  const offers = stats.lighter_offers_30d
   return (
     <Block label="AI usage">
       <p className="text-small text-ink-2">
@@ -467,6 +468,27 @@ function AIUsageCard({ stats }: { stats: AdminStats }) {
           ))}
         </ul>
       )}
+
+      {/* The offer made while the main AI is out: how often it was taken.
+          Shown counts once per open of the Log panel it appeared in. */}
+      <h3 className="mt-3 text-field-label text-ink-2">Lighter AI</h3>
+      <ul className="grid grid-cols-1 gap-y-1 sm:grid-cols-2 sm:gap-x-4">
+        <li className="flex justify-between text-small">
+          <span className="text-ink-2">Offers · shown · used · declined</span>
+          <span className="font-semibold tabular-nums" data-live="lighter offers">
+            {offers?.shown ?? 0} · {offers?.used ?? 0} · {offers?.declined ?? 0}
+          </span>
+        </li>
+        <li className="flex justify-between text-small">
+          <span className="text-ink-2">Estimates today, outside the app-wide limit</span>
+          <span className="font-semibold tabular-nums" data-live="lighter today">
+            {/* A ceiling of 0 turns the lighter AI off (AI_LITE_DAILY_LIMIT). */}
+            {(stats.ai_lite_daily_limit ?? 0) > 0
+              ? `${stats.ai_lite_calls_today ?? 0} of ${stats.ai_lite_daily_limit}`
+              : 'Off'}
+          </span>
+        </li>
+      </ul>
       <p className="text-small text-ink-2">
         Google counts every request against its daily quota, refused ones
         included, so its dashboard should match "Google requests", not the
