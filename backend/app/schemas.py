@@ -1382,6 +1382,25 @@ class AIProbe(BaseModel):
     age_seconds: int | None = None
 
 
+class MainAIOut(BaseModel):
+    """Why the main AI can't take a meal estimate now, and what can.
+
+    On GET /api/ai/status when the server already knows (`daily_quota`: every
+    model of the analysis chain is out for the day; `app_limit`: the app's
+    shared daily limit is used up), and beside `detail` on a refused estimate,
+    where it can also be `busy` (Google turning requests away).
+    """
+
+    reason: Literal["busy", "daily_quota", "app_limit"]
+    # When the main AI is back: midnight Pacific for Google's daily quota (also
+    # sent for `busy`, as the end of a yes to the lighter AI for the rest of the
+    # day), UTC midnight for the app's limit, the later one when both apply.
+    back_at: datetime
+    # Whether the lighter AI can take this estimate now (POST
+    # /api/ai/analyze with lighter=true).
+    lighter: bool
+
+
 class AIStatus(BaseModel):
     """Enough to answer "is the AI down, and why" in one request.
 
@@ -1401,6 +1420,9 @@ class AIStatus(BaseModel):
     # works against; seeing the version here beats reading Render build logs.
     sdk_version: str
     probe: AIProbe | None = None
+    # Set when the main AI is known to be out for the day, so the Log panel can
+    # offer the lighter AI before an estimate is even tried. Never for a demo.
+    main_out: MainAIOut | None = None
 
 
 class Announcement(BaseModel):

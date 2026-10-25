@@ -142,6 +142,15 @@ def validation_error_handler(request: Request, exc: RequestValidationError):
     )
 
 
+@app.exception_handler(ai.MainAIOutError)
+def main_ai_out_handler(request: Request, exc: ai.MainAIOutError):
+    """The refusal's usual `detail`, plus `main_out` for the lighter-AI offer."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "main_out": jsonable_encoder(exc.main_out)},
+    )
+
+
 @app.exception_handler(RateLimitExceeded)
 def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     # A `detail` body so the frontend surfaces this like any other API error.

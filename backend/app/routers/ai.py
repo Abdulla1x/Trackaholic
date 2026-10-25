@@ -24,6 +24,7 @@ from ..schemas import (
     AnalysisLink,
     Calibration,
     Food,
+    MainAIOut,
     MealAnalysis,
     MealAnalysisResponse,
     TranscriptionResponse,
@@ -331,6 +332,84 @@ def _provider_http_error(exc: Exception) -> HTTPException:
     )
 
 
+class MainAIOutError(HTTPException):
+    """A refused meal estimate that the lighter AI could answer instead.
+
+    Raised with the same status and `detail` as before, so a build that knows
+    nothing of the lighter AI reads it unchanged; main.py's handler adds
+    `main_out` beside the detail for the Log panel's offer.
+    """
+
+    def __init__(self, error: HTTPException, main_out: MainAIOut):
+        super().__init__(status_code=error.status_code, detail=error.detail)
+        self.main_out = main_out
+
+
+# Google turning requests away for now, as opposed to out for the day.
+_BUSY = (meal_ai.MealAIRateLimited, meal_ai.MealAIUnavailable, meal_ai.MealAIUnreachable)
+
+
+def _lighter_available(db: Session, user: User) -> bool:
+    """Can the lighter AI take an estimate from this user right now?"""
+    return (
+        meal_ai.is_configured()
+        and not user.is_demo
+        and not meal_ai.out_for_the_day(meal_ai.ANALYSIS_LITE)
+        and calls_today(db, kind=KIND_ANALYSIS_LITE) < lite_daily_limit()
+        and calls_today(db, user_id=user.id, kind=ANALYSIS_KINDS) < _daily_limit()
+    )
+
+
+def _main_out(db: Session, user: User, reason: str) -> MainAIOut:
+    """Why the main AI can't estimate, when it's back, and whether Lite can.
+
+    Back at Google's reset unless only the app's own limit is spent; at UTC
+    midnight when that limit is spent; the later of the two when both are.
+    """
+    back = []
+    if reason != CAUSE_APP_LIMIT or meal_ai.out_for_the_day(meal_ai.ANALYSIS):
+        back.append(meal_ai.next_quota_reset())
+    if reason == CAUSE_APP_LIMIT or global_calls_today(db) >= global_daily_limit():
+        back.append(_next_utc_midnight())
+    return MainAIOut(
+        reason=reason, back_at=max(back), lighter=_lighter_available(db, user)
+    )
+
+
+def _status_main_out(db: Session, user: User) -> MainAIOut | None:
+    """The main AI's state as far as the server already knows, before any try.
+
+    "Busy" is absent on purpose: it is learnt only from a refused estimate.
+    """
+    if user.is_demo or not meal_ai.is_configured():
+        return None
+    if meal_ai.out_for_the_day(meal_ai.ANALYSIS):
+        return _main_out(db, user, "daily_quota")
+    if global_calls_today(db) >= global_daily_limit():
+        return _main_out(db, user, CAUSE_APP_LIMIT)
+    return None
+
+
+def _estimate_error(
+    db: Session, user: User, exc: Exception, lighter: bool
+) -> HTTPException:
+    """The HTTP error for a failed estimate, with `main_out` when it applies.
+
+    Only the main AI's estimates carry it: a refused lighter estimate has
+    nothing left to offer.
+    """
+    error = _provider_http_error(exc)
+    if lighter:
+        return error
+    if isinstance(exc, meal_ai.MealAIDailyQuotaExhausted):
+        reason = "daily_quota"
+    elif isinstance(exc, _BUSY):
+        reason = "busy"
+    else:
+        return error
+    return MainAIOutError(error, _main_out(db, user, reason))
+
+
 async def _read_media(
     upload: UploadFile, kind: str, max_bytes: int, a_noun: str, noun: str
 ) -> tuple[bytes, str | None]:
@@ -511,7 +590,7 @@ def _reserve_call(
             app_limit, kind, user.id,
         )
         count_refusal(db, kind=kind, cause=CAUSE_APP_LIMIT)
-        raise HTTPException(
+        error = HTTPException(
             status_code=503,
             detail=(
                 f"The app's {'lighter AI' if own_app_limit is not None else 'shared'} "
@@ -519,6 +598,9 @@ def _reserve_call(
                 f"{resets_in(_next_utc_midnight())}; until then, enter macros manually."
             ),
         )
+        if kind == KIND_ANALYSIS:
+            raise MainAIOutError(error, _main_out(db, user, CAUSE_APP_LIMIT))
+        raise error
 
     record = AIAnalysis(
         user_id=user.id, user_text=user_text, analysis_json="", kind=kind
@@ -543,7 +625,11 @@ async def ai_status(
     else.
     """
     global _probe_cache
-    base = {"configured": meal_ai.is_configured(), **meal_ai.provider_info()}
+    base = {
+        "configured": meal_ai.is_configured(),
+        **meal_ai.provider_info(),
+        "main_out": _status_main_out(db, user),
+    }
 
     # A demo account gets the free form only: the probe spends a provider
     # call, which a demo never does (routers/demo.py).
@@ -757,7 +843,7 @@ async def analyze(
         # nothing was billed and a provider failure shouldn't cost the user a
         # slot.
         refund(db, record, exc)
-        raise _provider_http_error(exc)
+        raise _estimate_error(db, user, exc, lighter)
 
     _record_timing(record, started)
     _record_report(record, report)

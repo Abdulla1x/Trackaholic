@@ -505,6 +505,19 @@ def _mark_missing(model: str) -> None:
     _missing[model] = _utcnow() + MISSING_RECHECK
 
 
+def out_for_the_day(kind: str) -> bool:
+    """True when every model in this kind's chain is known to be out for the day.
+
+    Models Google answered 404 for are skipped, but at least one must be out for
+    the day: a chain that is only missing is misconfigured, not out. "Known"
+    is this process's memory, which a restart empties and which re-checks each
+    model hourly (_mark_exhausted), so False can mean "not learnt yet".
+    """
+    chain = _chain(kind)
+    out = [model for model in chain if _is_exhausted(model)]
+    return bool(out) and all(model in out or _is_missing(model) for model in chain)
+
+
 @contextmanager
 def _provider_errors(model: str, *, final: bool = True):
     """Translate provider exceptions into the neutral hierarchy, logging why.
