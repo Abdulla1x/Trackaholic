@@ -12,13 +12,18 @@ connection string, and rewrite its scheme for SQLAlchemy:
 server boots, so the schema is created/updated on deploy. In the Render dashboard set:
 - `DATABASE_URL` — the Neon string above
 - `GEMINI_API_KEY` — optional, enables AI meal analysis
-- `MEAL_AI_MODEL` — optional, overrides the default Gemini model without a redeploy
+- `MEAL_AI_MODEL` — optional, overrides the default Gemini model for meal analysis without
+  a redeploy (voice notes and the weekly review have their own chains, below)
 - `MEAL_AI_FALLBACK_MODEL` — optional, comma-separated models tried in order when the
   primary is overloaded or out of quota (default `gemini-3.8-flash,gemini-2.5-flash`; set empty to disable)
+- `MEAL_AI_TRANSCRIBE_MODELS` / `MEAL_AI_REVIEW_MODELS` — optional, the full comma-separated
+  chain a voice note or the weekly review's wording tries (voice defaults to
+  `gemini-3.6-flash,gemini-3.8-flash,gemini-2.5-flash,gemini-3.5-flash-lite`, the review to
+  `gemini-3.5-flash-lite` alone; set empty to use the analysis chain)
 - `MEAL_AI_DEADLINE_S` — optional, seconds one analysis may keep retrying a busy
   provider (default `60`; the frontend timeout must stay above it)
 - `MEAL_AI_MAX_ATTEMPTS` — optional, provider attempts per user action (defaults 4 /
-  3 / 2 for analysis / voice note / review). Failed attempts count against Google's
+  4 / 2 for analysis / voice note / review). Failed attempts count against Google's
   per-day quota, so keep it low on the free tier
 - `AI_DAILY_LIMIT` / `AI_TRANSCRIBE_DAILY_LIMIT` / `AI_REVIEW_DAILY_LIMIT` /
   `AI_GLOBAL_DAILY_LIMIT` — optional, the per-user and app-wide AI quotas

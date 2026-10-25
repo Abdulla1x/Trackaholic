@@ -22,7 +22,9 @@ GEMINI_API_KEY=your-key uvicorn app.main:app --reload --port 8000
 ```
 
 Without a key the rest of the app works normally and the analyze endpoint returns
-a clear 503. `MEAL_AI_MODEL` overrides the default model (`gemini-3.6-flash`).
+a clear 503. `MEAL_AI_MODEL` overrides the default model for meal analysis (`gemini-3.6-flash`).
+Voice notes and the weekly review have their own chains (`MEAL_AI_TRANSCRIBE_MODELS`,
+`MEAL_AI_REVIEW_MODELS`, see [`.env.example`](../backend/.env.example)).
 Keep the key in your environment or an untracked `.env` — never commit it.
 
 When AI analysis misbehaves, `GET /api/ai/status?probe=true` (authenticated) names

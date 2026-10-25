@@ -839,14 +839,115 @@ def test_the_default_chain_names_the_models_google_serves(monkeypatch):
     """
     monkeypatch.delenv("MEAL_AI_MODEL", raising=False)
     monkeypatch.delenv("MEAL_AI_FALLBACK_MODEL", raising=False)
-    assert meal_ai._models() == ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-2.5-flash"]
+    assert meal_ai._chain(meal_ai.ANALYSIS) == ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-2.5-flash"]
 
 
 def test_the_fallback_is_deduped_against_the_primary(monkeypatch):
     """Same id in both slots must not silently double the worst-case latency."""
     monkeypatch.setenv("MEAL_AI_MODEL", "gemini-2.5-flash")
     monkeypatch.setenv("MEAL_AI_FALLBACK_MODEL", "gemini-2.5-flash")
-    assert meal_ai._models() == ["gemini-2.5-flash"]
+    assert meal_ai._chain(meal_ai.ANALYSIS) == ["gemini-2.5-flash"]
+
+
+@pytest.fixture
+def no_chain_env(monkeypatch):
+    for name in ("MEAL_AI_MODEL", "MEAL_AI_FALLBACK_MODEL", *meal_ai.CHAIN_ENV.values()):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.mark.parametrize("kind", [meal_ai.TRANSCRIPTION, meal_ai.REVIEW])
+def test_a_kind_with_no_default_follows_the_analysis_chain(monkeypatch, no_chain_env, kind):
+    monkeypatch.setitem(meal_ai.DEFAULT_CHAINS, kind, None)
+    monkeypatch.setenv("MEAL_AI_MODEL", "gemini-a")
+    assert meal_ai._chain(kind) == meal_ai._chain(meal_ai.ANALYSIS)
+
+
+@pytest.mark.parametrize("kind", [meal_ai.TRANSCRIPTION, meal_ai.REVIEW])
+def test_a_kinds_chain_is_its_own_env_var(monkeypatch, no_chain_env, kind):
+    """A full list, deduped, and it leaves the analysis chain alone."""
+    monkeypatch.setenv(meal_ai.CHAIN_ENV[kind], " gemini-x, gemini-y,,gemini-x")
+    assert meal_ai._chain(kind) == ["gemini-x", "gemini-y"]
+    assert meal_ai._chain(meal_ai.ANALYSIS)[0] == meal_ai.DEFAULT_MODEL
+
+
+@pytest.mark.parametrize("value", ["", " , "])
+def test_an_empty_kind_chain_falls_back_to_the_analysis_chain(monkeypatch, no_chain_env, value):
+    """Unlike an empty fallback, a kind with no model at all would only fail."""
+    monkeypatch.setenv("MEAL_AI_REVIEW_MODELS", value)
+    assert meal_ai._chain(meal_ai.REVIEW) == meal_ai._chain(meal_ai.ANALYSIS)
+
+
+def test_each_kind_calls_its_own_chain(monkeypatch, no_chain_env):
+    monkeypatch.setenv("MEAL_AI_MODEL", "gemini-analysis")
+    monkeypatch.setenv("MEAL_AI_FALLBACK_MODEL", "")
+    monkeypatch.setenv("MEAL_AI_TRANSCRIBE_MODELS", "gemini-voice")
+    monkeypatch.setenv("MEAL_AI_REVIEW_MODELS", "gemini-review")
+    calls = _install_scripted_provider(
+        monkeypatch, [SimpleNamespace(parsed=SAMPLE, text="two eggs")]
+    )
+    asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    _, voice = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    _, review = asyncio.run(meal_ai.phrase_review(["You logged 7 of 7 days."]))
+    assert calls["models"] == ["gemini-analysis", "gemini-voice", "gemini-review"]
+    assert (voice.model, review.model) == ("gemini-voice", "gemini-review")
+
+
+def test_a_model_out_for_the_day_is_out_for_every_kind(monkeypatch, no_chain_env):
+    """Google's daily quota is per model, so what analysis learned, voice uses."""
+    monkeypatch.setenv("MEAL_AI_MODEL", "gemini-a")
+    monkeypatch.setenv("MEAL_AI_FALLBACK_MODEL", "")
+    monkeypatch.setenv("MEAL_AI_TRANSCRIBE_MODELS", "gemini-a,gemini-b")
+    calls = _install_scripted_provider(
+        monkeypatch,
+        [_quota_error(DAILY_QUOTA_ID), SimpleNamespace(parsed=None, text="two eggs")],
+    )
+    with pytest.raises(meal_ai.MealAIDailyQuotaExhausted):
+        asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert calls["models"] == ["gemini-a", "gemini-b"]
+
+
+def test_voice_ends_on_flash_lite_by_default(no_chain_env):
+    assert meal_ai._chain(meal_ai.TRANSCRIPTION) == [
+        "gemini-3.6-flash", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-3.5-flash-lite",
+    ]
+    assert "gemini-3.5-flash-lite" not in meal_ai._chain(meal_ai.ANALYSIS)
+
+
+def test_the_review_is_flash_lite_alone_by_default(monkeypatch, no_chain_env):
+    """Both tries stay on Lite: a fallback would spend Flash's 20 a day on wording."""
+    assert meal_ai._chain(meal_ai.REVIEW) == ["gemini-3.5-flash-lite"]
+    calls = _install_scripted_provider(
+        monkeypatch, [_server_error(), SimpleNamespace(parsed=None, text="A calm week.")]
+    )
+    _, report = asyncio.run(meal_ai.phrase_review(["You logged 7 of 7 days."]))
+    assert calls["models"] == ["gemini-3.5-flash-lite"] * 2
+    assert report.model == "gemini-3.5-flash-lite"
+
+
+def test_a_voice_note_on_an_overloaded_day_reaches_flash_lite(monkeypatch, no_chain_env):
+    """Three busy Flash models, then Lite answers on the fourth and last try."""
+    calls = _install_scripted_provider(
+        monkeypatch,
+        [_server_error()] * 3 + [SimpleNamespace(parsed=None, text="two eggs")],
+    )
+    text, report = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert text == "two eggs"
+    assert calls["models"][-1] == report.model == "gemini-3.5-flash-lite"
+    assert report.attempts == meal_ai.TRANSCRIBE_MAX_ATTEMPTS == 4
+
+
+def test_a_voice_note_with_flash_out_for_the_day_goes_straight_to_lite(
+    monkeypatch, no_chain_env
+):
+    """A per-day 429 drops a model at once, with no backoff and no wasted try."""
+    calls = _install_scripted_provider(
+        monkeypatch,
+        [_quota_error(DAILY_QUOTA_ID)] * 3 + [SimpleNamespace(parsed=None, text="two eggs")],
+    )
+    _, report = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert report.model == "gemini-3.5-flash-lite"
+    assert calls["n"] == 4
 
 
 @pytest.mark.parametrize(
@@ -955,16 +1056,22 @@ def test_the_deadline_is_overridable_from_the_dashboard(monkeypatch):
 
 
 def test_transcription_gets_a_shorter_budget_than_analysis(monkeypatch):
-    """A voice note is the first step of a flow; nobody waits a minute to type."""
-    analyze = _install_scripted_provider(monkeypatch, [_server_error()])
+    """A voice note is the first step of a flow; nobody waits a minute to type.
+
+    Both are capped at four attempts, so the difference is the deadline, and it
+    only shows when refusals are slow: 8 s each, as on a bad overload day.
+    """
+    slow = [(8, _server_error())] * 4
+    analyze, _ = _install_timed_provider(monkeypatch, slow)
     with pytest.raises(meal_ai.MealAIUnavailable):
         asyncio.run(meal_ai.analyze_meal([], "chicken"))
 
-    transcribe = _install_scripted_provider(monkeypatch, [_server_error()])
+    transcribe, now = _install_timed_provider(monkeypatch, slow)
     with pytest.raises(meal_ai.MealAIUnavailable):
         asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
 
     assert transcribe["n"] < analyze["n"]
+    assert now["t"] <= meal_ai.TRANSCRIBE_DEADLINE_S
 
 
 # --- an attempt only starts if it has time to answer --------------------------
@@ -1209,6 +1316,7 @@ def test_a_later_call_skips_a_model_already_out_for_the_day(monkeypatch):
 def test_with_every_model_out_for_the_day_google_is_not_called(monkeypatch):
     """Asking would spend nothing useful, and the answer is already known."""
     _chain(monkeypatch, "gemini-a", "gemini-b")
+    monkeypatch.setenv("MEAL_AI_TRANSCRIBE_MODELS", "gemini-a,gemini-b")
     calls = _install_scripted_provider(monkeypatch, [_quota_error(DAILY_QUOTA_ID)])
     with pytest.raises(meal_ai.MealAIDailyQuotaExhausted):
         asyncio.run(meal_ai.analyze_meal([], "chicken"))
@@ -1337,7 +1445,7 @@ def test_an_unusable_attempt_cap_keeps_the_default(monkeypatch, bad):
 def test_the_fallback_can_be_a_list(monkeypatch):
     """Every model on the free tier is another 20 a day."""
     _chain(monkeypatch, "gemini-a", "gemini-b, gemini-c,,gemini-a")
-    assert meal_ai._models() == ["gemini-a", "gemini-b", "gemini-c"]
+    assert meal_ai._chain(meal_ai.ANALYSIS) == ["gemini-a", "gemini-b", "gemini-c"]
 
 
 def test_status_reports_every_fallback(client, monkeypatch):
@@ -1659,6 +1767,8 @@ def test_status_reports_the_model_chain_and_sdk_version(client, monkeypatch):
     assert body["configured"] is True
     assert body["model"] == "gemini-x"
     assert body["fallback_model"] == "gemini-y"
+    assert body["chains"]["analysis"] == ["gemini-x", "gemini-y"]
+    assert set(body["chains"]) == {"analysis", "transcription", "review"}
     assert body["sdk_version"]
 
 

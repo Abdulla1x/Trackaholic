@@ -27,7 +27,8 @@ services:
       # Gemini API key for AI meal analysis (optional; feature 503s without it).
       - key: GEMINI_API_KEY
         sync: false
-      # Gemini model id. Committed (not sync: false) so the intended model is
+      # Gemini model id for meal analysis (voice notes and the weekly review
+      # have their own chains, below). Committed (not sync: false) so the intended model is
       # visible here, but editable in the dashboard to swap models without a
       # deploy when Google retires one. This file is not synced to the service:
       # the dashboard's value is the one that runs.
@@ -39,13 +40,23 @@ services:
       # empty to disable the fallback.
       - key: MEAL_AI_FALLBACK_MODEL
         value: gemini-3.8-flash,gemini-2.5-flash
+      # The models a voice note tries, comma-separated, in order. Lite is last
+      # because it mishears more, and the transcript is shown for editing
+      # before anything is estimated. Empty uses the analysis chain above.
+      - key: MEAL_AI_TRANSCRIBE_MODELS
+        value: gemini-3.6-flash,gemini-3.8-flash,gemini-2.5-flash,gemini-3.5-flash-lite
+      # The models the weekly review's wording tries. Lite alone: it has 500
+      # free requests a day against each Flash model's 20, and a failed
+      # summary loses nothing. Empty uses the analysis chain above.
+      - key: MEAL_AI_REVIEW_MODELS
+        value: gemini-3.5-flash-lite
       # How long one analysis may keep retrying a busy provider before giving
       # up, in seconds. Raise it from the dashboard during a provider overload;
       # no deploy needed — but the frontend's own request timeout must stay
       # above it (see ANALYZE_TIMEOUT_MS in frontend/src/api/client.ts).
       - key: MEAL_AI_DEADLINE_S
         value: "60"
-      # Provider attempts per user action (in-code defaults 4 / 3 / 2 for
+      # Provider attempts per user action (in-code defaults 4 / 4 / 2 for
       # analysis / voice note / review). Refused attempts count against the
       # free tier's per-day quota, so this stays low until billing is on.
       - key: MEAL_AI_MAX_ATTEMPTS
