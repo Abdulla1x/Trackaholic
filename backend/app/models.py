@@ -703,6 +703,31 @@ class AIAnalysis(Base):
     # runs, so a slow first analysis of the evening is invisible in provider_ms
     # and visible here as an uptime of a few seconds.
     server_uptime_s: Mapped[int | None] = mapped_column(Integer)
+    # The model that actually answered. With a fallback chain this is not a
+    # constant, and until migration 0027 nothing recorded it: how often
+    # production fell back to 2.5 Flash was only readable from Google's own
+    # dashboard. NULL on older rows.
+    model: Mapped[str | None] = mapped_column(String(64))
+    # Requests this one user action sent to Google, refused ones included.
+    # Google counts every attempt against the per-day quota, so this, not the
+    # row count, is what the app's figure has to add up to for the two to agree.
+    attempts: Mapped[int | None] = mapped_column(Integer)
+    # What the answer cost, in Google's own units (usage_metadata). Priced on
+    # /admin rather than stored as money, so a price change or a corrected
+    # price table re-prices history instead of freezing a wrong figure.
+    # audio_input_tokens is the audio share of input_tokens, kept apart because
+    # some models bill audio at a higher rate. thinking_tokens is billed at the
+    # output price and is invisible in the answer.
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    audio_input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    thinking_tokens: Mapped[int | None] = mapped_column(Integer)
+    # The saved foods attached to this analysis, as a JSON list of ids. Ids
+    # only: the macros quoted into the prompt are read from the library at call
+    # time. No foreign key, so an id can outlive a food deleted later; the list
+    # records what was sent, not what still exists. NULL when nothing was
+    # attached, and on every kind other than "analysis".
+    attached_food_ids: Mapped[str | None] = mapped_column(Text)
 
 
 class DailyStat(Base):
@@ -814,3 +839,40 @@ class DemoStart(Base):
     # finds the winner's row and adds to it.
     date: Mapped[date_type] = mapped_column(Date, unique=True, index=True)
     count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class AIRefusal(Base):
+    """AI calls that ended without an answer, per UTC day, kind and cause.
+    No `user_id`.
+
+    Until migration 0027 a refused call left no trace: `_reserve_call` rolls
+    back when a cap says no, and a provider failure deletes the row it reserved
+    so the user is not charged a slot. That refund is right for the user and
+    blind for everyone else -- on 2026-10-04 Google counted 22 requests while
+    ai_analyses held 11 rows, and /admin could not show a single refusal. This
+    is the other half of the ledger: the refund still happens, and the refusal
+    is counted here instead.
+
+    A counter like demo_starts, and for the same reason: it must outlive its
+    subjects. Someone refused by their daily limit who then deletes their
+    account still happened, and "are real users hitting the limit" is the
+    question that decides when the free tier stops being enough.
+
+    `attempts` is the requests those refusals sent to Google, which is not
+    `count`: a cap refusal sends none, an overload can send four.
+    """
+
+    __tablename__ = "ai_refusals"
+    __table_args__ = (
+        # Unique, so two refusals in the same second cannot make two rows for
+        # one bucket: app/upsert.py turns the loser's IntegrityError into a
+        # retry that finds the winner's row and adds to it.
+        Index("uq_ai_refusals_date_kind_cause", "date", "kind", "cause", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date: Mapped[date_type] = mapped_column(Date)
+    kind: Mapped[str] = mapped_column(String(20))
+    cause: Mapped[str] = mapped_column(String(32))
+    count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
