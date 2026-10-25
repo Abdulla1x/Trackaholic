@@ -6,10 +6,10 @@ from sqlalchemy.orm import Session
 
 from app import keep_warm
 from app.db import get_engine
-from app.models import AIAnalysis, DemoStart, Meal, User, utcnow
+from app.models import AIAnalysis, AIRefusal, DemoStart, Meal, User, utcnow
 from app.routers import admin as admin_router
 from app.routers.admin import CHART_DAYS
-from conftest import utc_today
+from conftest import TEST_PASSWORD, utc_today
 
 ADMIN_ROUTES = ("/api/admin/stats", "/api/admin/users", "/api/admin/keep-warm")
 
@@ -907,14 +907,81 @@ def test_feature_adoption_counts_accounts_not_rows(client, client_b, monkeypatch
     assert adoption["steps"] == 0
 
 
-def test_ai_spend_is_per_active_account(client, monkeypatch):
+def _ai_row(user_id: int, **fields) -> None:
+    with Session(get_engine()) as db:
+        db.add(AIAnalysis(user_id=user_id, analysis_json="", **fields))
+        db.commit()
+
+
+def test_ai_usage_prices_each_answered_call_at_the_paid_tier(client, monkeypatch):
+    make_admin(client, monkeypatch)
+    me = client.get("/api/auth/me").json()["id"]
+    # (1000 x 0.75 + (200 + 300) x 3.75) / 1M = $0.002625 each.
+    for _ in range(2):
+        _ai_row(
+            me, kind="analysis", model="gemini-3.6-flash", attempts=1,
+            input_tokens=1000, audio_input_tokens=0, output_tokens=200, thinking_tokens=300,
+        )
+    # A fallback answer after one refused request: two requests, one answer.
+    _ai_row(
+        me, kind="transcription", model="gemini-2.5-flash", attempts=2,
+        input_tokens=500, audio_input_tokens=500, output_tokens=20,
+    )
+    # Before migration 0027: answered, but nothing to price or count.
+    _ai_row(me, kind="analysis")
+    # A probe: one request, never an answer with a cost.
+    _ai_row(me, kind="probe", model="gemini-3.6-flash", attempts=1)
+    with Session(get_engine()) as db:
+        db.add(AIRefusal(date=TODAY, kind="analysis", cause="overloaded", count=1, attempts=4))
+        db.add(AIRefusal(date=TODAY, kind="analysis", cause="user_limit", count=2, attempts=0))
+        db.commit()
+
+    stats = client.get("/api/admin/stats").json()
+    usage = stats["ai_usage_30d"]
+    transcription = (500 * 1.00 + 20 * 2.50) / 1_000_000
+    assert usage["answered_calls"] == 4
+    assert usage["priced_calls"] == 3
+    assert usage["unmeasured_calls"] == 1
+    assert usage["cost_usd"] == round(2 * 0.002625 + transcription, 4)
+    assert usage["by_model"]["gemini-3.6-flash"] == {"calls": 2, "cost_usd": 0.0053}
+    assert usage["by_model"]["gemini-2.5-flash"]["calls"] == 1
+    # 1 + 1 + 2 answered, 1 probe, 4 refused; the pre-0027 row is a floor.
+    assert usage["google_requests"] == 9
+    assert usage["unmeasured_requests"] == 1
+    assert usage["prices_checked"] == "2026-10-25"
+    assert stats["ai_refusals_30d"] == [
+        {"kind": "analysis", "cause": "user_limit", "count": 2, "attempts": 0},
+        {"kind": "analysis", "cause": "overloaded", "count": 1, "attempts": 4},
+    ]
+
+
+def test_ai_cost_is_per_active_account(client, client_b, monkeypatch):
     """Dividing by every account ever created would make the figure fall each
     time somebody signed up and left -- the direction that flatters, and the
     opposite of what a cost-per-user number is for."""
     make_admin(client, monkeypatch)
-    stats = client.get("/api/admin/stats").json()
-    assert stats["ai_spend_30d_usd"] == 0.0
-    assert stats["ai_spend_30d_usd_per_active"] == 0.0
+    me = client.get("/api/auth/me").json()["id"]
+    client.post("/api/meals", json={
+        "date": TODAY.isoformat(), "name": "x", "calories": 100, "protein": 5,
+    })
+    _ai_row(
+        me, kind="analysis", model="gemini-3.6-flash", attempts=1,
+        input_tokens=1000, output_tokens=500,
+    )
+    usage = client.get("/api/admin/stats").json()["ai_usage_30d"]
+    # client_b exists but never did anything, so one active account.
+    assert usage["cost_usd_per_active"] == usage["cost_usd"] == 0.0026
+
+
+def test_ai_refusals_outlive_a_deleted_account(client, client_b, monkeypatch):
+    make_admin(client, monkeypatch)
+    with Session(get_engine()) as db:
+        db.add(AIRefusal(date=TODAY, kind="transcription", cause="daily_quota", count=1, attempts=3))
+        db.commit()
+    client_b.request("DELETE", "/api/auth/account", json={"password": TEST_PASSWORD})
+    assert client.get("/api/admin/stats").json()["ai_refusals_30d"] == [
+        {"kind": "transcription", "cause": "daily_quota", "count": 1, "attempts": 3},
+    ]
 
 
 def test_retention_reports_absence_rather_than_zero(client, monkeypatch):

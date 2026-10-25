@@ -2190,3 +2190,50 @@ def test_an_unusable_answer_still_reports_what_it_cost(monkeypatch):
     assert raised.value.report is not None
     assert raised.value.report.input_tokens == 900
     assert raised.value.report.attempts == 1
+
+
+# --- paid-tier prices --------------------------------------------------------
+
+
+def _cost(model, on, **tokens):
+    counts = dict(
+        input_tokens=None, audio_input_tokens=None, output_tokens=None, thinking_tokens=None
+    )
+    counts.update(tokens)
+    return meal_ai.paid_cost_usd(model, on, **counts)
+
+
+def test_a_call_is_priced_with_thinking_at_the_output_rate():
+    cost = _cost(
+        "gemini-3.6-flash", date(2026, 10, 25),
+        input_tokens=1000, output_tokens=200, thinking_tokens=300,
+    )
+    assert cost == pytest.approx((1000 * 0.75 + 500 * 3.75) / 1_000_000)
+
+
+def test_3x_flash_doubles_on_new_year_by_itself():
+    tokens = dict(input_tokens=1000, output_tokens=200, thinking_tokens=300)
+    before = _cost("gemini-3.8-flash", date(2026, 12, 31), **tokens)
+    after = _cost("gemini-3.8-flash", date(2027, 1, 1), **tokens)
+    assert after == pytest.approx(2 * before)
+
+
+def test_audio_is_priced_apart_where_the_model_bills_it_higher():
+    cost = _cost(
+        "gemini-2.5-flash", date(2026, 10, 25),
+        input_tokens=1000, audio_input_tokens=400, output_tokens=100,
+    )
+    assert cost == pytest.approx((600 * 0.30 + 400 * 1.00 + 100 * 2.50) / 1_000_000)
+
+
+def test_a_retired_id_costs_what_its_successor_does():
+    tokens = dict(input_tokens=1000, output_tokens=200)
+    assert _cost("gemini-3.5-flash", date(2026, 10, 25), **tokens) == _cost(
+        "gemini-3.6-flash", date(2026, 10, 25), **tokens
+    )
+
+
+def test_an_unpriced_model_or_missing_count_is_not_guessed():
+    assert _cost("gemini-9-ultra", date(2026, 10, 25), input_tokens=1, output_tokens=1) is None
+    assert _cost("gemini-3.6-flash", date(2026, 10, 25), output_tokens=1) is None
+    assert _cost(None, date(2026, 10, 25), input_tokens=1, output_tokens=1) is None

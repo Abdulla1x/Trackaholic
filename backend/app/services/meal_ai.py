@@ -16,6 +16,7 @@ import time
 from collections.abc import Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import date as date_type
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -1070,6 +1071,76 @@ def provider_info() -> dict[str, str | None]:
         "fallback_model": ", ".join(chain[1:]) or None,
         "sdk_version": genai.__version__,
     }
+
+
+@dataclass(frozen=True)
+class Price:
+    """One model's paid-tier price from `since` on, in USD per million tokens."""
+
+    since: date_type
+    input: float
+    audio_input: float
+    # Thinking tokens are billed at this rate too.
+    output: float
+
+
+# Google's paid "Standard" tier, as listed at
+# https://ai.google.dev/gemini-api/docs/pricing, checked 2026-10-25 (the page
+# said "last updated 2026-10-22"). Output prices are "including thinking
+# tokens". The app runs on the FREE tier, where all of these are $0: /admin
+# uses them to say what the same usage would cost once billing is on, which is
+# what a subscription has to clear. Re-check the page before relying on a
+# figure, and add a dated row rather than editing one, so older calls keep the
+# price they were made at.
+#
+# 3.6 and 3.8 Flash double on 2027-01-01, which the second row already holds.
+# gemini-3.5-flash and gemini-3.7-flash were retired on 2026-10-10 and are
+# answered by 3.6 and 3.8, so a call made under the old id costs the new one's
+# price. 2.5 Flash bills audio input above text and images.
+_LAUNCH = date_type(2026, 1, 1)
+_FLASH_3X = (
+    Price(_LAUNCH, input=0.75, audio_input=0.75, output=3.75),
+    Price(date_type(2027, 1, 1), input=1.50, audio_input=1.50, output=7.50),
+)
+PRICES: dict[str, tuple[Price, ...]] = {
+    "gemini-3.6-flash": _FLASH_3X,
+    "gemini-3.8-flash": _FLASH_3X,
+    "gemini-3.5-flash": _FLASH_3X,
+    "gemini-3.7-flash": _FLASH_3X,
+    "gemini-2.5-flash": (Price(_LAUNCH, input=0.30, audio_input=1.00, output=2.50),),
+    "gemini-3.5-flash-lite": (Price(_LAUNCH, input=0.30, audio_input=0.30, output=2.50),),
+}
+PRICES_CHECKED = date_type(2026, 10, 25)
+
+
+def paid_cost_usd(
+    model: str | None,
+    on: date_type,
+    *,
+    input_tokens: int | None,
+    audio_input_tokens: int | None,
+    output_tokens: int | None,
+    thinking_tokens: int | None,
+) -> float | None:
+    """What one call would cost on the paid tier, or None if it can't be priced.
+
+    None for a model with no price row, and for a call whose input or output
+    count is missing: a cost built on a guessed count would look as measured as
+    a real one. Missing audio or thinking counts are zero, because Google
+    leaves them out when there was no audio and no thinking.
+    """
+    if input_tokens is None or output_tokens is None:
+        return None
+    prices = [price for price in PRICES.get(model or "", ()) if price.since <= on]
+    if not prices:
+        return None
+    price = prices[-1]
+    audio = audio_input_tokens or 0
+    return (
+        (input_tokens - audio) * price.input
+        + audio * price.audio_input
+        + (output_tokens + (thinking_tokens or 0)) * price.output
+    ) / 1_000_000
 
 
 PROBE_PROMPT = "Reply with the single word: ok"

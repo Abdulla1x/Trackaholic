@@ -728,6 +728,31 @@ export interface AILatency {
   p95_ms: number
 }
 
+/** What the AI did over the window, each call priced at its own day's
+ *  paid-tier rate. `unmeasured_*` are rows from before the usage columns
+ *  existed, which make `cost_usd` and `google_requests` floors. */
+export interface AIUsage {
+  answered_calls: number
+  priced_calls: number
+  unmeasured_calls: number
+  cost_usd: number
+  cost_usd_per_active: number
+  cost_usd_per_call: number | null
+  by_model: Record<string, { calls: number; cost_usd: number }>
+  google_requests: number
+  unmeasured_requests: number
+  prices_checked: string | null
+}
+
+/** Calls of one kind that ended without an answer for one cause. From a
+ *  counter with no account id, so deleting an account does not erase them. */
+export interface AIRefusalCount {
+  kind: string
+  cause: string
+  count: number
+  attempts: number
+}
+
 /** The funnel: created an account -> logged once -> came back and logged. */
 export interface Activation {
   total_users: number
@@ -815,8 +840,10 @@ export interface AdminStats {
   /** ⚠️ The one figure NOT derived from live rows. Everything else on this page
    *  moves when an account is deleted; retention must not. */
   retention?: Retention
-  ai_spend_30d_usd?: number
-  ai_spend_30d_usd_per_active?: number
+  /** The window's AI calls priced at the PAID tier (the app is on the free
+   *  tier, so the real bill is $0), and every call that got no answer. */
+  ai_usage_30d?: AIUsage
+  ai_refusals_30d?: AIRefusalCount[]
 }
 
 /** One day's effective calorie and macro targets — what its rings are drawn
