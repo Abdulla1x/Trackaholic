@@ -49,8 +49,8 @@ Filter Application logs on `Gemini`. Every branch logs a distinct string.
 | `Gemini daily quota exhausted (model=…, quota=…, resets_at=…)` | **That model's per-day quota is spent** (free tier: 20/day per model, failed attempts included). It is skipped until `resets_at` (midnight Pacific), re-checked hourly | Nothing, if a fallback answered. If they all ran out, see the next row |
 | `Every Gemini model is out of quota for the day; not calling` | The whole chain is out; users see "resets in about N hours" | Wait for midnight Pacific (11:00 Dubai in summer time, 12:00 in winter), add a model to `MEAL_AI_FALLBACK_MODEL`, or turn billing on. **A restart clears the memory**, and so does the hourly re-check |
 | `Gemini … refused (…); trying … now` | A 429 moved the call straight to the next model | — |
-| `Gemini model not found (model=…): skipping it` | **Google no longer serves that model id to this project** (retired, or "no longer available to new users"; `gemini-2.5-flash` already is for new projects). The call carries on with the rest of the chain, and the model is re-asked hourly | Replace it in `MEAL_AI_MODEL` / `MEAL_AI_FALLBACK_MODEL`; Google's message, quoted in the line, usually names a successor |
-| `No configured Gemini model is served to this project; not calling` | **Every model in the chain 404s.** Users see "AI analysis is misconfigured" | Set `MEAL_AI_MODEL` to a served model now; no reset will fix this |
+| `Gemini model not found (model=…): skipping it` | **Google no longer serves that model id to this project** (retired, or "no longer available to new users"; `gemini-2.5-flash` already is for new projects). The call carries on with the rest of the chain, and the model is re-asked hourly | Replace it in `MEAL_AI_MODEL` / `MEAL_AI_FALLBACK_MODEL`, and in `MEAL_AI_TRANSCRIBE_MODELS` / `MEAL_AI_REVIEW_MODELS` if set; Google's message, quoted in the line, usually names a successor |
+| `No configured Gemini model is served to this project; not calling` | **Every model in the chain 404s.** Users see "AI analysis is misconfigured" | Set `MEAL_AI_MODEL` to a served model now (or the failing kind's `MEAL_AI_*_MODELS`); no reset will fix this |
 | `Not retrying Gemini: Ns of budget left …, under the Ns an attempt needs` | Attempts to spare, but not enough time for one to answer, so none is started: it would still reach Google and spend a request. Expected on bad overload days, when refusals themselves take 2–30 s | — (the `Giving up` line follows) |
 | `Giving up on Gemini after …` | The retry budget was spent — the attempt cap (`MEAL_AI_MAX_ATTEMPTS`) or the deadline, whichever came first | On a paid key, raise `MEAL_AI_MAX_ATTEMPTS` and/or `MEAL_AI_DEADLINE_S` (and the frontend timeout with it). On the free tier, don't: refused attempts spend the per-day quota |
 
@@ -90,7 +90,7 @@ diff the `Successfully installed …` line between the last good deploy and the 
 Before escalating, note these are automatic:
 
 - **Retry with backoff, within two budgets**: a deadline (`MEAL_AI_DEADLINE_S`, default
-  60s) and an attempt cap (`MEAL_AI_MAX_ATTEMPTS`, defaults 4 / 3 / 2 for analysis /
+  60s) and an attempt cap (`MEAL_AI_MAX_ATTEMPTS`, defaults 4 / 4 / 2 for analysis /
   voice note / review). The cap exists because Google counts refused attempts against
   the per-day quota. Uncapped, one analysis in an overload made ~13 attempts, which is
   most of the free tier's 20 a day for the whole app.
@@ -102,6 +102,12 @@ Before escalating, note these are automatic:
 - **Alternating model chain** (`MEAL_AI_FALLBACK_MODEL`, comma-separated, default
   `gemini-3.8-flash,gemini-2.5-flash`): attempt two already lands on another serving pool, since
   overload is per pool.
+- **A chain per kind of call.** `MEAL_AI_MODEL` and `MEAL_AI_FALLBACK_MODEL` steer meal
+  analysis only. Voice notes try `MEAL_AI_TRANSCRIBE_MODELS` (default 3.6 → 3.8 → 2.5 Flash →
+  3.5 Flash-Lite, so a busy day still gets a transcript to edit) and the weekly review
+  `MEAL_AI_REVIEW_MODELS` (default: the analysis chain). So when you swap a model during an
+  outage, swap it in each chain that names it. `GET /api/ai/status` lists every chain under
+  `chains`. A model out for the day is skipped by every kind, because Google's quota is per model.
 - **A model Google no longer serves (404) leaves the chain** for the call and the next hour, and the
   next model is asked at once. Before 2026-10-05 a 404 on the fallback ended the call as
   "misconfigured" even while the primary was only busy.
