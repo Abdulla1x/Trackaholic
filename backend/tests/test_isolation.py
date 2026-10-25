@@ -861,9 +861,18 @@ def test_a_weekly_review_never_reads_another_accounts_week(client, client_b):
         "/api/settings",
         json={"calorie_goal": 2500, "protein_goal": 200, "carbs_goal": 250,
               "fat_goal": 70, "track_carbs": False, "track_fat": False,
-              "steps_goal": 10000},
+              "steps_goal": 10000, "trackers": ["water", "steps"]},
     )
     client_b.post("/api/steps", json={"date": yesterday, "steps": 12000})
+    # A tracks both too, so their absence from A's review below is down to
+    # A's own empty water table and unset step goal, not to A having turned
+    # them off.
+    client.put(
+        "/api/settings",
+        json={"calorie_goal": 2000, "protein_goal": 150, "carbs_goal": 250,
+              "fat_goal": 70, "track_carbs": False, "track_fat": False,
+              "trackers": ["water", "steps"]},
+    )
 
     a_review = client.get("/api/review").json()
     b_review = client_b.get("/api/review").json()

@@ -14,6 +14,7 @@ the calibration line reuses rows that each already represent a billable call,
 and the optional rephrasing is a separate, explicitly-requested endpoint in
 `routers/ai.py`.
 """
+import json
 import time as time_module
 from datetime import date as date_type
 from datetime import timedelta
@@ -154,17 +155,33 @@ def _weight_facts(
     return weekly_rate(points), in_window, (end - latest).days
 
 
+def _tracks(setting: Setting, key: str) -> bool:
+    """Whether the account shows this tracker on Today.
+
+    NULL means it never chose (an account from before the choice existed), and
+    those keep seeing every card, so the review keeps every section too. Once
+    chosen, a tracker left out of the list is one the account said it doesn't
+    use, whatever it logged before: a section reporting "0 of 7 days" on it
+    would grade the reader on something they turned off.
+    """
+    return setting.trackers_json is None or key in json.loads(setting.trackers_json)
+
+
 def _water_days_at_goal(
     db: Session, user_id: int, setting: Setting, start: date_type, end: date_type
 ) -> int | None:
-    """Days the water goal was reached, or None if this account never uses water.
+    """Days the water goal was reached, or None if this account doesn't track water.
 
-    ⚠️ The opt-in test is "has ever logged water", **not** "logged water this
+    Off when water isn't among the account's chosen trackers (`_tracks`).
+
+    ⚠️ Otherwise the opt-in test is "has ever logged water", **not** "logged water this
     week". `water_goal_ml` NULL means "derive it from my weight" rather than
     "off" (`models.py`), so unlike steps there is no column carrying the
     answer -- and a window-scoped test would hide the section from someone who
     does track water and had a bad week, which is the week worth reading.
     """
+    if not _tracks(setting, "water"):
+        return None
     ever = db.scalar(
         select(WaterLog.id).where(WaterLog.user_id == user_id).limit(1)
     )
@@ -245,7 +262,8 @@ def build_review(db: Session, user_id: int, window_end: date_type):
     targets = compute_targets(db, setting, today=window_end + timedelta(days=1))
     basis = targets.tdee_basis
 
-    steps_goal = setting.steps_goal
+    # A goal left behind on a tracker the account turned off is not tracking.
+    steps_goal = setting.steps_goal if _tracks(setting, "steps") else None
     return review_module.summarise(
         window_start=window_start,
         window_end=window_end,

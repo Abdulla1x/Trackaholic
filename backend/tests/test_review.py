@@ -2,6 +2,8 @@
 from datetime import date, timedelta
 
 import pytest
+from sqlalchemy import update
+from sqlalchemy.orm import Session
 
 from app.services import meal_ai
 from conftest import reporting
@@ -9,6 +11,8 @@ from tests.test_meal_ai import configure
 
 from app.calculations import RATE_MIN_POINTS, RATE_WINDOW_DAYS
 from app.calibration import CalibrationSummary, MacroCalibration
+from app.db import get_engine
+from app.models import Setting
 from app.review import (
     INTAKE_TOLERANCE_FRACTION,
     LOGGING_DENSE_DAYS,
@@ -437,6 +441,15 @@ def test_calibration_says_which_direction_the_estimates_were_moved():
     assert up.status == NOTE
 
 
+@pytest.mark.parametrize("moved", [0.0, 0.4, -0.4])
+def test_a_typical_change_that_rounds_to_zero_is_not_called_up_0(moved):
+    """Every estimate here was changed; a 0% median means both ways, equally."""
+    check = calibration_check(summary(linked=12, moved=moved))
+
+    assert check.detail.endswith("moved the calorie figure up about as often as down.")
+    assert "0%" not in check.detail
+
+
 def test_weight_refuses_a_rate_whose_last_weigh_in_is_no_longer_current():
     """`weekly_rate` windows from the latest weigh-in, not from today.
 
@@ -600,6 +613,7 @@ def test_steps_are_absent_until_a_goal_is_set(client):
     configure a second one. Someone who does not track steps is never asked
     about them.
     """
+    put_settings(client, trackers=["steps"])
     client.post("/api/steps", json={"date": iso(-2), "steps": 12_000})
 
     assert "steps" not in [c["key"] for c in fetch(client)["checks"]]
@@ -612,6 +626,7 @@ def test_steps_are_absent_until_a_goal_is_set(client):
 
 def test_water_is_absent_until_some_has_been_logged(client):
     """Water has no flag to read: NULL `water_goal_ml` means "derive it"."""
+    put_settings(client, trackers=["water"])
     assert "water" not in [c["key"] for c in fetch(client)["checks"]]
 
     client.post("/api/water", json={"date": iso(-2), "ml": 3000})
@@ -628,12 +643,43 @@ def test_a_tracker_section_survives_a_week_with_nothing_logged_in_it(client):
     exactly the week worth reading. Logged well outside the window, absent
     from it, and the section still appears reporting zero.
     """
+    put_settings(client, trackers=["water"])
     client.post("/api/water", json={"date": iso(-40), "ml": 3000})
 
     check = check_of(fetch(client), "water")
 
     assert check["value"] == 0
     assert check["status"] == OFF_TRACK
+
+
+def test_a_tracker_turned_off_has_no_section_whatever_was_logged(client):
+    """Found reading real reviews: water logged in August, water not among the
+    trackers chosen since, and every week said "0 of the 7 days"."""
+    put_settings(client, trackers=["water", "steps"], steps_goal=10_000)
+    client.post("/api/water", json={"date": iso(-2), "ml": 3000})
+    client.post("/api/steps", json={"date": iso(-2), "steps": 12_000})
+    assert {"water", "steps"} <= set(c["key"] for c in fetch(client)["checks"])
+
+    put_settings(client, trackers=["supplements"])
+    checks = [c["key"] for c in fetch(client)["checks"]]
+
+    assert "water" not in checks
+    assert "steps" not in checks
+
+
+def test_an_account_that_never_chose_trackers_keeps_every_section(client):
+    """NULL trackers = from before the choice existed; Today shows every card."""
+    put_settings(client, steps_goal=10_000)
+    client.post("/api/water", json={"date": iso(-2), "ml": 3000})
+    client.post("/api/steps", json={"date": iso(-2), "steps": 12_000})
+    with Session(get_engine()) as session:
+        session.execute(update(Setting).values(trackers_json=None))
+        session.commit()
+
+    checks = [c["key"] for c in fetch(client)["checks"]]
+
+    assert "water" in checks
+    assert "steps" in checks
 
 
 def test_a_calorie_plan_written_for_a_day_still_moves_that_days_target(client):
