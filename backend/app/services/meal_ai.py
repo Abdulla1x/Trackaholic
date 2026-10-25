@@ -53,6 +53,26 @@ DEFAULT_MODEL = "gemini-3.6-flash"
 # MEAL_AI_FALLBACK_MODEL takes a comma-separated list; set it empty to disable.
 DEFAULT_FALLBACK_MODEL = "gemini-3.8-flash,gemini-2.5-flash"
 
+# Each kind of call has its own chain, because the kinds don't need the same
+# model: a voice note is a transcript the user reads and edits before anything
+# is estimated, and the review only rewords figures already computed. The
+# names match ai_analyses.kind. MEAL_AI_MODEL and MEAL_AI_FALLBACK_MODEL steer
+# the analysis chain only; the other kinds take a full comma-separated list.
+ANALYSIS = "analysis"
+TRANSCRIPTION = "transcription"
+REVIEW = "review"
+KINDS = (ANALYSIS, TRANSCRIPTION, REVIEW)
+CHAIN_ENV = {
+    TRANSCRIPTION: "MEAL_AI_TRANSCRIBE_MODELS",
+    REVIEW: "MEAL_AI_REVIEW_MODELS",
+}
+# None follows the analysis chain. So does a var that is set but empty: unlike
+# the fallback, a kind with no model at all means nothing an operator could want.
+DEFAULT_CHAINS: dict[str, str | None] = {
+    TRANSCRIPTION: None,
+    REVIEW: None,
+}
+
 # Retries are bounded by the DEADLINE, not by an attempt count. Gemini's
 # overload 503 is an instant rejection — measured at ~150ms in production — so
 # the budget is spent waiting between attempts, not making them. A fixed
@@ -481,7 +501,7 @@ def _provider_errors(model: str, *, final: bool = True):
             # is fully known, and Google's message usually names a successor.
             logger.error(
                 "Gemini model not found (model=%s): skipping it; set MEAL_AI_MODEL / "
-                "MEAL_AI_FALLBACK_MODEL to a served model. Google said: %s",
+                "MEAL_AI_FALLBACK_MODEL (or a kind's MEAL_AI_*_MODELS) to a served model. Google said: %s",
                 model, str(exc)[:240],
             )
             raise MealAIModelNotFound(str(exc)) from exc
@@ -590,24 +610,42 @@ async def _generate(model: str, contents: list, config: types.GenerateContentCon
         )
 
 
-def _models() -> list[str]:
-    """The model chain: preferred first, then each fallback in order.
+def _dedupe(models) -> list[str]:
+    """Ids in order, blanks dropped, each once.
 
-    Deduped so setting both env vars to the same id doesn't quietly double
-    every request's worst-case latency for no extra chance of success.
+    Deduped so naming a model twice doesn't quietly double every request's
+    worst-case latency for no extra chance of success.
     """
-    chain = [_env(MODEL_ENV) or DEFAULT_MODEL]
+    chain: list[str] = []
+    for model in models:
+        model = model.strip()
+        if model and model not in chain:
+            chain.append(model)
+    return chain
+
+
+def _analysis_chain() -> list[str]:
+    """The analysis chain: preferred first, then each fallback in order."""
     # os.environ rather than _env, because the distinction that matters here is
     # set-to-empty (an operator turning the fallback off) versus never set.
     if FALLBACK_MODEL_ENV in os.environ:
         fallbacks = _env(FALLBACK_MODEL_ENV)
     else:
         fallbacks = DEFAULT_FALLBACK_MODEL
-    for fallback in fallbacks.split(","):
-        fallback = fallback.strip()
-        if fallback and fallback not in chain:
-            chain.append(fallback)
-    return chain
+    return _dedupe([_env(MODEL_ENV) or DEFAULT_MODEL, *fallbacks.split(",")])
+
+
+def _chain(kind: str) -> list[str]:
+    """The models one kind of call tries, in order.
+
+    Read from the env on every call, like the key, so a chain changed in the
+    dashboard takes effect without a restart.
+    """
+    if kind == ANALYSIS:
+        return _analysis_chain()
+    env = CHAIN_ENV[kind]
+    configured = _env(env) if env in os.environ else DEFAULT_CHAINS[kind]
+    return _dedupe((configured or "").split(",")) or _analysis_chain()
 
 
 def _deadline(default: float) -> float:
@@ -649,6 +687,7 @@ def _backoff(attempt: int) -> float:
 async def _call_with_retry(
     operation,
     *,
+    kind: str,
     timeout_ms: int,
     deadline_s: float,
     max_attempts: int,
@@ -680,9 +719,13 @@ async def _call_with_retry(
     no longer serves this project) is handled the same way, with its own hourly
     re-check; only when every model in the chain is gone does the call fail as
     a misconfiguration.
+
+    `kind` picks the chain. What a model has said about itself (out for the
+    day, not served) holds for every kind: Google's quota is per model, not
+    per kind of call, so the caches are shared.
     """
     http_options = types.HttpOptions(timeout=timeout_ms)
-    chain = _models()
+    chain = _chain(kind)
     pool = [m for m in chain if not _is_exhausted(m) and not _is_missing(m)]
     if not pool and all(_is_missing(m) for m in chain):
         # Not "come back tomorrow": no reset will bring these models back.
@@ -920,6 +963,7 @@ async def analyze_meal(
     # same broken output.
     response, report = await _call_with_retry(
         call,
+        kind=ANALYSIS,
         timeout_ms=ANALYZE_TIMEOUT_MS,
         deadline_s=ANALYZE_DEADLINE_S,
         max_attempts=ANALYZE_MAX_ATTEMPTS,
@@ -978,6 +1022,7 @@ async def transcribe_audio(
 
     response, report = await _call_with_retry(
         call,
+        kind=TRANSCRIPTION,
         timeout_ms=TRANSCRIBE_TIMEOUT_MS,
         deadline_s=TRANSCRIBE_DEADLINE_S,
         max_attempts=TRANSCRIBE_MAX_ATTEMPTS,
@@ -1034,6 +1079,7 @@ async def phrase_review(facts: Sequence[str]) -> tuple[str, CallReport]:
 
     response, report = await _call_with_retry(
         call,
+        kind=REVIEW,
         timeout_ms=REVIEW_TIMEOUT_MS,
         deadline_s=REVIEW_DEADLINE_S,
         max_attempts=REVIEW_MAX_ATTEMPTS,
@@ -1057,7 +1103,7 @@ async def phrase_review(facts: Sequence[str]) -> tuple[str, CallReport]:
     return text, report
 
 
-def provider_info() -> dict[str, str | None]:
+def provider_info() -> dict[str, object]:
     """What the router may say about the provider without importing it.
 
     Keeps this the only module that knows google.genai exists, while still
@@ -1065,10 +1111,11 @@ def provider_info() -> dict[str, str | None]:
     "Google is down" from "a rebuild resolved a dependency the pinned SDK no
     longer works against".
     """
-    chain = _models()
+    chain = _chain(ANALYSIS)
     return {
         "model": chain[0],
         "fallback_model": ", ".join(chain[1:]) or None,
+        "chains": {kind: _chain(kind) for kind in KINDS},
         "sdk_version": genai.__version__,
     }
 
@@ -1158,7 +1205,7 @@ async def probe() -> str:
     request complete", and checking .text would report a healthy provider as
     broken whenever a thinking model spent its budget on thoughts.
     """
-    model = _models()[0]
+    model = _chain(ANALYSIS)[0]
     with _provider_errors(model):
         await _generate(
             model,

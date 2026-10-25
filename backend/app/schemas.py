@@ -1388,8 +1388,11 @@ class AIStatus(BaseModel):
     """
 
     configured: bool
+    # The analysis chain, as before per-kind chains existed; `chains` has every
+    # kind's, keyed by ai_analyses.kind.
     model: str
     fallback_model: str | None = None
+    chains: dict[str, list[str]] | None = None
     # The pinned SDK's own version. google-genai's transitive dependencies are
     # not pinned, so a rebuild can resolve a pydantic or httpx the SDK no longer
     # works against; seeing the version here beats reading Render build logs.

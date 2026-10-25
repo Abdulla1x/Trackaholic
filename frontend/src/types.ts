@@ -44,6 +44,8 @@ export interface AIStatus {
   configured: boolean
   model: string
   fallback_model: string | null
+  /** Every kind's model chain. Optional: an API deployed before it doesn't send it. */
+  chains?: Record<string, string[]>
   sdk_version: string
   probe: AIProbe | null
 }

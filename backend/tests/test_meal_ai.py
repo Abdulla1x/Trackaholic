@@ -839,14 +839,72 @@ def test_the_default_chain_names_the_models_google_serves(monkeypatch):
     """
     monkeypatch.delenv("MEAL_AI_MODEL", raising=False)
     monkeypatch.delenv("MEAL_AI_FALLBACK_MODEL", raising=False)
-    assert meal_ai._models() == ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-2.5-flash"]
+    assert meal_ai._chain(meal_ai.ANALYSIS) == ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-2.5-flash"]
 
 
 def test_the_fallback_is_deduped_against_the_primary(monkeypatch):
     """Same id in both slots must not silently double the worst-case latency."""
     monkeypatch.setenv("MEAL_AI_MODEL", "gemini-2.5-flash")
     monkeypatch.setenv("MEAL_AI_FALLBACK_MODEL", "gemini-2.5-flash")
-    assert meal_ai._models() == ["gemini-2.5-flash"]
+    assert meal_ai._chain(meal_ai.ANALYSIS) == ["gemini-2.5-flash"]
+
+
+@pytest.fixture
+def no_chain_env(monkeypatch):
+    for name in ("MEAL_AI_MODEL", "MEAL_AI_FALLBACK_MODEL", *meal_ai.CHAIN_ENV.values()):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.mark.parametrize("kind", [meal_ai.TRANSCRIPTION, meal_ai.REVIEW])
+def test_a_kind_with_no_default_follows_the_analysis_chain(monkeypatch, no_chain_env, kind):
+    monkeypatch.setitem(meal_ai.DEFAULT_CHAINS, kind, None)
+    monkeypatch.setenv("MEAL_AI_MODEL", "gemini-a")
+    assert meal_ai._chain(kind) == meal_ai._chain(meal_ai.ANALYSIS)
+
+
+@pytest.mark.parametrize("kind", [meal_ai.TRANSCRIPTION, meal_ai.REVIEW])
+def test_a_kinds_chain_is_its_own_env_var(monkeypatch, no_chain_env, kind):
+    """A full list, deduped, and it leaves the analysis chain alone."""
+    monkeypatch.setenv(meal_ai.CHAIN_ENV[kind], " gemini-x, gemini-y,,gemini-x")
+    assert meal_ai._chain(kind) == ["gemini-x", "gemini-y"]
+    assert meal_ai._chain(meal_ai.ANALYSIS)[0] == meal_ai.DEFAULT_MODEL
+
+
+@pytest.mark.parametrize("value", ["", " , "])
+def test_an_empty_kind_chain_falls_back_to_the_analysis_chain(monkeypatch, no_chain_env, value):
+    """Unlike an empty fallback, a kind with no model at all would only fail."""
+    monkeypatch.setenv("MEAL_AI_REVIEW_MODELS", value)
+    assert meal_ai._chain(meal_ai.REVIEW) == meal_ai._chain(meal_ai.ANALYSIS)
+
+
+def test_each_kind_calls_its_own_chain(monkeypatch, no_chain_env):
+    monkeypatch.setenv("MEAL_AI_MODEL", "gemini-analysis")
+    monkeypatch.setenv("MEAL_AI_FALLBACK_MODEL", "")
+    monkeypatch.setenv("MEAL_AI_TRANSCRIBE_MODELS", "gemini-voice")
+    monkeypatch.setenv("MEAL_AI_REVIEW_MODELS", "gemini-review")
+    calls = _install_scripted_provider(
+        monkeypatch, [SimpleNamespace(parsed=SAMPLE, text="two eggs")]
+    )
+    asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    _, voice = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    _, review = asyncio.run(meal_ai.phrase_review(["You logged 7 of 7 days."]))
+    assert calls["models"] == ["gemini-analysis", "gemini-voice", "gemini-review"]
+    assert (voice.model, review.model) == ("gemini-voice", "gemini-review")
+
+
+def test_a_model_out_for_the_day_is_out_for_every_kind(monkeypatch, no_chain_env):
+    """Google's daily quota is per model, so what analysis learned, voice uses."""
+    monkeypatch.setenv("MEAL_AI_MODEL", "gemini-a")
+    monkeypatch.setenv("MEAL_AI_FALLBACK_MODEL", "")
+    monkeypatch.setenv("MEAL_AI_TRANSCRIBE_MODELS", "gemini-a,gemini-b")
+    calls = _install_scripted_provider(
+        monkeypatch,
+        [_quota_error(DAILY_QUOTA_ID), SimpleNamespace(parsed=None, text="two eggs")],
+    )
+    with pytest.raises(meal_ai.MealAIDailyQuotaExhausted):
+        asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert calls["models"] == ["gemini-a", "gemini-b"]
 
 
 @pytest.mark.parametrize(
@@ -1337,7 +1395,7 @@ def test_an_unusable_attempt_cap_keeps_the_default(monkeypatch, bad):
 def test_the_fallback_can_be_a_list(monkeypatch):
     """Every model on the free tier is another 20 a day."""
     _chain(monkeypatch, "gemini-a", "gemini-b, gemini-c,,gemini-a")
-    assert meal_ai._models() == ["gemini-a", "gemini-b", "gemini-c"]
+    assert meal_ai._chain(meal_ai.ANALYSIS) == ["gemini-a", "gemini-b", "gemini-c"]
 
 
 def test_status_reports_every_fallback(client, monkeypatch):
@@ -1659,6 +1717,8 @@ def test_status_reports_the_model_chain_and_sdk_version(client, monkeypatch):
     assert body["configured"] is True
     assert body["model"] == "gemini-x"
     assert body["fallback_model"] == "gemini-y"
+    assert body["chains"]["analysis"] == ["gemini-x", "gemini-y"]
+    assert set(body["chains"]) == {"analysis", "transcription", "review"}
     assert body["sdk_version"]
 
 
