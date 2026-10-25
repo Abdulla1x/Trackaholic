@@ -22,6 +22,7 @@ from app.routers import ai as ai_router
 from app.schemas import AnalyzedItem, Food, MacroRange, MealAnalysis
 from app.services import meal_ai
 from app.services.meal_ai import _build_contents
+from conftest import reporting
 
 SAMPLE = MealAnalysis(
     meal_name="Chicken & Rice",
@@ -52,7 +53,7 @@ async def fake_analyze(images, text, prior_analysis=None, **kwargs):
 
 def configure(monkeypatch, fake=fake_analyze):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setattr(meal_ai, "analyze_meal", fake)
+    monkeypatch.setattr(meal_ai, "analyze_meal", reporting(fake))
 
 
 async def fake_transcribe(audio_bytes, audio_mime):
@@ -61,7 +62,7 @@ async def fake_transcribe(audio_bytes, audio_mime):
 
 def configure_transcribe(monkeypatch, fake=fake_transcribe):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setattr(meal_ai, "transcribe_audio", fake)
+    monkeypatch.setattr(meal_ai, "transcribe_audio", reporting(fake))
 
 
 def post_voice_note(client, data=b"fake-audio", mime="audio/webm"):
@@ -636,7 +637,7 @@ def _install_fake_provider(monkeypatch, response):
 
 def test_analyze_meal_uses_sdk_parsed_object(monkeypatch):
     _install_fake_provider(monkeypatch, SimpleNamespace(parsed=SAMPLE, text=None))
-    result = asyncio.run(meal_ai.analyze_meal([], "chicken and rice"))
+    result, _report = asyncio.run(meal_ai.analyze_meal([], "chicken and rice"))
     assert result is SAMPLE
 
 
@@ -644,7 +645,7 @@ def test_analyze_meal_falls_back_to_raw_json_text(monkeypatch):
     # Some SDK versions leave .parsed unset and only give raw JSON text.
     response = SimpleNamespace(parsed=None, text=SAMPLE.model_dump_json())
     _install_fake_provider(monkeypatch, response)
-    result = asyncio.run(meal_ai.analyze_meal([], "chicken and rice"))
+    result, _report = asyncio.run(meal_ai.analyze_meal([], "chicken and rice"))
     assert result.meal_name == "Chicken & Rice"
     assert result.calories.estimate == 583
 
@@ -776,7 +777,7 @@ def test_a_server_error_is_retried_and_then_succeeds(monkeypatch):
     calls = _install_scripted_provider(
         monkeypatch, [_server_error(), SimpleNamespace(parsed=SAMPLE, text=None)]
     )
-    result = asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    result, _report = asyncio.run(meal_ai.analyze_meal([], "chicken"))
     assert result is SAMPLE
     assert calls["n"] == 2
 
@@ -793,7 +794,7 @@ def test_the_second_attempt_uses_the_other_serving_pool(monkeypatch):
     calls = _install_scripted_provider(
         monkeypatch, [_server_error(), SimpleNamespace(parsed=SAMPLE, text=None)]
     )
-    assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert calls["models"] == ["gemini-3.6-flash", "gemini-3.8-flash"]
 
 
@@ -885,7 +886,7 @@ def test_every_attempt_closes_its_client_including_the_failed_ones(monkeypatch):
         monkeypatch,
         [_server_error(), _server_error(), SimpleNamespace(parsed=SAMPLE, text=None)],
     )
-    assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert len(calls["closed"]) == calls["n"] == 3
 
 
@@ -921,7 +922,7 @@ def test_an_attempts_cyclic_garbage_is_freed_before_the_next_attempt(monkeypatch
     was_enabled = gc.isenabled()
     gc.disable()
     try:
-        assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+        assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     finally:
         if was_enabled:
             gc.enable()
@@ -1041,14 +1042,14 @@ def test_a_retry_with_time_to_answer_still_runs(monkeypatch):
         monkeypatch,
         [(13, _gateway_timeout()), (9.4, SimpleNamespace(text="two eggs", candidates=None))],
     )
-    assert asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm")) == "two eggs"
+    assert asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))[0] == "two eggs"
     assert calls["n"] == 2
 
     calls, _ = _install_timed_provider(
         monkeypatch,
         [(12, _server_error()), (21, SimpleNamespace(parsed=SAMPLE, text=None))],
     )
-    assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert calls["n"] == 2
 
 
@@ -1188,7 +1189,7 @@ def test_a_daily_limit_falls_back_to_the_next_model_at_once(monkeypatch, virtual
         monkeypatch,
         [_quota_error(DAILY_QUOTA_ID), SimpleNamespace(parsed=SAMPLE, text=None)],
     )
-    assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert calls["models"] == ["gemini-a", "gemini-b"]
     assert virtual_clock == []
 
@@ -1235,7 +1236,7 @@ def test_the_memory_is_rechecked_within_the_hour(monkeypatch, wall_clock):
     assert calls["n"] == 1
 
     wall_clock["t"] += timedelta(minutes=2)
-    assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert calls["n"] == 2
 
 
@@ -1252,7 +1253,7 @@ def test_the_memory_never_outlives_midnight_pacific(monkeypatch, wall_clock):
         asyncio.run(meal_ai.analyze_meal([], "chicken"))
 
     wall_clock["t"] += timedelta(minutes=31)
-    assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert calls["n"] == 2
 
 
@@ -1282,7 +1283,7 @@ def test_a_per_minute_limit_moves_to_the_other_model_once(monkeypatch, virtual_c
         monkeypatch,
         [_quota_error(MINUTE_QUOTA_ID), SimpleNamespace(parsed=SAMPLE, text=None)],
     )
-    assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert calls["models"] == ["gemini-a", "gemini-b"]
     assert virtual_clock == []
 
@@ -1295,7 +1296,7 @@ def test_a_per_minute_limit_is_not_remembered_past_the_call(monkeypatch):
     )
     with pytest.raises(meal_ai.MealAIRateLimited):
         asyncio.run(meal_ai.analyze_meal([], "chicken"))
-    assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert calls["models"] == ["gemini-a", "gemini-a"]
 
 
@@ -2044,7 +2045,7 @@ def test_a_missing_fallback_is_skipped_and_the_primary_asked_again(monkeypatch):
     calls = _install_scripted_provider(
         monkeypatch, [_server_error(), _not_found(), _answer()]
     )
-    assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert calls["models"] == ["gemini-a", "gemini-b", "gemini-a"]
 
 
@@ -2070,7 +2071,7 @@ def test_a_missing_primary_falls_back(monkeypatch):
     configured the app keeps answering; the ERROR line still says why."""
     _chain(monkeypatch, "gemini-a", "gemini-b")
     calls = _install_scripted_provider(monkeypatch, [_not_found(), _answer()])
-    assert asyncio.run(meal_ai.analyze_meal([], "chicken")) is SAMPLE
+    assert asyncio.run(meal_ai.analyze_meal([], "chicken"))[0] is SAMPLE
     assert calls["models"] == ["gemini-a", "gemini-b"]
 
 
@@ -2099,3 +2100,140 @@ def test_a_busy_model_then_a_missing_one_reports_the_outage(monkeypatch):
     _install_scripted_provider(monkeypatch, [_server_error(), _not_found()])
     with pytest.raises(meal_ai.MealAIUnavailable):
         asyncio.run(meal_ai.analyze_meal([], "chicken"))
+
+
+# --- the call report: which model, how many requests, how many tokens -------
+
+
+def _usage(prompt, output, thinking, audio=0):
+    details = [SimpleNamespace(modality="TEXT", token_count=prompt - audio)]
+    if audio:
+        details.append(SimpleNamespace(modality="MediaModality.AUDIO", token_count=audio))
+    return SimpleNamespace(
+        prompt_token_count=prompt,
+        prompt_tokens_details=details,
+        candidates_token_count=output,
+        thoughts_token_count=thinking,
+    )
+
+
+def test_the_report_names_the_model_that_answered_and_its_tokens(monkeypatch):
+    _chain(monkeypatch, "gemini-a", "gemini-b")
+    _install_scripted_provider(
+        monkeypatch,
+        [
+            _server_error(),
+            SimpleNamespace(
+                parsed=SAMPLE, text=None, usage_metadata=_usage(1800, 300, 500, audio=400)
+            ),
+        ],
+    )
+    result, report = asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    assert result is SAMPLE
+    # The fallback answered on the second request, and both requests count:
+    # Google counted the refused one against gemini-a's day.
+    assert report == meal_ai.CallReport(
+        model="gemini-b",
+        attempts=2,
+        input_tokens=1800,
+        audio_input_tokens=400,
+        output_tokens=300,
+        thinking_tokens=500,
+    )
+
+
+def test_a_missing_usage_block_reads_as_not_measured_not_zero(monkeypatch):
+    _install_fake_provider(monkeypatch, SimpleNamespace(parsed=SAMPLE, text=None))
+    _result, report = asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    assert report.attempts == 1
+    assert report.input_tokens is None
+    assert report.output_tokens is None
+    assert report.thinking_tokens is None
+
+
+def test_a_give_up_carries_the_requests_it_sent(monkeypatch):
+    _chain(monkeypatch, "gemini-a", "")
+    monkeypatch.setenv("MEAL_AI_MAX_ATTEMPTS", "3")
+    _install_scripted_provider(monkeypatch, [_server_error()])
+    with pytest.raises(meal_ai.MealAIUnavailable) as raised:
+        asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    assert raised.value.attempts == 3
+
+
+def test_a_chain_refused_for_the_day_carries_every_request(monkeypatch):
+    _chain(monkeypatch, "gemini-a", "gemini-b")
+    _install_scripted_provider(monkeypatch, [_quota_error(DAILY_QUOTA_ID)])
+    with pytest.raises(meal_ai.MealAIDailyQuotaExhausted) as raised:
+        asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    assert raised.value.attempts == 2
+
+
+def test_a_chain_already_out_for_the_day_sends_nothing(monkeypatch, wall_clock):
+    _chain(monkeypatch, "gemini-a", "")
+    calls = _install_scripted_provider(monkeypatch, [_quota_error(DAILY_QUOTA_ID)])
+    with pytest.raises(meal_ai.MealAIDailyQuotaExhausted):
+        asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    with pytest.raises(meal_ai.MealAIDailyQuotaExhausted) as raised:
+        asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    assert calls["n"] == 1
+    assert raised.value.attempts == 0
+
+
+def test_an_unusable_answer_still_reports_what_it_cost(monkeypatch):
+    """Answered and billed, so the router keeps the row and needs the tokens."""
+    _install_fake_provider(
+        monkeypatch,
+        SimpleNamespace(parsed=None, text="not json", usage_metadata=_usage(900, 40, 0)),
+    )
+    with pytest.raises(meal_ai.MealAIBadResponse) as raised:
+        asyncio.run(meal_ai.analyze_meal([], "chicken"))
+    assert raised.value.report is not None
+    assert raised.value.report.input_tokens == 900
+    assert raised.value.report.attempts == 1
+
+
+# --- paid-tier prices --------------------------------------------------------
+
+
+def _cost(model, on, **tokens):
+    counts = dict(
+        input_tokens=None, audio_input_tokens=None, output_tokens=None, thinking_tokens=None
+    )
+    counts.update(tokens)
+    return meal_ai.paid_cost_usd(model, on, **counts)
+
+
+def test_a_call_is_priced_with_thinking_at_the_output_rate():
+    cost = _cost(
+        "gemini-3.6-flash", date(2026, 10, 25),
+        input_tokens=1000, output_tokens=200, thinking_tokens=300,
+    )
+    assert cost == pytest.approx((1000 * 0.75 + 500 * 3.75) / 1_000_000)
+
+
+def test_3x_flash_doubles_on_new_year_by_itself():
+    tokens = dict(input_tokens=1000, output_tokens=200, thinking_tokens=300)
+    before = _cost("gemini-3.8-flash", date(2026, 12, 31), **tokens)
+    after = _cost("gemini-3.8-flash", date(2027, 1, 1), **tokens)
+    assert after == pytest.approx(2 * before)
+
+
+def test_audio_is_priced_apart_where_the_model_bills_it_higher():
+    cost = _cost(
+        "gemini-2.5-flash", date(2026, 10, 25),
+        input_tokens=1000, audio_input_tokens=400, output_tokens=100,
+    )
+    assert cost == pytest.approx((600 * 0.30 + 400 * 1.00 + 100 * 2.50) / 1_000_000)
+
+
+def test_a_retired_id_costs_what_its_successor_does():
+    tokens = dict(input_tokens=1000, output_tokens=200)
+    assert _cost("gemini-3.5-flash", date(2026, 10, 25), **tokens) == _cost(
+        "gemini-3.6-flash", date(2026, 10, 25), **tokens
+    )
+
+
+def test_an_unpriced_model_or_missing_count_is_not_guessed():
+    assert _cost("gemini-9-ultra", date(2026, 10, 25), input_tokens=1, output_tokens=1) is None
+    assert _cost("gemini-3.6-flash", date(2026, 10, 25), output_tokens=1) is None
+    assert _cost(None, date(2026, 10, 25), input_tokens=1, output_tokens=1) is None

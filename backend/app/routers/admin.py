@@ -47,6 +47,7 @@ from ..keep_warm import (
 )
 from ..models import (
     AIAnalysis,
+    AIRefusal,
     CaloriePlanDay,
     DailyStat,
     DemoStart,
@@ -68,12 +69,16 @@ from ..schemas import (
     AdminStats,
     AILatency,
     AdminUserRow,
+    AIModelUsage,
+    AIRefusalCount,
+    AIUsage,
     KeepWarmStatus,
     Retention,
     SignupHours,
     TimeToFirstMeal,
 )
-from .ai import calls_today, global_daily_limit
+from ..services import meal_ai
+from .ai import KIND_PROBE, calls_today, global_daily_limit
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -90,13 +95,106 @@ CHART_DAYS = 30
 LATENCY_SAMPLE_LIMIT = 10_000
 ACTIVE_WINDOW_DAYS = 7
 
-# What one Gemini call costs, in US dollars. A committed constant rather than a
-# setting: it is an estimate from the roadmap's unit-economics work (~$0.01 per
-# meal analysis), it changes only when the provider's pricing does, and a value
-# that looks configurable while governing nothing is worse than one you have to
-# edit. ⚠️ Every row in ai_analyses is one billable call, transcriptions
-# included -- that is what makes multiplying by a row count honest.
-AI_CALL_COST_USD = 0.01
+
+def _ai_usage(db: Session, window_start: datetime, active_accounts: int) -> AIUsage:
+    """The window's AI calls, priced row by row at the paid tier.
+
+    Each call at its own day's price (services/meal_ai.py holds the dated
+    table), so a price change re-prices nothing that happened before it. This
+    replaced a flat 1 cent x rows, which was wrong twice over: the app is on
+    the free tier, and a voice note does not cost what a four-photo analysis
+    does.
+
+    Probes count towards Google's requests but not towards the answers or the
+    cost: they read no response, so they have no tokens, and counting them as
+    "unmeasured" would make the cost look less complete than it is.
+    """
+    rows = db.execute(
+        select(
+            AIAnalysis.kind,
+            AIAnalysis.created_at,
+            AIAnalysis.model,
+            AIAnalysis.attempts,
+            AIAnalysis.input_tokens,
+            AIAnalysis.audio_input_tokens,
+            AIAnalysis.output_tokens,
+            AIAnalysis.thinking_tokens,
+        ).where(
+            AIAnalysis.created_at >= window_start,
+            AIAnalysis.user_id.in_(REAL_USERS),
+        )
+    ).all()
+    usage = AIUsage(prices_checked=meal_ai.PRICES_CHECKED)
+    by_model: dict[str, AIModelUsage] = {}
+    for kind, created_at, model, attempts, *tokens in rows:
+        if attempts is None:
+            usage.unmeasured_requests += 1
+        else:
+            usage.google_requests += attempts
+        if kind == KIND_PROBE:
+            continue
+        usage.answered_calls += 1
+        cost = meal_ai.paid_cost_usd(
+            model,
+            created_at.date(),
+            input_tokens=tokens[0],
+            audio_input_tokens=tokens[1],
+            output_tokens=tokens[2],
+            thinking_tokens=tokens[3],
+        )
+        if model is not None:
+            entry = by_model.setdefault(model, AIModelUsage())
+            entry.calls += 1
+            entry.cost_usd += cost or 0.0
+        if cost is None:
+            usage.unmeasured_calls += 1
+        else:
+            usage.priced_calls += 1
+            usage.cost_usd += cost
+
+    # Refused calls sent requests too; the app's own caps send none.
+    usage.google_requests += (
+        db.scalar(
+            select(func.coalesce(func.sum(AIRefusal.attempts), 0)).where(
+                AIRefusal.date >= window_start.date()
+            )
+        )
+        or 0
+    )
+    # Rounded at the end, not per row: a cent is several calls, and rounding
+    # each one would round most of them to nothing.
+    for entry in by_model.values():
+        entry.cost_usd = round(entry.cost_usd, 4)
+    usage.by_model = dict(sorted(by_model.items(), key=lambda item: -item[1].calls))
+    usage.cost_usd_per_active = round(usage.cost_usd / max(1, active_accounts), 4)
+    if usage.priced_calls:
+        usage.cost_usd_per_call = round(usage.cost_usd / usage.priced_calls, 5)
+    usage.cost_usd = round(usage.cost_usd, 4)
+    return usage
+
+
+def _ai_refusals(db: Session, first_day: date_type) -> list[AIRefusalCount]:
+    """Calls that ended without an answer, by kind and cause, over the window.
+
+    From the ai_refusals counter, not from accounts, so this is the one AI
+    figure on the page that deleting an account does not move. Most refusals
+    first.
+    """
+    rows = db.execute(
+        select(
+            AIRefusal.kind,
+            AIRefusal.cause,
+            func.sum(AIRefusal.count),
+            func.sum(AIRefusal.attempts),
+        )
+        .where(AIRefusal.date >= first_day)
+        .group_by(AIRefusal.kind, AIRefusal.cause)
+    ).all()
+    counts = [
+        AIRefusalCount(kind=kind, cause=cause, count=count, attempts=attempts)
+        for kind, cause, count, attempts in rows
+    ]
+    return sorted(counts, key=lambda row: (-row.count, row.kind, row.cause))
 
 
 def _percentile(sorted_values: list[int], q: float) -> int:
@@ -504,8 +602,6 @@ def stats(
             p95_ms=_percentile(values, 0.95),
         )
 
-    ai_calls_30d = sum(calls_by_kind.values())
-
     return AdminStats(
         total_users=total_users,
         total_meals=total_meals,
@@ -514,15 +610,13 @@ def stats(
         signup_hours=_signup_hours(db),
         feature_adoption=_feature_adoption(db),
         retention=_retention(db),
-        ai_spend_30d_usd=round(ai_calls_30d * AI_CALL_COST_USD, 2),
         # Per ACTIVE account, not per account. Dividing by every account ever
         # created would make the figure fall every time somebody signed up and
         # left, which is the direction that flatters and the opposite of what a
         # cost-per-user number is for: G3 has to price against the people who
         # actually use it.
-        ai_spend_30d_usd_per_active=round(
-            ai_calls_30d * AI_CALL_COST_USD / max(1, distinct_active(days)), 2
-        ),
+        ai_usage_30d=_ai_usage(db, window_start, distinct_active(days)),
+        ai_refusals_30d=_ai_refusals(db, first_day),
         signups_7d=sum(signups_per_day.get(day, 0) for day in recent),
         signups_30d=sum(signups_per_day.get(day, 0) for day in days),
         active_7d=distinct_active(recent),

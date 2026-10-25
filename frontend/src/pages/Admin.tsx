@@ -347,6 +347,135 @@ function AILatencyCard({ stats }: { stats: AdminStats }) {
   )
 }
 
+/** Dollars at a precision a few cents of AI can be read at: $0.0042, $0.41. */
+function usd(value: number): string {
+  if (value === 0) return '$0.00'
+  return value < 0.1 ? `$${value.toFixed(4)}` : `$${value.toFixed(2)}`
+}
+
+/** What each ai_refusals cause means, in the words a refused user met. The
+ *  first two are this app's caps and never reach Google. */
+const REFUSAL_CAUSES: Record<string, string> = {
+  user_limit: 'Own daily limit',
+  app_limit: 'App-wide limit',
+  daily_quota: 'Google out for the day',
+  rate_limited: 'Google per-minute limit',
+  overloaded: 'Google busy',
+  unreachable: 'Google unreachable',
+  model_missing: 'Model not served',
+  misconfigured: 'Request rejected',
+  internal_error: 'Our own error',
+}
+
+/** What the AI would cost on the paid tier, who answered, and who was refused.
+ *
+ * ⚠️ The app runs on Gemini's free tier, so the real bill is $0. The cost here
+ * is the same calls at Google's paid prices (a dated table on the server, each
+ * call at its own day's price): what a subscription would have to clear once
+ * billing is on. It replaced a flat 1 cent per call.
+ *
+ * "Answered by" is the production fallback rate, which nothing showed before
+ * the usage columns existed: every 2.5 Flash answer is a call the first model
+ * could not take. Refusals come from a counter with no account id, so they
+ * survive the account that met them.
+ */
+function AIUsageCard({ stats }: { stats: AdminStats }) {
+  // Optional: Vercel and Render deploy apart, so for a minute after a release
+  // this page can run against an API that predates both fields.
+  const usage = stats.ai_usage_30d
+  const refusals = stats.ai_refusals_30d ?? []
+  const models = Object.entries(usage?.by_model ?? {})
+  const refused = refusals.reduce((sum, row) => sum + row.count, 0)
+  return (
+    <Block label="AI usage">
+      <p className="text-small text-ink-2">
+        The last {stats.window_days} days at Google&apos;s paid prices. The app
+        is on the free tier, so the real bill is $0.
+      </p>
+      <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Fact
+          label="At paid prices"
+          value={usd(usage?.cost_usd ?? 0)}
+          note={
+            (usage?.unmeasured_calls ?? 0) > 0
+              ? `${usage?.priced_calls ?? 0} calls priced · ${usage?.unmeasured_calls} not measured`
+              : `${usage?.priced_calls ?? 0} calls priced`
+          }
+        />
+        <Fact
+          label="Per active account"
+          value={usd(usage?.cost_usd_per_active ?? 0)}
+          note="What a subscription has to clear"
+        />
+        <Fact
+          label="Per answer"
+          value={
+            usage?.cost_usd_per_call == null
+              ? 'Not measured yet'
+              : `${(usage.cost_usd_per_call * 100).toFixed(2)}¢`
+          }
+          note={usage?.prices_checked ? `Prices checked ${shortDate(usage.prices_checked)}` : undefined}
+        />
+        <Fact
+          label="Google requests"
+          value={(usage?.google_requests ?? 0).toLocaleString()}
+          note={`for ${(usage?.answered_calls ?? 0).toLocaleString()} answers${
+            (usage?.unmeasured_requests ?? 0) > 0
+              ? ` · ${usage?.unmeasured_requests} older rows uncounted`
+              : ''
+          }`}
+        />
+      </dl>
+
+      <h3 className="mt-3 text-field-label text-ink-2">Answered by</h3>
+      {models.length === 0 ? (
+        <p className="text-small text-ink-2" data-live="answered by empty">
+          No call has recorded its model yet. Every call from this deploy on does.
+        </p>
+      ) : (
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+          {models.map(([model, entry]) => (
+            <li key={model} className="flex justify-between text-small">
+              <span className="text-ink-2">{model.replace(/^gemini-/, '')}</span>
+              <span className="font-semibold" data-live={`answered by ${model}`}>
+                {entry.calls} · {usd(entry.cost_usd)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h3 className="mt-3 text-field-label text-ink-2">
+        Refused{refused > 0 ? ` · ${refused}` : ''}
+      </h3>
+      {refusals.length === 0 ? (
+        <p className="text-small text-ink-2" data-live="refused empty">
+          No call has been refused since refusals started being counted.
+        </p>
+      ) : (
+        <ul className="grid grid-cols-1 gap-y-1 sm:grid-cols-2 sm:gap-x-4">
+          {refusals.map((row) => (
+            <li key={`${row.kind} ${row.cause}`} className="flex justify-between text-small">
+              <span className="text-ink-2">
+                {row.kind} · {REFUSAL_CAUSES[row.cause] ?? row.cause}
+              </span>
+              <span className="font-semibold" data-live={`refused ${row.kind} ${row.cause}`}>
+                {row.count}
+                {row.attempts > 0 ? ` · ${row.attempts} requests` : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-small text-ink-2">
+        Google counts every request against its daily quota, refused ones
+        included, so its dashboard should match "Google requests", not the
+        number of answers. The own and app-wide limits never reach Google.
+      </p>
+    </Block>
+  )
+}
+
 /** A whole-number percentage, or null when there is nothing to divide by.
  *
  * Null rather than 0: "no data" and "zero percent" are different claims, and
@@ -462,16 +591,6 @@ function ReachCard({ stats }: { stats: AdminStats }) {
               : `Met a cold start · window is ${hours?.timezone ?? 'Asia/Dubai'}`
           }
         />
-        <Fact
-          label="AI spend, 30 days"
-          value={`$${(stats.ai_spend_30d_usd ?? 0).toFixed(2)}`}
-          note="Estimated at $0.01 per call"
-        />
-        <Fact
-          label="Per active account"
-          value={`$${(stats.ai_spend_30d_usd_per_active ?? 0).toFixed(2)}`}
-          note="What a subscription has to clear"
-        />
       </dl>
 
       <h3 className="mt-3 text-field-label text-ink-2">
@@ -584,6 +703,7 @@ export default function Admin() {
           <ReachCard stats={stats} />
           {keepWarm && <KeepWarmCard status={keepWarm} />}
           <AILatencyCard stats={stats} />
+          <AIUsageCard stats={stats} />
 
           <Block label="Accounts per day">
             <p className="text-small text-ink-2">

@@ -4,6 +4,7 @@ from datetime import date, timedelta
 import pytest
 
 from app.services import meal_ai
+from conftest import reporting
 from tests.test_meal_ai import configure
 
 from app.calculations import RATE_MIN_POINTS, RATE_WINDOW_DAYS
@@ -687,7 +688,7 @@ async def fake_phrase(facts):
 
 def configure_phrase(monkeypatch, fake=fake_phrase):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    monkeypatch.setattr(meal_ai, "phrase_review", fake)
+    monkeypatch.setattr(meal_ai, "phrase_review", reporting(fake))
 
 
 def test_the_summary_is_built_from_the_servers_own_facts(client, monkeypatch):

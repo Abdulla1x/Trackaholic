@@ -1,4 +1,5 @@
 """AI meal analysis: photo and/or text in, structured macro estimate out."""
+import json
 import logging
 import os
 import time as time_module
@@ -16,7 +17,7 @@ from .. import keep_warm
 from ..db import get_db
 from ..demo_samples import SAMPLES
 from ..env import env_int
-from ..models import AIAnalysis, Food as FoodRow, Meal, User
+from ..models import AIAnalysis, AIRefusal, Food as FoodRow, Meal, User
 from ..schemas import (
     AIProbe,
     AIStatus,
@@ -28,6 +29,7 @@ from ..schemas import (
     TranscriptionResponse,
 )
 from ..services import meal_ai
+from ..upsert import upsert
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +73,8 @@ DEFAULT_TRANSCRIBE_DAILY_LIMIT = 16
 # quota -- or, on a paid key, the money. It counts user actions, not provider
 # attempts, and the gap is real: on 2026-10-04, an overload day, Google counted
 # 22 requests for the 11 calls recorded here, because refused attempts count
-# against its quota but are refunded in this table. The default chain is three
+# against its quota but are refunded in this table (and, since migration 0027,
+# counted in ai_refusals instead). The default chain is three
 # models (3.6, 3.8, then 2.5 Flash: 60 free requests a day between them), and
 # on a day like that 40 actions need ~80 requests, so Google's per-day refusal,
 # not this cap, is what stops the app -- safely, with "daily limit reached". On
@@ -150,6 +153,85 @@ _PROVIDER_ERRORS: list[tuple[type, int, str]] = [
         "AI analysis is misconfigured on the server — check the server logs.",
     ),
 ]
+
+
+# Why an AI call ended without an answer: the cause column of ai_refusals.
+# The first two are this app's own caps and never reach Google; the rest are
+# the provider's, named by the same neutral exceptions _PROVIDER_ERRORS maps to
+# what the user is told. Order matters: each subclass sits ahead of its base.
+CAUSE_USER_LIMIT = "user_limit"
+CAUSE_APP_LIMIT = "app_limit"
+_REFUSAL_CAUSES: list[tuple[type, str]] = [
+    (meal_ai.MealAIDailyQuotaExhausted, "daily_quota"),
+    (meal_ai.MealAIRateLimited, "rate_limited"),
+    (meal_ai.MealAIUnavailable, "overloaded"),
+    (meal_ai.MealAIUnreachable, "unreachable"),
+    (meal_ai.MealAIModelNotFound, "model_missing"),
+    (meal_ai.MealAIBadRequest, "misconfigured"),
+    (meal_ai.MealAIInternalError, "internal_error"),
+]
+
+
+def refusal_cause(exc: Exception) -> str:
+    # Anything outside the hierarchy is our own code failing around the call,
+    # which is what internal_error already means.
+    return next(
+        (cause for kind, cause in _REFUSAL_CAUSES if isinstance(exc, kind)),
+        "internal_error",
+    )
+
+
+def count_refusal(db: Session, *, kind: str, cause: str, attempts: int = 0) -> None:
+    """Add one refused call to today's ai_refusals counter, in its own commit.
+
+    Its own commit, never the caller's: app/upsert.py answers a same-second
+    race by rolling back and building again, and a rollback would also undo
+    whatever else the caller had pending -- such as the refund's delete.
+    """
+    today = datetime.now(timezone.utc).date()
+
+    def build() -> AIRefusal:
+        row = db.scalars(
+            select(AIRefusal).where(
+                AIRefusal.date == today, AIRefusal.kind == kind, AIRefusal.cause == cause
+            )
+        ).first()
+        if row is None:
+            row = AIRefusal(date=today, kind=kind, cause=cause, count=0, attempts=0)
+            db.add(row)
+        row.count += 1
+        row.attempts += attempts
+        return row
+
+    upsert(db, build)
+
+
+def refund(db: Session, record: AIAnalysis, exc: Exception) -> None:
+    """Give the user their slot back, and count the refusal instead.
+
+    The row goes because the user should not pay for Google's outage -- that is
+    _reserve_call's contract. The refusal is counted because Google may still
+    have counted the requests (`exc.attempts`), and a refund that left no trace
+    is how /admin came to show 11 calls on a day Google counted 22.
+    """
+    kind = record.kind
+    db.delete(record)
+    db.commit()
+    count_refusal(
+        db, kind=kind, cause=refusal_cause(exc), attempts=getattr(exc, "attempts", 0)
+    )
+
+
+def _record_report(record: AIAnalysis, report: meal_ai.CallReport | None) -> None:
+    """Stamp which model answered, the requests it took and the tokens it used."""
+    if report is None:
+        return
+    record.model = report.model
+    record.attempts = report.attempts
+    record.input_tokens = report.input_tokens
+    record.audio_input_tokens = report.audio_input_tokens
+    record.output_tokens = report.output_tokens
+    record.thinking_tokens = report.thinking_tokens
 
 
 def _daily_limit() -> int:
@@ -356,9 +438,9 @@ def _reserve_call(
 
     Reserved *before* the slow provider call rather than counted after: the
     user row is locked (a no-op on SQLite, which serializes writes anyway) so
-    two concurrent requests can't both pass the check. Callers must delete the
-    returned row if the provider call fails, so an outage costs the user
-    nothing.
+    two concurrent requests can't both pass the check. Callers must refund()
+    the returned row if the provider call fails, so an outage costs the user
+    nothing. A refusal here is counted in ai_refusals before it is raised.
 
     The global check is deliberately not locked — serializing every AI request
     across all users to make a coarse ceiling exact would cost more than the
@@ -368,6 +450,7 @@ def _reserve_call(
 
     if calls_today(db, user_id=user.id, kind=kind) >= per_user_limit:
         db.rollback()
+        count_refusal(db, kind=kind, cause=CAUSE_USER_LIMIT)
         raise HTTPException(
             status_code=429,
             detail=(
@@ -383,6 +466,7 @@ def _reserve_call(
             "Global daily AI cap reached (%s/day); rejecting %s for user %s",
             global_limit, kind, user.id,
         )
+        count_refusal(db, kind=kind, cause=CAUSE_APP_LIMIT)
         raise HTTPException(
             status_code=503,
             detail=(
@@ -436,7 +520,7 @@ async def ai_status(
         # shared quota, so hiding it from AI_GLOBAL_DAILY_LIMIT would make that
         # ceiling a lie. Its own `kind` keeps it out of the analysis and
         # voice-note allowances, which calls_today counts per kind.
-        _reserve_call(
+        record = _reserve_call(
             db,
             user,
             kind=KIND_PROBE,
@@ -461,6 +545,11 @@ async def ai_status(
         )
         outcome = AIProbe(status=status, message=_probe_message(exc))
     outcome.latency_ms = int((time_module.monotonic() - started) * 1000)
+    # One request, answered or not: the probe never retries or fails over. No
+    # tokens, because the response body is deliberately never read.
+    record.model = base["model"]
+    record.attempts = 1
+    db.commit()
 
     # The row is deliberately NOT refunded on failure, unlike /analyze. There a
     # refund protects a user whose meal the provider dropped; here it would make
@@ -590,10 +679,12 @@ async def analyze(
         noun="AI analysis",
         user_text=text,
     )
+    if library_foods:
+        record.attached_food_ids = json.dumps([food.id for food in library_foods])
 
     started = time_module.monotonic()
     try:
-        analysis = await meal_ai.analyze_meal(
+        analysis, report = await meal_ai.analyze_meal(
             loaded_images, text, prior,
             audio_bytes=audio_bytes, audio_mime=audio_mime,
             library_foods=library_foods,
@@ -607,17 +698,18 @@ async def analyze(
         # occupied for that long, and a p95 that dropped these would describe a
         # faster service than the one people are waiting on.
         _record_timing(record, started)
+        _record_report(record, exc.report)
         db.commit()
         raise _provider_http_error(exc)
     except Exception as exc:
         # Refused (4xx) or unreachable (5xx) — rejected before inference, so
         # nothing was billed and a provider failure shouldn't cost the user a
         # slot.
-        db.delete(record)
-        db.commit()
+        refund(db, record, exc)
         raise _provider_http_error(exc)
 
     _record_timing(record, started)
+    _record_report(record, report)
     record.analysis_json = analysis.model_dump_json()
     db.commit()
 
@@ -656,13 +748,14 @@ async def transcribe(
 
     started = time_module.monotonic()
     try:
-        transcript = await meal_ai.transcribe_audio(audio_bytes, audio_mime)
+        transcript, report = await meal_ai.transcribe_audio(audio_bytes, audio_mime)
     except meal_ai.MealAIBadResponse as exc:
         # Silence, or speech the model couldn't make out. It listened either
         # way, so the slot stays spent — otherwise uploading silence on a loop
         # would be an unmetered way to keep calling the provider. It listened
         # for real, so the timing is kept alongside the slot.
         _record_timing(record, started)
+        _record_report(record, exc.report)
         db.commit()
         raise HTTPException(
             status_code=422,
@@ -673,13 +766,13 @@ async def transcribe(
         ) from exc
     except Exception as exc:
         # Rejected or unreachable before inference — nothing billed, so refund.
-        db.delete(record)
-        db.commit()
+        refund(db, record, exc)
         raise _provider_http_error(exc)
 
     # Kept for the same reason analyses are: a record of what the user actually
     # said, to compare against the estimate it produced. The audio is discarded.
     _record_timing(record, started)
+    _record_report(record, report)
     record.user_text = transcript
     db.commit()
 

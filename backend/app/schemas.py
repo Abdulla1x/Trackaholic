@@ -1445,6 +1445,57 @@ class AdminDailyActivity(BaseModel):
     meals: int
 
 
+class AIModelUsage(BaseModel):
+    """Answered calls from one model, and what they would cost on the paid tier."""
+
+    calls: int = 0
+    cost_usd: float = 0.0
+
+
+class AIUsage(BaseModel):
+    """What the AI was used for over the window, at paid-tier prices.
+
+    ⚠️ The app runs on Gemini's FREE tier, so the real bill is $0. These are
+    what the same calls would cost once billing is on, from the dated price
+    table in services/meal_ai.py, each call at the price of its own day.
+
+    `unmeasured_calls` are answered calls with no token counts: everything
+    before migration 0027, and any answer Google sent without usage figures.
+    They are left out of the cost rather than guessed, so while they exist the
+    cost is a floor -- the reason the count sits beside it.
+
+    `google_requests` is every request sent to Google: the attempts behind each
+    answer, each probe, and each refused call. It is what the provider's own
+    dashboard counts against the per-day quota, so it, not `answered_calls`, is
+    the number to compare with AI Studio. Rows without an attempt count
+    (`unmeasured_requests`, again pre-0027) make it a floor too.
+    """
+
+    answered_calls: int = 0
+    priced_calls: int = 0
+    unmeasured_calls: int = 0
+    cost_usd: float = 0.0
+    # Per ACTIVE account, for the same reason the old spend figure was: G3 has
+    # to price against the people who actually use it.
+    cost_usd_per_active: float = 0.0
+    cost_usd_per_call: float | None = None
+    by_model: dict[str, AIModelUsage] = {}
+    google_requests: int = 0
+    unmeasured_requests: int = 0
+    prices_checked: date_type | None = None
+
+
+class AIRefusalCount(BaseModel):
+    """Calls of one kind that ended without an answer for one cause, over the
+    window: from ai_refusals, so deleting an account does not erase them."""
+
+    kind: str
+    cause: str
+    count: int
+    # Requests those calls sent to Google; 0 for the app's own caps.
+    attempts: int
+
+
 class AILatency(BaseModel):
     """How long the provider took, over one group of calls.
 
@@ -1565,9 +1616,10 @@ class AdminStats(BaseModel):
     # ⚠️ The one figure NOT derived from live rows -- see DailyStat. Everything
     # else on this page moves when an account is deleted; retention must not.
     retention: Retention = Retention()
-    # Estimated, at a committed per-call constant. G3 prices against this.
-    ai_spend_30d_usd: float = 0.0
-    ai_spend_30d_usd_per_active: float = 0.0
+    # What the AI did over the window, priced at the paid tier; and every call
+    # that ended without an answer. G3 prices against the first.
+    ai_usage_30d: AIUsage = AIUsage()
+    ai_refusals_30d: list[AIRefusalCount] = []
 
 
 class AdminUserRow(BaseModel):
