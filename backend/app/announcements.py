@@ -32,6 +32,23 @@ STATUS_BANNER_ENV = "STATUS_BANNER"
 # redesign's note is one: accounts from before it were already asked about it
 # by "The new Trackaholic" when they first opened Today.
 ANNOUNCEMENTS: list[Announcement] = [
+    # Pops up: the offer changes what the Log panel shows on a day the main AI
+    # is out, so everyone who logs should know it before they meet it.
+    Announcement(
+        id="2026-10-25-lighter-ai",
+        date="2026-10-25",
+        title="When the main AI is out",
+        body=(
+            "**On days the main AI is out, a lighter AI can estimate your meal "
+            "instead.** The Log panel offers it before you press Estimate, or "
+            "after an estimate fails because Google is busy. It's a smaller "
+            "model: with weights in the note it's about as close as the main "
+            "AI, so check the portions before you save. Its estimates are "
+            "labelled Lighter AI and still count toward your 12 a day.\n\n"
+            "**Tick \"Use it for the rest of today\"** and Estimate goes "
+            "straight to it until the main AI is back. Stop turns it off."
+        ),
+    ),
     # Listed, not popped up: it matters most to people who haven't signed up
     # yet, and they never see this list. Anyone already in can try it next
     # time they log in, and nothing about their account changes.
