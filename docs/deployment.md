@@ -20,6 +20,9 @@ server boots, so the schema is created/updated on deploy. In the Render dashboar
   chain a voice note or the weekly review's wording tries (voice defaults to
   `gemini-3.6-flash,gemini-3.8-flash,gemini-2.5-flash,gemini-3.5-flash-lite`, the review to
   `gemini-3.5-flash-lite` alone; set empty to use the analysis chain)
+- `MEAL_AI_LITE_MODELS` — optional, the chain a lighter-AI estimate tries: the Log panel's
+  offer when the main AI is out or busy (default `gemini-3.5-flash-lite` alone; set empty it
+  keeps that default, never the analysis chain)
 - `MEAL_AI_DEADLINE_S` — optional, seconds one analysis may keep retrying a busy
   provider (default `60`; the frontend timeout must stay above it)
 - `MEAL_AI_MAX_ATTEMPTS` — optional, provider attempts per user action (defaults 4 /
@@ -28,7 +31,11 @@ server boots, so the schema is created/updated on deploy. In the Render dashboar
 - `AI_DAILY_LIMIT` / `AI_TRANSCRIBE_DAILY_LIMIT` / `AI_REVIEW_DAILY_LIMIT` /
   `AI_GLOBAL_DAILY_LIMIT` — optional, the per-user and app-wide AI quotas
   (defaults 12 / 16 / 3 / 40, sized for Gemini's free tier of 20 requests a day per
-  model; read the real limits at [aistudio.google.com/rate-limit](https://aistudio.google.com/rate-limit))
+  model; read the real limits at [aistudio.google.com/rate-limit](https://aistudio.google.com/rate-limit)).
+  Lighter-AI estimates count toward `AI_DAILY_LIMIT` but not the 40
+- `AI_LITE_DAILY_LIMIT` — optional, lighter-AI estimates per day across all users, outside
+  `AI_GLOBAL_DAILY_LIMIT` (default `200` of Flash-Lite's 500 free requests a day; `0` turns
+  the lighter AI off)
 - `AI_PROBE_DAILY_LIMIT` / `MEAL_AI_STATUS_DETAIL` — optional, govern
   [`GET /api/ai/status`](runbook-ai-provider.md)
 - `DEMO_DAILY_LIMIT` — optional, how many demo accounts the app may start per UTC day

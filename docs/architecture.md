@@ -26,7 +26,7 @@ Trackaholic
 │   ├── app/
 │   │   ├── main.py              # FastAPI app, CORS, lifespan (fails fast on a missing JWT_SECRET)
 │   │   ├── db.py                # SQLAlchemy engine + session dependency
-│   │   ├── env.py               # env_int / env_float — one idiom for ~23 environment variables
+│   │   ├── env.py               # env_int / env_float — one idiom for ~30 environment variables
 │   │   ├── models.py            # ORM models: users, password_resets, meals, meal_templates, foods,
 │   │   │                        #   weights, water_logs, steps, supplements, supplement_logs,
 │   │   │                        #   calorie_plan_days, settings, ai_analyses

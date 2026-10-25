@@ -50,6 +50,11 @@ services:
       # summary loses nothing. Empty uses the analysis chain above.
       - key: MEAL_AI_REVIEW_MODELS
         value: gemini-3.5-flash-lite
+      # The models a lighter-AI estimate tries: the Log panel's offer when the
+      # analysis chain is out or busy. Empty keeps this default; it never falls
+      # back to the analysis chain, whose shared ceiling it sits outside.
+      - key: MEAL_AI_LITE_MODELS
+        value: gemini-3.5-flash-lite
       # How long one analysis may keep retrying a busy provider before giving
       # up, in seconds. Raise it from the dashboard during a provider overload;
       # no deploy needed — but the frontend's own request timeout must stay
@@ -84,13 +89,20 @@ services:
       - key: AI_REVIEW_DAILY_LIMIT
         value: "3"
       # Ceiling across all users and every call kind -- analyses, voice notes,
-      # status probes and review summaries alike. The per-user caps bound one
+      # status probes and review summaries alike; lighter-AI estimates have
+      # their own ceiling below. The per-user caps bound one
       # account; this bounds the app, so mass signups can't drain the free
       # quota or, on a paid key, the money. Gemini's free tier is 20 requests a
       # day PER MODEL, failed attempts included: keep this well under 20 x the
       # models in the chain. Read the real limits at aistudio.google.com/rate-limit.
       - key: AI_GLOBAL_DAILY_LIMIT
         value: "40"
+      # Lighter-AI estimates per day across all users, outside the 40 above:
+      # the offer appears when the main AI is out, and the 40 is usually spent
+      # by then too. Flash-Lite's 500 free requests a day are shared with the
+      # voice backup, the review and refused retries. 0 turns it off.
+      - key: AI_LITE_DAILY_LIMIT
+        value: "200"
       # Demo accounts (POST /api/demo) the whole app may start per UTC day. Each
       # is a temporary account with a month of made-up data, deleted after a
       # day, and none of them can call the AI. 0 turns the demo off.

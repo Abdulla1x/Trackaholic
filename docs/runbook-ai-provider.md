@@ -21,6 +21,12 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 `?probe=true` spends one real provider call (capped by `AI_PROBE_DAILY_LIMIT`, cached
 60s process-wide). Drop it to see the model chain and SDK version for free.
 
+Either way the answer carries `main_out` when the server already knows the main AI can't
+estimate today: `daily_quota` (every model in the analysis chain is out for the day) or
+`app_limit` (`AI_GLOBAL_DAILY_LIMIT` is used up), with `back_at` and whether the lighter AI
+can take an estimate (`lighter`). That is what makes the Log panel offer the lighter AI
+before anyone presses Estimate. It is this process's memory, so a restart empties it.
+
 To include Google's own error text, set `MEAL_AI_STATUS_DETAIL=1` in the Render
 dashboard, re-run, then **turn it back off** — signup is open, so any account can read it.
 
@@ -110,9 +116,18 @@ Before escalating, note these are automatic:
   2026-10-25 two slow refusals spent the budget and Lite was never reached. The weekly review
   `MEAL_AI_REVIEW_MODELS` (default: 3.5 Flash-Lite alone, which has 500 free requests a day
   against Flash's 20; if Google ever stops serving it, the review's wording fails as
-  "misconfigured" until this var names a served model, and the computed review still shows). So when you swap a model during an
+  "misconfigured" until this var names a served model, and the computed review still shows).
+  The lighter AI's estimates try `MEAL_AI_LITE_MODELS` (default 3.5 Flash-Lite alone); set empty
+  it keeps that default rather than borrowing the analysis chain. So when you swap a model during an
   outage, swap it in each chain that names it. `GET /api/ai/status` lists every chain under
   `chains`. A model out for the day is skipped by every kind, because Google's quota is per model.
+- **The lighter AI, when the main AI is out.** When the analysis chain is out for the day,
+  busy, or the app's shared 40 is spent, the Log panel offers an estimate from Flash-Lite, and
+  only the user's yes sends one. It counts toward the user's `AI_DAILY_LIMIT` but not toward
+  `AI_GLOBAL_DAILY_LIMIT`; it has its own ceiling, `AI_LITE_DAILY_LIMIT` (default 200 of
+  Lite's 500 free requests a day, leaving the rest for the voice backup and the review).
+  **`AI_LITE_DAILY_LIMIT=0` turns it off** without a deploy. Its rows are kind `analysis_lite`;
+  /admin counts how often the offer was shown, used and declined.
 - **A model Google no longer serves (404) leaves the chain** for the call and the next hour, and the
   next model is asked at once. Before 2026-10-05 a 404 on the fallback ended the call as
   "misconfigured" even while the primary was only busy.
