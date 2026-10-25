@@ -907,6 +907,38 @@ def test_a_model_out_for_the_day_is_out_for_every_kind(monkeypatch, no_chain_env
     assert calls["models"] == ["gemini-a", "gemini-b"]
 
 
+def test_voice_ends_on_flash_lite_by_default(no_chain_env):
+    assert meal_ai._chain(meal_ai.TRANSCRIPTION) == [
+        "gemini-3.6-flash", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-3.5-flash-lite",
+    ]
+    assert "gemini-3.5-flash-lite" not in meal_ai._chain(meal_ai.ANALYSIS)
+
+
+def test_a_voice_note_on_an_overloaded_day_reaches_flash_lite(monkeypatch, no_chain_env):
+    """Three busy Flash models, then Lite answers on the fourth and last try."""
+    calls = _install_scripted_provider(
+        monkeypatch,
+        [_server_error()] * 3 + [SimpleNamespace(parsed=None, text="two eggs")],
+    )
+    text, report = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert text == "two eggs"
+    assert calls["models"][-1] == report.model == "gemini-3.5-flash-lite"
+    assert report.attempts == meal_ai.TRANSCRIBE_MAX_ATTEMPTS == 4
+
+
+def test_a_voice_note_with_flash_out_for_the_day_goes_straight_to_lite(
+    monkeypatch, no_chain_env
+):
+    """A per-day 429 drops a model at once, with no backoff and no wasted try."""
+    calls = _install_scripted_provider(
+        monkeypatch,
+        [_quota_error(DAILY_QUOTA_ID)] * 3 + [SimpleNamespace(parsed=None, text="two eggs")],
+    )
+    _, report = asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
+    assert report.model == "gemini-3.5-flash-lite"
+    assert calls["n"] == 4
+
+
 @pytest.mark.parametrize(
     "exc",
     [
@@ -1013,16 +1045,22 @@ def test_the_deadline_is_overridable_from_the_dashboard(monkeypatch):
 
 
 def test_transcription_gets_a_shorter_budget_than_analysis(monkeypatch):
-    """A voice note is the first step of a flow; nobody waits a minute to type."""
-    analyze = _install_scripted_provider(monkeypatch, [_server_error()])
+    """A voice note is the first step of a flow; nobody waits a minute to type.
+
+    Both are capped at four attempts, so the difference is the deadline, and it
+    only shows when refusals are slow: 8 s each, as on a bad overload day.
+    """
+    slow = [(8, _server_error())] * 4
+    analyze, _ = _install_timed_provider(monkeypatch, slow)
     with pytest.raises(meal_ai.MealAIUnavailable):
         asyncio.run(meal_ai.analyze_meal([], "chicken"))
 
-    transcribe = _install_scripted_provider(monkeypatch, [_server_error()])
+    transcribe, now = _install_timed_provider(monkeypatch, slow)
     with pytest.raises(meal_ai.MealAIUnavailable):
         asyncio.run(meal_ai.transcribe_audio(b"audio", "audio/webm"))
 
     assert transcribe["n"] < analyze["n"]
+    assert now["t"] <= meal_ai.TRANSCRIBE_DEADLINE_S
 
 
 # --- an attempt only starts if it has time to answer --------------------------
@@ -1267,6 +1305,7 @@ def test_a_later_call_skips_a_model_already_out_for_the_day(monkeypatch):
 def test_with_every_model_out_for_the_day_google_is_not_called(monkeypatch):
     """Asking would spend nothing useful, and the answer is already known."""
     _chain(monkeypatch, "gemini-a", "gemini-b")
+    monkeypatch.setenv("MEAL_AI_TRANSCRIBE_MODELS", "gemini-a,gemini-b")
     calls = _install_scripted_provider(monkeypatch, [_quota_error(DAILY_QUOTA_ID)])
     with pytest.raises(meal_ai.MealAIDailyQuotaExhausted):
         asyncio.run(meal_ai.analyze_meal([], "chicken"))

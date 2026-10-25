@@ -68,8 +68,15 @@ CHAIN_ENV = {
 }
 # None follows the analysis chain. So does a var that is set but empty: unlike
 # the fallback, a kind with no model at all means nothing an operator could want.
+#
+# Voice ends on Flash-Lite. In AI round 2 (2026-10-24) Lite got 5 of 10 test
+# clips right by the scoring rule, against 8 and 9 for 3.6 and 3.8 Flash, so by
+# that rule it is not good enough for voice. It is kept, last, on purpose: the
+# transcript is shown and editable before anything is estimated, so a misheard
+# word is a typo the user fixes, and the alternative on a day the Flash models
+# are out is no transcript at all. Lite has its own per-day quota.
 DEFAULT_CHAINS: dict[str, str | None] = {
-    TRANSCRIPTION: None,
+    TRANSCRIPTION: "gemini-3.6-flash,gemini-3.8-flash,gemini-2.5-flash,gemini-3.5-flash-lite",
     REVIEW: None,
 }
 
@@ -95,7 +102,9 @@ RETRY_MAX_DELAY = 8.0  # ceiling, so late attempts stay frequent enough to matte
 # everyone's AI. On a paid key a refused attempt costs no money, which is why
 # MEAL_AI_MAX_ATTEMPTS can raise it from the dashboard.
 ANALYZE_MAX_ATTEMPTS = 4
-TRANSCRIBE_MAX_ATTEMPTS = 3
+# Four, so a voice note on an overloaded day reaches the fourth model in its
+# chain (Flash-Lite) once, when the deadline leaves room for it.
+TRANSCRIBE_MAX_ATTEMPTS = 4
 REVIEW_MAX_ATTEMPTS = 2
 
 # Google's per-day quotas reset at midnight Pacific -- its documented rule, and
