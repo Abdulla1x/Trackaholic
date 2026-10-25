@@ -1283,6 +1283,9 @@ class MealAnalysisResponse(MealAnalysis):
     # True when this is a saved estimate replayed for a demo account
     # (app/demo_samples.py), not a fresh answer from the model.
     replayed: bool = False
+    # True when the lighter AI made this estimate (POST /api/ai/analyze with
+    # lighter=true), so the result can say so.
+    lighter: bool = False
 
 
 class DemoSampleOut(BaseModel):
@@ -1379,6 +1382,25 @@ class AIProbe(BaseModel):
     age_seconds: int | None = None
 
 
+class MainAIOut(BaseModel):
+    """Why the main AI can't take a meal estimate now, and what can.
+
+    On GET /api/ai/status when the server already knows (`daily_quota`: every
+    model of the analysis chain is out for the day; `app_limit`: the app's
+    shared daily limit is used up), and beside `detail` on a refused estimate,
+    where it can also be `busy` (Google turning requests away).
+    """
+
+    reason: Literal["busy", "daily_quota", "app_limit"]
+    # When the main AI is back: midnight Pacific for Google's daily quota (also
+    # sent for `busy`, as the end of a yes to the lighter AI for the rest of the
+    # day), UTC midnight for the app's limit, the later one when both apply.
+    back_at: datetime
+    # Whether the lighter AI can take this estimate now (POST
+    # /api/ai/analyze with lighter=true).
+    lighter: bool
+
+
 class AIStatus(BaseModel):
     """Enough to answer "is the AI down, and why" in one request.
 
@@ -1398,6 +1420,9 @@ class AIStatus(BaseModel):
     # works against; seeing the version here beats reading Render build logs.
     sdk_version: str
     probe: AIProbe | None = None
+    # Set when the main AI is known to be out for the day, so the Log panel can
+    # offer the lighter AI before an estimate is even tried. Never for a demo.
+    main_out: MainAIOut | None = None
 
 
 class Announcement(BaseModel):
@@ -1486,6 +1511,20 @@ class AIUsage(BaseModel):
     google_requests: int = 0
     unmeasured_requests: int = 0
     prices_checked: date_type | None = None
+
+
+class LighterOfferEvent(BaseModel):
+    """What happened to one lighter-AI offer on the Log panel."""
+
+    event: Literal["shown", "used", "declined"]
+
+
+class LighterOffers(BaseModel):
+    """Lighter-AI offers over the window, from ai_lighter_offers."""
+
+    shown: int = 0
+    used: int = 0
+    declined: int = 0
 
 
 class AIRefusalCount(BaseModel):
@@ -1623,6 +1662,11 @@ class AdminStats(BaseModel):
     # that ended without an answer. G3 prices against the first.
     ai_usage_30d: AIUsage = AIUsage()
     ai_refusals_30d: list[AIRefusalCount] = []
+    # The lighter AI: what happened to its offer over the window, and today's
+    # estimates against its own ceiling (outside ai_global_daily_limit).
+    lighter_offers_30d: LighterOffers = LighterOffers()
+    ai_lite_calls_today: int = 0
+    ai_lite_daily_limit: int = 0
 
 
 class AdminUserRow(BaseModel):

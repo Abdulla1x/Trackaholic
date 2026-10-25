@@ -49,11 +49,12 @@ A demo account (`is_demo` on the user) gets 403 on change-password, account dele
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/ai/analyze` | AI meal analysis from any of photo, audio, text (multipart); a demo sends `sample` instead and gets a saved estimate (see Accounts) |
+| POST | `/api/ai/analyze` | AI meal analysis from any of photo, audio, text (multipart); `lighter=true` asks the lighter AI instead (outside the shared daily limit); a demo sends `sample` instead and gets a saved estimate (see Accounts). A refusal the lighter AI could answer carries `main_out` beside `detail` |
 | POST | `/api/ai/transcribe` | Voice note (multipart audio) → editable text |
 | PATCH | `/api/ai/analyses/{id}` | Link an analysis to the meal it was saved as |
 | GET | `/api/ai/calibration` | How your corrections compare with the estimates — coverage, bias, sample size |
-| GET | `/api/ai/status` | Provider health; `?probe=true` makes one live call and classifies the failure |
+| POST | `/api/ai/lighter-offer` | Count a lighter-AI offer as shown, used or declined, for /admin (no user stored) |
+| GET | `/api/ai/status` | Provider health, and `main_out` when the main AI is known to be out for the day; `?probe=true` makes one live call and classifies the failure |
 
 ## Weight, trackers and planning
 

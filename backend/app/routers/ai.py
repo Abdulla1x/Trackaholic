@@ -3,10 +3,10 @@ import json
 import logging
 import os
 import time as time_module
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import datetime, time, timedelta, timezone
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -17,13 +17,16 @@ from .. import keep_warm
 from ..db import get_db
 from ..demo_samples import SAMPLES
 from ..env import env_int
-from ..models import AIAnalysis, AIRefusal, Food as FoodRow, Meal, User
+from ..models import AIAnalysis, AILighterOffer, AIRefusal, Food as FoodRow, Meal, User
+from ..rate_limit import LIGHTER_OFFER_LIMIT, limiter
 from ..schemas import (
     AIProbe,
     AIStatus,
     AnalysisLink,
     Calibration,
     Food,
+    LighterOfferEvent,
+    MainAIOut,
     MealAnalysis,
     MealAnalysisResponse,
     TranscriptionResponse,
@@ -80,14 +83,31 @@ DEFAULT_TRANSCRIBE_DAILY_LIMIT = 16
 # not this cap, is what stops the app -- safely, with "daily limit reached". On
 # a paid key it is also the spend ceiling: 40 x ~2 cents is ~$0.80 a day at most.
 DEFAULT_GLOBAL_DAILY_LIMIT = 40
+# The lighter AI's own app-wide ceiling, kept OUTSIDE the 40 above. It is
+# offered when the Flash models are out, and on those days the 40 is usually
+# close to spent too, so inside it the offer would fail exactly when it is
+# meant to help. Flash-Lite allows 500 free requests a day (AI Studio,
+# 2026-10-25), shared with the voice-note backup, the weekly review and
+# refused retries; 200 estimates leaves them about 300. Each estimate still
+# counts toward the user's own AI_DAILY_LIMIT. A hard ceiling, like the 40:
+# on a paid key it bounds the spend at about 200 x 0.2 cents a day.
+DEFAULT_LITE_DAILY_LIMIT = 200
 
 KIND_ANALYSIS = "analysis"
+# A meal estimate sent to the lighter AI (services/meal_ai.py ANALYSIS_LITE).
+KIND_ANALYSIS_LITE = "analysis_lite"
+# Both kinds of meal estimate share one allowance per user.
+ANALYSIS_KINDS = (KIND_ANALYSIS, KIND_ANALYSIS_LITE)
 KIND_TRANSCRIPTION = "transcription"
 KIND_PROBE = "probe"
 # The weekly review's optional rephrasing. A fourth kind rather than a share of
 # the analysis budget: `_reserve_call` already counts per kind, so a review can
 # never eat into the meal analyses someone actually needs.
 KIND_REVIEW = "review"
+
+# Kinds that do not draw on AI_GLOBAL_DAILY_LIMIT: the lighter AI has its own
+# ceiling, AI_LITE_DAILY_LIMIT.
+OUTSIDE_GLOBAL_LIMIT: tuple[str, ...] = (KIND_ANALYSIS_LITE,)
 
 DEFAULT_PROBE_DAILY_LIMIT = 10
 
@@ -246,6 +266,10 @@ def global_daily_limit() -> int:
     return env_int("AI_GLOBAL_DAILY_LIMIT", DEFAULT_GLOBAL_DAILY_LIMIT)
 
 
+def lite_daily_limit() -> int:
+    return env_int("AI_LITE_DAILY_LIMIT", DEFAULT_LITE_DAILY_LIMIT)
+
+
 def _probe_daily_limit() -> int:
     return env_int("AI_PROBE_DAILY_LIMIT", DEFAULT_PROBE_DAILY_LIMIT)
 
@@ -308,6 +332,84 @@ def _provider_http_error(exc: Exception) -> HTTPException:
         status_code=502,
         detail="AI analysis failed. Try again or enter macros manually.",
     )
+
+
+class MainAIOutError(HTTPException):
+    """A refused meal estimate that the lighter AI could answer instead.
+
+    Raised with the same status and `detail` as before, so a build that knows
+    nothing of the lighter AI reads it unchanged; main.py's handler adds
+    `main_out` beside the detail for the Log panel's offer.
+    """
+
+    def __init__(self, error: HTTPException, main_out: MainAIOut):
+        super().__init__(status_code=error.status_code, detail=error.detail)
+        self.main_out = main_out
+
+
+# Google turning requests away for now, as opposed to out for the day.
+_BUSY = (meal_ai.MealAIRateLimited, meal_ai.MealAIUnavailable, meal_ai.MealAIUnreachable)
+
+
+def _lighter_available(db: Session, user: User) -> bool:
+    """Can the lighter AI take an estimate from this user right now?"""
+    return (
+        meal_ai.is_configured()
+        and not user.is_demo
+        and not meal_ai.out_for_the_day(meal_ai.ANALYSIS_LITE)
+        and calls_today(db, kind=KIND_ANALYSIS_LITE) < lite_daily_limit()
+        and calls_today(db, user_id=user.id, kind=ANALYSIS_KINDS) < _daily_limit()
+    )
+
+
+def _main_out(db: Session, user: User, reason: str) -> MainAIOut:
+    """Why the main AI can't estimate, when it's back, and whether Lite can.
+
+    Back at Google's reset unless only the app's own limit is spent; at UTC
+    midnight when that limit is spent; the later of the two when both are.
+    """
+    back = []
+    if reason != CAUSE_APP_LIMIT or meal_ai.out_for_the_day(meal_ai.ANALYSIS):
+        back.append(meal_ai.next_quota_reset())
+    if reason == CAUSE_APP_LIMIT or global_calls_today(db) >= global_daily_limit():
+        back.append(_next_utc_midnight())
+    return MainAIOut(
+        reason=reason, back_at=max(back), lighter=_lighter_available(db, user)
+    )
+
+
+def _status_main_out(db: Session, user: User) -> MainAIOut | None:
+    """The main AI's state as far as the server already knows, before any try.
+
+    "Busy" is absent on purpose: it is learnt only from a refused estimate.
+    """
+    if user.is_demo or not meal_ai.is_configured():
+        return None
+    if meal_ai.out_for_the_day(meal_ai.ANALYSIS):
+        return _main_out(db, user, "daily_quota")
+    if global_calls_today(db) >= global_daily_limit():
+        return _main_out(db, user, CAUSE_APP_LIMIT)
+    return None
+
+
+def _estimate_error(
+    db: Session, user: User, exc: Exception, lighter: bool
+) -> HTTPException:
+    """The HTTP error for a failed estimate, with `main_out` when it applies.
+
+    Only the main AI's estimates carry it: a refused lighter estimate has
+    nothing left to offer.
+    """
+    error = _provider_http_error(exc)
+    if lighter:
+        return error
+    if isinstance(exc, meal_ai.MealAIDailyQuotaExhausted):
+        reason = "daily_quota"
+    elif isinstance(exc, _BUSY):
+        reason = "busy"
+    else:
+        return error
+    return MainAIOutError(error, _main_out(db, user, reason))
 
 
 async def _read_media(
@@ -385,13 +487,18 @@ def _attached_foods(
 
 
 def calls_today(
-    db: Session, *, user_id: int | None = None, kind: str | None = None
+    db: Session,
+    *,
+    user_id: int | None = None,
+    kind: str | Collection[str] | None = None,
+    exclude: Collection[str] = (),
 ) -> int:
     """Provider calls made since UTC midnight, optionally narrowed.
 
     Every ai_analyses row is one billable call, so counting rows is the quota.
     created_at is stored as naive UTC; the day boundary is computed in Python
-    so SQLite and Postgres behave identically.
+    so SQLite and Postgres behave identically. `kind` takes one kind or several
+    (kinds that share one allowance); `exclude` leaves kinds out.
     """
     utc_midnight = datetime.combine(datetime.now(timezone.utc).date(), time.min)
     query = (
@@ -402,8 +509,16 @@ def calls_today(
     if user_id is not None:
         query = query.where(AIAnalysis.user_id == user_id)
     if kind is not None:
-        query = query.where(AIAnalysis.kind == kind)
+        kinds = (kind,) if isinstance(kind, str) else tuple(kind)
+        query = query.where(AIAnalysis.kind.in_(kinds))
+    if exclude:
+        query = query.where(AIAnalysis.kind.not_in(tuple(exclude)))
     return db.scalar(query)
+
+
+def global_calls_today(db: Session) -> int:
+    """Today's calls that count toward AI_GLOBAL_DAILY_LIMIT."""
+    return calls_today(db, exclude=OUTSIDE_GLOBAL_LIMIT)
 
 
 def _record_timing(record: AIAnalysis, started: float) -> None:
@@ -433,6 +548,8 @@ def _reserve_call(
     per_user_limit: int,
     noun: str,
     user_text: str | None = None,
+    per_user_kinds: Collection[str] | None = None,
+    own_app_limit: int | None = None,
 ) -> AIAnalysis:
     """Claim one provider call for this user, or raise 429/503.
 
@@ -442,13 +559,18 @@ def _reserve_call(
     the returned row if the provider call fails, so an outage costs the user
     nothing. A refusal here is counted in ai_refusals before it is raised.
 
+    `per_user_kinds` names the kinds that share this user's allowance, when
+    more than this one kind draws from it. `own_app_limit` is the app-wide
+    ceiling for a kind kept outside AI_GLOBAL_DAILY_LIMIT, counted on that kind
+    alone.
+
     The global check is deliberately not locked — serializing every AI request
     across all users to make a coarse ceiling exact would cost more than the
     handful of calls a race could let through.
     """
     db.execute(select(User.id).where(User.id == user.id).with_for_update())
 
-    if calls_today(db, user_id=user.id, kind=kind) >= per_user_limit:
+    if calls_today(db, user_id=user.id, kind=per_user_kinds or kind) >= per_user_limit:
         db.rollback()
         count_refusal(db, kind=kind, cause=CAUSE_USER_LIMIT)
         raise HTTPException(
@@ -459,21 +581,28 @@ def _reserve_call(
             ),
         )
 
-    global_limit = global_daily_limit()
-    if calls_today(db) >= global_limit:
+    if own_app_limit is not None:
+        app_limit, app_calls = own_app_limit, calls_today(db, kind=kind)
+    else:
+        app_limit, app_calls = global_daily_limit(), global_calls_today(db)
+    if app_calls >= app_limit:
         db.rollback()
         logger.warning(
-            "Global daily AI cap reached (%s/day); rejecting %s for user %s",
-            global_limit, kind, user.id,
+            "App-wide daily AI cap reached (%s/day); rejecting %s for user %s",
+            app_limit, kind, user.id,
         )
         count_refusal(db, kind=kind, cause=CAUSE_APP_LIMIT)
-        raise HTTPException(
+        error = HTTPException(
             status_code=503,
             detail=(
-                "The app's shared daily AI quota is used up. It resets "
+                f"The app's {'lighter AI' if own_app_limit is not None else 'shared'} "
+                "daily AI quota is used up. It resets "
                 f"{resets_in(_next_utc_midnight())}; until then, enter macros manually."
             ),
         )
+        if kind == KIND_ANALYSIS:
+            raise MainAIOutError(error, _main_out(db, user, CAUSE_APP_LIMIT))
+        raise error
 
     record = AIAnalysis(
         user_id=user.id, user_text=user_text, analysis_json="", kind=kind
@@ -498,7 +627,11 @@ async def ai_status(
     else.
     """
     global _probe_cache
-    base = {"configured": meal_ai.is_configured(), **meal_ai.provider_info()}
+    base = {
+        "configured": meal_ai.is_configured(),
+        **meal_ai.provider_info(),
+        "main_out": _status_main_out(db, user),
+    }
 
     # A demo account gets the free form only: the probe spends a provider
     # call, which a demo never does (routers/demo.py).
@@ -584,6 +717,9 @@ async def analyze(
     # A demo account's only way in: the id of one of app/demo_samples.py's
     # plates. Ignored for a real account.
     sample: str | None = Form(default=None, max_length=64),
+    # The user said yes to the lighter AI (KIND_ANALYSIS_LITE): ask it alone,
+    # under its own app-wide ceiling instead of the shared one.
+    lighter: bool = Form(default=False),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -674,8 +810,10 @@ async def analyze(
     record = _reserve_call(
         db,
         user,
-        kind=KIND_ANALYSIS,
+        kind=KIND_ANALYSIS_LITE if lighter else KIND_ANALYSIS,
         per_user_limit=_daily_limit(),
+        per_user_kinds=ANALYSIS_KINDS,
+        own_app_limit=lite_daily_limit() if lighter else None,
         noun="AI analysis",
         user_text=text,
     )
@@ -688,6 +826,7 @@ async def analyze(
             loaded_images, text, prior,
             audio_bytes=audio_bytes, audio_mime=audio_mime,
             library_foods=library_foods,
+            kind=meal_ai.ANALYSIS_LITE if lighter else meal_ai.ANALYSIS,
         )
     except meal_ai.MealAIBadResponse as exc:
         # The model ran and burned tokens; only its output was unusable, so the
@@ -706,14 +845,44 @@ async def analyze(
         # nothing was billed and a provider failure shouldn't cost the user a
         # slot.
         refund(db, record, exc)
-        raise _provider_http_error(exc)
+        raise _estimate_error(db, user, exc, lighter)
 
     _record_timing(record, started)
     _record_report(record, report)
     record.analysis_json = analysis.model_dump_json()
     db.commit()
 
-    return MealAnalysisResponse(**analysis.model_dump(), analysis_id=record.id)
+    return MealAnalysisResponse(
+        **analysis.model_dump(), analysis_id=record.id, lighter=lighter
+    )
+
+
+@router.post("/lighter-offer", status_code=204)
+@limiter.limit(LIGHTER_OFFER_LIMIT)
+def lighter_offer(
+    request: Request,
+    body: LighterOfferEvent,
+    user: User = Depends(refuse_demo(AI_NOT_IN_DEMO)),
+    db: Session = Depends(get_db),
+):
+    """Count what happened to a lighter-AI offer: shown, used or declined.
+
+    Reported by the Log panel, since only it knows the offer was on screen.
+    Counted for /admin with nothing about who (ai_lighter_offers).
+    """
+    today = datetime.now(timezone.utc).date()
+
+    def build() -> AILighterOffer:
+        row = db.scalars(
+            select(AILighterOffer).where(AILighterOffer.date == today)
+        ).first()
+        if row is None:
+            row = AILighterOffer(date=today, shown=0, used=0, declined=0)
+            db.add(row)
+        setattr(row, body.event, getattr(row, body.event) + 1)
+        return row
+
+    upsert(db, build)
 
 
 @router.post("/transcribe", response_model=TranscriptionResponse)

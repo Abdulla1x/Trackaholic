@@ -925,6 +925,36 @@ def test_the_review_is_flash_lite_alone_by_default(monkeypatch, no_chain_env):
     assert report.model == "gemini-3.5-flash-lite"
 
 
+def test_the_lighter_estimate_is_flash_lite_alone(monkeypatch, no_chain_env):
+    """Every try stays on Lite: a Flash fallback would spend the shared 40."""
+    assert meal_ai._chain(meal_ai.ANALYSIS_LITE) == ["gemini-3.5-flash-lite"]
+    calls = _install_scripted_provider(
+        monkeypatch, [_server_error(), SimpleNamespace(parsed=SAMPLE, text="")]
+    )
+    _, report = asyncio.run(
+        meal_ai.analyze_meal([], "chicken", kind=meal_ai.ANALYSIS_LITE)
+    )
+    assert calls["models"] == ["gemini-3.5-flash-lite"] * 2
+    assert report.model == "gemini-3.5-flash-lite"
+
+
+@pytest.mark.parametrize("value", ["", " , "])
+def test_an_empty_lighter_chain_never_follows_the_flash_chain(monkeypatch, no_chain_env, value):
+    monkeypatch.setenv("MEAL_AI_LITE_MODELS", value)
+    assert meal_ai._chain(meal_ai.ANALYSIS_LITE) == ["gemini-3.5-flash-lite"]
+
+
+def test_the_lighter_chain_is_its_own_env_var(monkeypatch, no_chain_env):
+    monkeypatch.setenv("MEAL_AI_LITE_MODELS", "gemini-3.1-flash-lite")
+    assert meal_ai._chain(meal_ai.ANALYSIS_LITE) == ["gemini-3.1-flash-lite"]
+    assert meal_ai._chain(meal_ai.ANALYSIS)[0] == meal_ai.DEFAULT_MODEL
+
+
+def test_analyze_meal_refuses_a_kind_that_is_not_an_estimate():
+    with pytest.raises(ValueError):
+        asyncio.run(meal_ai.analyze_meal([], "chicken", kind=meal_ai.REVIEW))
+
+
 def test_a_voice_note_on_an_overloaded_day_reaches_flash_lite(monkeypatch, no_chain_env):
     """Instant refusals leave time for 3.8 too, then Lite before 2.5: the third
     try is the first that might be the last to fit a 25 s budget."""
@@ -1864,7 +1894,7 @@ def test_status_reports_the_model_chain_and_sdk_version(client, monkeypatch):
     assert body["model"] == "gemini-x"
     assert body["fallback_model"] == "gemini-y"
     assert body["chains"]["analysis"] == ["gemini-x", "gemini-y"]
-    assert set(body["chains"]) == {"analysis", "transcription", "review"}
+    assert set(body["chains"]) == {"analysis", "transcription", "review", "analysis_lite"}
     assert body["sdk_version"]
 
 

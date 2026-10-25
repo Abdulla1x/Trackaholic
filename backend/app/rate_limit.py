@@ -44,3 +44,6 @@ RESET_PASSWORD_LIMIT = "10/hour"
 # client can fill the database; DEMO_DAILY_LIMIT (routers/demo.py) bounds the
 # whole app. Five an hour is more than anyone reloading the front page needs.
 DEMO_LIMIT = "5/hour"
+# The Log panel reports each lighter-AI offer it shows, uses or declines
+# (routers/ai.py). A handful a day is normal; this only stops a loop.
+LIGHTER_OFFER_LIMIT = "30/minute"

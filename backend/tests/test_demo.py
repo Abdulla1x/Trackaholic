@@ -321,6 +321,7 @@ def test_a_demo_gets_the_saved_estimate_for_each_sample(anon_client, monkeypatch
         body = response.json()
         assert body.pop("analysis_id") is None
         assert body.pop("replayed") is True
+        assert body.pop("lighter") is False
         assert body == sample.analysis.model_dump()
 
 
