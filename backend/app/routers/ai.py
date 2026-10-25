@@ -80,8 +80,21 @@ DEFAULT_TRANSCRIBE_DAILY_LIMIT = 16
 # not this cap, is what stops the app -- safely, with "daily limit reached". On
 # a paid key it is also the spend ceiling: 40 x ~2 cents is ~$0.80 a day at most.
 DEFAULT_GLOBAL_DAILY_LIMIT = 40
+# The lighter AI's own app-wide ceiling, kept OUTSIDE the 40 above. It is
+# offered when the Flash models are out, and on those days the 40 is usually
+# close to spent too, so inside it the offer would fail exactly when it is
+# meant to help. Flash-Lite allows 500 free requests a day (AI Studio,
+# 2026-10-25), shared with the voice-note backup, the weekly review and
+# refused retries; 200 estimates leaves them about 300. Each estimate still
+# counts toward the user's own AI_DAILY_LIMIT. A hard ceiling, like the 40:
+# on a paid key it bounds the spend at about 200 x 0.2 cents a day.
+DEFAULT_LITE_DAILY_LIMIT = 200
 
 KIND_ANALYSIS = "analysis"
+# A meal estimate sent to the lighter AI (services/meal_ai.py ANALYSIS_LITE).
+KIND_ANALYSIS_LITE = "analysis_lite"
+# Both kinds of meal estimate share one allowance per user.
+ANALYSIS_KINDS = (KIND_ANALYSIS, KIND_ANALYSIS_LITE)
 KIND_TRANSCRIPTION = "transcription"
 KIND_PROBE = "probe"
 # The weekly review's optional rephrasing. A fourth kind rather than a share of
@@ -89,8 +102,9 @@ KIND_PROBE = "probe"
 # never eat into the meal analyses someone actually needs.
 KIND_REVIEW = "review"
 
-# Kinds that do not draw on AI_GLOBAL_DAILY_LIMIT. None yet.
-OUTSIDE_GLOBAL_LIMIT: tuple[str, ...] = ()
+# Kinds that do not draw on AI_GLOBAL_DAILY_LIMIT: the lighter AI has its own
+# ceiling, AI_LITE_DAILY_LIMIT.
+OUTSIDE_GLOBAL_LIMIT: tuple[str, ...] = (KIND_ANALYSIS_LITE,)
 
 DEFAULT_PROBE_DAILY_LIMIT = 10
 
@@ -247,6 +261,10 @@ def _transcribe_daily_limit() -> int:
 
 def global_daily_limit() -> int:
     return env_int("AI_GLOBAL_DAILY_LIMIT", DEFAULT_GLOBAL_DAILY_LIMIT)
+
+
+def lite_daily_limit() -> int:
+    return env_int("AI_LITE_DAILY_LIMIT", DEFAULT_LITE_DAILY_LIMIT)
 
 
 def _probe_daily_limit() -> int:
@@ -450,6 +468,7 @@ def _reserve_call(
     noun: str,
     user_text: str | None = None,
     per_user_kinds: Collection[str] | None = None,
+    own_app_limit: int | None = None,
 ) -> AIAnalysis:
     """Claim one provider call for this user, or raise 429/503.
 
@@ -460,7 +479,9 @@ def _reserve_call(
     nothing. A refusal here is counted in ai_refusals before it is raised.
 
     `per_user_kinds` names the kinds that share this user's allowance, when
-    more than this one kind draws from it.
+    more than this one kind draws from it. `own_app_limit` is the app-wide
+    ceiling for a kind kept outside AI_GLOBAL_DAILY_LIMIT, counted on that kind
+    alone.
 
     The global check is deliberately not locked — serializing every AI request
     across all users to make a coarse ceiling exact would cost more than the
@@ -479,18 +500,22 @@ def _reserve_call(
             ),
         )
 
-    global_limit = global_daily_limit()
-    if global_calls_today(db) >= global_limit:
+    if own_app_limit is not None:
+        app_limit, app_calls = own_app_limit, calls_today(db, kind=kind)
+    else:
+        app_limit, app_calls = global_daily_limit(), global_calls_today(db)
+    if app_calls >= app_limit:
         db.rollback()
         logger.warning(
-            "Global daily AI cap reached (%s/day); rejecting %s for user %s",
-            global_limit, kind, user.id,
+            "App-wide daily AI cap reached (%s/day); rejecting %s for user %s",
+            app_limit, kind, user.id,
         )
         count_refusal(db, kind=kind, cause=CAUSE_APP_LIMIT)
         raise HTTPException(
             status_code=503,
             detail=(
-                "The app's shared daily AI quota is used up. It resets "
+                f"The app's {'lighter AI' if own_app_limit is not None else 'shared'} "
+                "daily AI quota is used up. It resets "
                 f"{resets_in(_next_utc_midnight())}; until then, enter macros manually."
             ),
         )
@@ -604,6 +629,9 @@ async def analyze(
     # A demo account's only way in: the id of one of app/demo_samples.py's
     # plates. Ignored for a real account.
     sample: str | None = Form(default=None, max_length=64),
+    # The user said yes to the lighter AI (KIND_ANALYSIS_LITE): ask it alone,
+    # under its own app-wide ceiling instead of the shared one.
+    lighter: bool = Form(default=False),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -694,8 +722,10 @@ async def analyze(
     record = _reserve_call(
         db,
         user,
-        kind=KIND_ANALYSIS,
+        kind=KIND_ANALYSIS_LITE if lighter else KIND_ANALYSIS,
         per_user_limit=_daily_limit(),
+        per_user_kinds=ANALYSIS_KINDS,
+        own_app_limit=lite_daily_limit() if lighter else None,
         noun="AI analysis",
         user_text=text,
     )
@@ -708,6 +738,7 @@ async def analyze(
             loaded_images, text, prior,
             audio_bytes=audio_bytes, audio_mime=audio_mime,
             library_foods=library_foods,
+            kind=meal_ai.ANALYSIS_LITE if lighter else meal_ai.ANALYSIS,
         )
     except meal_ai.MealAIBadResponse as exc:
         # The model ran and burned tokens; only its output was unusable, so the
@@ -733,7 +764,9 @@ async def analyze(
     record.analysis_json = analysis.model_dump_json()
     db.commit()
 
-    return MealAnalysisResponse(**analysis.model_dump(), analysis_id=record.id)
+    return MealAnalysisResponse(
+        **analysis.model_dump(), analysis_id=record.id, lighter=lighter
+    )
 
 
 @router.post("/transcribe", response_model=TranscriptionResponse)

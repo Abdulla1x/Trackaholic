@@ -61,13 +61,18 @@ DEFAULT_FALLBACK_MODEL = "gemini-3.8-flash,gemini-2.5-flash"
 ANALYSIS = "analysis"
 TRANSCRIPTION = "transcription"
 REVIEW = "review"
-KINDS = (ANALYSIS, TRANSCRIPTION, REVIEW)
+# A meal estimate the user chose to send to the lighter model, after being told
+# the main analysis chain is out or busy. Same prompt and limits as ANALYSIS.
+ANALYSIS_LITE = "analysis_lite"
+KINDS = (ANALYSIS, TRANSCRIPTION, REVIEW, ANALYSIS_LITE)
 CHAIN_ENV = {
     TRANSCRIPTION: "MEAL_AI_TRANSCRIBE_MODELS",
     REVIEW: "MEAL_AI_REVIEW_MODELS",
+    ANALYSIS_LITE: "MEAL_AI_LITE_MODELS",
 }
 # None follows the analysis chain. So does a var that is set but empty: unlike
 # the fallback, a kind with no model at all means nothing an operator could want.
+# The lighter estimate is the exception; see its entry below.
 #
 # Voice ends on Flash-Lite. In AI round 2 (2026-10-24) Lite got 5 of 10 test
 # clips right by the scoring rule, against 8 and 9 for 3.6 and 3.8 Flash, so by
@@ -88,9 +93,18 @@ CHAIN_ENV = {
 # longer spends the analyses' allowance. No Flash fallback, on purpose: a
 # failed summary loses nothing, because the computed review has already
 # rendered, while a fallback would spend one of those 20 on wording.
+#
+# The lighter estimate is Lite alone, and is never sent down the analysis
+# chain, not even when its variable is set but empty: it exists for the hours
+# the Flash models are out, and it is kept outside the app's shared daily
+# limit on the strength of that. In AI round 2 Lite was within a point or two of
+# the Flash models on meals with weights in the note (median error 4.1 % on 40
+# lab-weighed plates, against 4.3 and 5.3 %), and it misses the same kind of
+# meals they do when the note has no amounts.
 DEFAULT_CHAINS: dict[str, str | None] = {
     TRANSCRIPTION: "gemini-3.6-flash,gemini-3.8-flash,gemini-2.5-flash,gemini-3.5-flash-lite",
     REVIEW: "gemini-3.5-flash-lite",
+    ANALYSIS_LITE: "gemini-3.5-flash-lite",
 }
 
 # Retries are bounded by the DEADLINE, not by an attempt count. Gemini's
@@ -669,7 +683,12 @@ def _chain(kind: str) -> list[str]:
         return _analysis_chain()
     env = CHAIN_ENV[kind]
     configured = _env(env) if env in os.environ else DEFAULT_CHAINS[kind]
-    return _dedupe((configured or "").split(",")) or _analysis_chain()
+    chain = _dedupe((configured or "").split(","))
+    if chain:
+        return chain
+    if kind == ANALYSIS_LITE:
+        return _dedupe((DEFAULT_CHAINS[kind] or "").split(","))
+    return _analysis_chain()
 
 
 def _deadline(default: float) -> float:
@@ -1021,7 +1040,12 @@ async def analyze_meal(
     audio_bytes: bytes | None = None,
     audio_mime: str | None = None,
     library_foods: Sequence[Food] | None = None,
+    kind: str = ANALYSIS,
 ) -> tuple[MealAnalysis, CallReport]:
+    """Estimate a meal. `kind` picks the chain: ANALYSIS, or ANALYSIS_LITE."""
+    if kind not in (ANALYSIS, ANALYSIS_LITE):
+        raise ValueError(f"not a meal-estimate kind: {kind!r}")
+
     async def call(model: str, http_options: types.HttpOptions):
         return await _generate(
             model,
@@ -1037,7 +1061,7 @@ async def analyze_meal(
     # same broken output.
     response, report = await _call_with_retry(
         call,
-        kind=ANALYSIS,
+        kind=kind,
         timeout_ms=ANALYZE_TIMEOUT_MS,
         deadline_s=ANALYZE_DEADLINE_S,
         max_attempts=ANALYZE_MAX_ATTEMPTS,

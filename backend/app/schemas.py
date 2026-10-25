@@ -1283,6 +1283,9 @@ class MealAnalysisResponse(MealAnalysis):
     # True when this is a saved estimate replayed for a demo account
     # (app/demo_samples.py), not a fresh answer from the model.
     replayed: bool = False
+    # True when the lighter AI made this estimate (POST /api/ai/analyze with
+    # lighter=true), so the result can say so.
+    lighter: bool = False
 
 
 class DemoSampleOut(BaseModel):
