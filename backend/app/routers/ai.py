@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import time as time_module
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -88,6 +88,9 @@ KIND_PROBE = "probe"
 # the analysis budget: `_reserve_call` already counts per kind, so a review can
 # never eat into the meal analyses someone actually needs.
 KIND_REVIEW = "review"
+
+# Kinds that do not draw on AI_GLOBAL_DAILY_LIMIT. None yet.
+OUTSIDE_GLOBAL_LIMIT: tuple[str, ...] = ()
 
 DEFAULT_PROBE_DAILY_LIMIT = 10
 
@@ -385,13 +388,18 @@ def _attached_foods(
 
 
 def calls_today(
-    db: Session, *, user_id: int | None = None, kind: str | None = None
+    db: Session,
+    *,
+    user_id: int | None = None,
+    kind: str | Collection[str] | None = None,
+    exclude: Collection[str] = (),
 ) -> int:
     """Provider calls made since UTC midnight, optionally narrowed.
 
     Every ai_analyses row is one billable call, so counting rows is the quota.
     created_at is stored as naive UTC; the day boundary is computed in Python
-    so SQLite and Postgres behave identically.
+    so SQLite and Postgres behave identically. `kind` takes one kind or several
+    (kinds that share one allowance); `exclude` leaves kinds out.
     """
     utc_midnight = datetime.combine(datetime.now(timezone.utc).date(), time.min)
     query = (
@@ -402,8 +410,16 @@ def calls_today(
     if user_id is not None:
         query = query.where(AIAnalysis.user_id == user_id)
     if kind is not None:
-        query = query.where(AIAnalysis.kind == kind)
+        kinds = (kind,) if isinstance(kind, str) else tuple(kind)
+        query = query.where(AIAnalysis.kind.in_(kinds))
+    if exclude:
+        query = query.where(AIAnalysis.kind.not_in(tuple(exclude)))
     return db.scalar(query)
+
+
+def global_calls_today(db: Session) -> int:
+    """Today's calls that count toward AI_GLOBAL_DAILY_LIMIT."""
+    return calls_today(db, exclude=OUTSIDE_GLOBAL_LIMIT)
 
 
 def _record_timing(record: AIAnalysis, started: float) -> None:
@@ -433,6 +449,7 @@ def _reserve_call(
     per_user_limit: int,
     noun: str,
     user_text: str | None = None,
+    per_user_kinds: Collection[str] | None = None,
 ) -> AIAnalysis:
     """Claim one provider call for this user, or raise 429/503.
 
@@ -442,13 +459,16 @@ def _reserve_call(
     the returned row if the provider call fails, so an outage costs the user
     nothing. A refusal here is counted in ai_refusals before it is raised.
 
+    `per_user_kinds` names the kinds that share this user's allowance, when
+    more than this one kind draws from it.
+
     The global check is deliberately not locked — serializing every AI request
     across all users to make a coarse ceiling exact would cost more than the
     handful of calls a race could let through.
     """
     db.execute(select(User.id).where(User.id == user.id).with_for_update())
 
-    if calls_today(db, user_id=user.id, kind=kind) >= per_user_limit:
+    if calls_today(db, user_id=user.id, kind=per_user_kinds or kind) >= per_user_limit:
         db.rollback()
         count_refusal(db, kind=kind, cause=CAUSE_USER_LIMIT)
         raise HTTPException(
@@ -460,7 +480,7 @@ def _reserve_call(
         )
 
     global_limit = global_daily_limit()
-    if calls_today(db) >= global_limit:
+    if global_calls_today(db) >= global_limit:
         db.rollback()
         logger.warning(
             "Global daily AI cap reached (%s/day); rejecting %s for user %s",

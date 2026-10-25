@@ -78,7 +78,7 @@ from ..schemas import (
     TimeToFirstMeal,
 )
 from ..services import meal_ai
-from .ai import KIND_PROBE, calls_today, global_daily_limit
+from .ai import KIND_PROBE, global_calls_today, global_daily_limit
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -622,7 +622,7 @@ def stats(
         active_7d=distinct_active(recent),
         active_30d=distinct_active(days),
         meals_7d=sum(meals_per_day.get(day, 0) for day in recent),
-        ai_calls_today=calls_today(db),
+        ai_calls_today=global_calls_today(db),
         ai_global_daily_limit=global_daily_limit(),
         ai_calls_30d_by_kind=calls_by_kind,
         ai_latency_30d_by_kind=latency_by_kind,
