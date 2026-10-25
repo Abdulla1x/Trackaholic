@@ -9,14 +9,16 @@ import {
   type RefObject,
 } from 'react'
 import { useLocation } from 'react-router-dom'
-import { api } from '../api/client'
+import { ApiError, api } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { useAnalysisProgress } from '../hooks/useAnalysisProgress'
 import { useAudioRecorder, voiceNoteFilename } from '../hooks/useAudioRecorder'
 import type { AnalysisInputs } from '../lib/analysisInputs'
 import { photosCutMessage, sameInputs } from '../lib/analysisInputs'
 import { clearNoteDraft, readNoteDraft, writeNoteDraft } from '../lib/draft'
 import { downscaleForUpload } from '../lib/photoDownscale'
-import type { DemoSample, Food, MealAnalysisResponse } from '../types'
+import { clearDayYes, readDayYes, writeDayYes, type DayYes } from '../lib/lighterAi'
+import type { DemoSample, Food, MainAIOut, MealAnalysisResponse } from '../types'
 import { useToast } from '../ui/toast'
 import { EstimateDayContext } from '../components/log/estimateDay'
 import { dateParam, logDate } from '../components/log/logPanelUrl'
@@ -68,8 +70,24 @@ interface AnalysisState {
   audio: Audio
   /** `note` replaces the description for this send and stays in the box, so
    *  what the model was told is what the user sees (the hidden-extras question
-   *  adds a line this way). */
-  analyze: (refine: boolean, evenIfUnchanged?: boolean, note?: string) => Promise<void>
+   *  adds a line this way). `lighter` picks the lighter AI; left out, it is
+   *  used while a yes for the rest of today lasts, and for another go at an
+   *  estimate it made. */
+  analyze: (refine: boolean, evenIfUnchanged?: boolean, note?: string, lighter?: boolean) => Promise<void>
+  /** What the server already knows about the main AI (GET /api/ai/status),
+   *  fetched each time the AI box opens. Null while it is working. */
+  knownOut: MainAIOut | null
+  checkMainAI: () => void
+  /** Why the last estimate was refused, when the lighter AI is the answer to
+   *  it (the refusal's `main_out`). Cleared by the next estimate. */
+  failedOut: MainAIOut | null
+  /** "Not now" was pressed on the offer, for this meal. */
+  declined: boolean
+  setDeclined: (declined: boolean) => void
+  /** A yes to the lighter AI for the rest of today, while it lasts. */
+  dayYes: DayYes | null
+  sayYesForToday: (out: MainAIOut) => void
+  stopDayYes: () => void
   /** A demo's sample plate, sent by id: the server replays the estimate saved
    *  for it instead of calling the model. */
   analyzeSample: (sample: DemoSample) => Promise<void>
@@ -108,6 +126,7 @@ const AnalysisContext = createContext<AnalysisState | null>(null)
  *  account's meal is left for the next. */
 export function AnalysisProvider({ children }: { children: ReactNode }) {
   const toast = useToast()
+  const userId = useAuth().user?.id
   // The toasts' "View" opens the Log panel over whatever page is showing when
   // it is pressed, which may not be the one showing when the toast appeared;
   // the ref always holds the opener for the current page.
@@ -145,6 +164,24 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   // the address: the panel can be closed while the model works, and reopened
   // from a toast or the Log button on a page showing another day.
   const [day, setDay] = useState<string | null>(null)
+  const [knownOut, setKnownOut] = useState<MainAIOut | null>(null)
+  const [failedOut, setFailedOut] = useState<MainAIOut | null>(null)
+  const [declined, setDeclined] = useState(false)
+  // Kept on this device, per account (lib/lighterAi.ts), so it survives a
+  // reload; read again each time the AI box opens, which drops an expired one.
+  const [dayYes, setDayYes] = useState<DayYes | null>(() => (userId === undefined ? null : readDayYes(userId)))
+
+  // A failure is swallowed: without it the panel behaves as it always did,
+  // and an Estimate that is refused still brings the offer.
+  const checkMainAI = useCallback(() => {
+    if (userId !== undefined) setDayYes(readDayYes(userId))
+    api
+      .getAIStatus()
+      .then((status) => {
+        if (mounted.current) setKnownOut(status.main_out ?? null)
+      })
+      .catch(() => undefined)
+  }, [userId])
 
   // What the estimate on screen was built from, and -- when a button was
   // pressed with nothing changed since -- which one, so the question can run it
@@ -326,7 +363,10 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     setError(null)
   }
 
-  const analyze = async (refine: boolean, evenIfUnchanged = false, noteOverride?: string) => {
+  const analyze = async (refine: boolean, evenIfUnchanged = false, noteOverride?: string, lighterPick?: boolean) => {
+    // Another go at a lighter estimate stays on the lighter AI: it is the same
+    // meal the user already agreed to, and the main AI would only offer it again.
+    const lighter = lighterPick ?? (dayYes !== null || analysis?.lighter === true)
     const text = noteOverride ?? note
     if (noteOverride !== undefined) setNote(noteOverride)
     if (files.length === 0 && !text.trim()) {
@@ -354,6 +394,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       attached.forEach((food) => form.append('food_id', String(food.id)))
       if (text.trim()) form.append('text', text.trim())
       if (refine && analysis) form.append('prior_analysis', JSON.stringify(analysis))
+      if (lighter) form.append('lighter', 'true')
       return form
     }
     // Photos are what make a body worth showing a bar for. A note-only analysis
@@ -370,6 +411,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     setUnseen(false)
     setError(null)
     setEstimateFailed(false)
+    setFailedOut(null)
     // Pressed inside the Log panel, so its address says which day this is for.
     // Kept as a date, not "today": a meal started at 23:58 belongs to that day.
     const forDay = logDate(searchRef.current) ?? localIsoDate()
@@ -401,6 +443,11 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
       if (!mounted.current) return
       setError(err instanceof Error ? err.message : 'Analysis failed')
       setEstimateFailed(true)
+      const out = err instanceof ApiError ? err.mainOut : null
+      setFailedOut(out)
+      // A refusal can tell what the status didn't know yet (the last model
+      // ran out since); a busy one says nothing about the rest of the day.
+      if (out && out.reason !== 'busy') setKnownOut(out)
       // Nobody is looking at the Log page to see the error there, and the Log
       // button has no "failed" state, so the toast is the only way they learn.
       if (watchers.current === 0) {
@@ -453,7 +500,17 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
     setUnseen(false)
     setDay(null)
     setSample(null)
+    setFailedOut(null)
+    setDeclined(false)
     lastSent.current = null
+  }
+
+  const sayYesForToday = (out: MainAIOut) => {
+    if (userId !== undefined) setDayYes(writeDayYes(userId, out))
+  }
+  const stopDayYes = () => {
+    if (userId !== undefined) clearDayYes(userId)
+    setDayYes(null)
   }
 
   return (
@@ -490,6 +547,14 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         progress,
         audio,
         analyze,
+        knownOut,
+        checkMainAI,
+        failedOut,
+        declined,
+        setDeclined,
+        dayYes,
+        sayYesForToday,
+        stopDayYes,
         analyzeSample,
         sample,
         correctAssumption,

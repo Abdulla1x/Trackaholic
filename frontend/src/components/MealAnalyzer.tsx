@@ -2,11 +2,12 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { MAX_ATTACHED_FOODS, MAX_IMAGES, useAnalysis } from '../analysis/AnalysisContext'
 import { useAuth } from '../auth/AuthContext'
 import type { LibraryContext } from '../lib/libraryMatch'
-import type { MealAnalysisResponse } from '../types'
+import type { MainAIOut, MealAnalysisResponse } from '../types'
 import SampleMeals from './demo/SampleMeals'
 import AiTips from './log/AiTips'
 import EstimateResult from './log/EstimateResult'
 import EstimateStages from './log/EstimateStages'
+import LighterAiOffer from './log/LighterAiOffer'
 import LibraryFoodPicker from './LibraryFoodPicker'
 import { Button, buttonVariants } from '@/ui/button'
 import { Chip } from '@/ui/chip'
@@ -17,6 +18,8 @@ import { HIDDEN_EXTRAS, noteWithExtras, shouldAskAboutHidden } from '../lib/aiGu
 import { dismissHint, isHintDismissed } from '../lib/dismissals'
 import { CloseIcon, EstimateIcon, PhotoIcon, VoiceIcon } from '@/ui/icons'
 import { useLiveMessage } from '../hooks/useLiveMessage'
+import { api } from '../api/client'
+import { dayYesLine, mainOutCopy } from '../lib/lighterAi'
 
 interface Props {
   // The library travels with the analysis because the page below has to resolve
@@ -60,6 +63,14 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
     audio,
     analyze,
     watch,
+    knownOut,
+    checkMainAI,
+    failedOut,
+    declined,
+    setDeclined,
+    dayYes,
+    sayYesForToday,
+    stopDayYes,
   } = useAnalysis()
   useLiveMessage(error)
   const headingId = useId()
@@ -68,7 +79,8 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
   // The hidden-extras question (UA-25): a photo-only estimate stops to ask
   // what the photos cannot show before it is sent. Answering adds one line to
   // the note; "No, that's it" sends it as it was.
-  const [asking, setAsking] = useState(false)
+  // The question goes out with whichever AI the button that raised it chose.
+  const [asking, setAsking] = useState<false | { lighter?: boolean }>(false)
   const [extras, setExtras] = useState<string[]>([])
   const askId = useId()
   useLiveMessage(asking ? 'Photos miss oil and sauces. Anything hidden?' : null)
@@ -93,8 +105,10 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
   const send = (picks: string[]) => {
     setAsking(false)
     setExtras([])
-    void analyze(false, false, picks.length > 0 ? noteWithExtras(note, picks) : undefined)
+    void analyze(false, false, picks.length > 0 ? noteWithExtras(note, picks) : undefined, asking ? asking.lighter : undefined)
   }
+  const estimate = (lighter?: boolean) =>
+    shouldAskAboutHidden(files.length, note) ? setAsking({ lighter }) : analyze(false, false, undefined, lighter)
 
   // Open straight away when there is anything to show: a note, photos, an
   // estimate on its way or one already back. Otherwise someone returning to a
@@ -123,6 +137,55 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
     libraryRequested.current = true
     loadLibrary()
   }, [expanded, loadLibrary])
+
+  // Whether the main AI is out, asked each time the box opens, so the lighter
+  // AI can be offered before Estimate is pressed (B2). A demo never asks: it
+  // never reaches the model.
+  const statusRequested = useRef(false)
+  useEffect(() => {
+    if (!expanded || demo || statusRequested.current) return
+    statusRequested.current = true
+    checkMainAI()
+  }, [expanded, demo, checkMainAI])
+
+  // The offer: before Estimate when the server already knows the main AI is
+  // out for the day, or after an Estimate it refused (Google busy, say). Only
+  // when the lighter AI can take it, and never over an estimate on screen.
+  const offerOut =
+    dayYes || declined || analyzing || asking ? null : (failedOut ?? (estimateFailed || analysis ? null : knownOut))
+  const offer = offerOut?.lighter ? offerOut : null
+  const offerUpFront = offer !== null && failedOut === null
+  // Counted for /admin once per open of the box it appears in, not per render.
+  const offerReported = useRef(false)
+  useEffect(() => {
+    if (!offer || offerReported.current) return
+    offerReported.current = true
+    api.reportLighterOffer('shown').catch(() => undefined)
+  }, [offer])
+  const takeOffer = (restOfToday: boolean) => {
+    if (!offer) return
+    // With nothing to estimate the press only brings up "describe the meal
+    // first", so it is neither a use nor a yes yet.
+    if (note.trim() || files.length > 0) {
+      api.reportLighterOffer('used').catch(() => undefined)
+      if (restOfToday) sayYesForToday(offer)
+    }
+    void estimate(true)
+  }
+  const notNow = () => {
+    api.reportLighterOffer('declined').catch(() => undefined)
+    setDeclined(true)
+  }
+  // What to say about the main AI where no offer is: after "Not now", or up
+  // front when the lighter AI can't help either.
+  const outNote = declined
+    ? (failedOut ?? knownOut)
+    : !dayYes && !estimateFailed && !analysis && knownOut && !knownOut.lighter
+      ? knownOut
+      : null
+  // The offer and that line say why the main AI refused in their own words,
+  // so the server's message would only repeat it.
+  const refusalSaid = (offer !== null && !offerUpFront) || (declined && failedOut !== null)
 
   // A demo never reaches the model, so the note, voice and photo inputs would
   // only lead to a refusal; it picks a sample plate instead.
@@ -163,6 +226,30 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
       </div>
 
       {alwaysOpen && <AiTips />}
+
+      {offer && offerUpFront && (
+        <LighterAiOffer
+          out={offer}
+          note={note}
+          photos={files.length}
+          busy={busy}
+          onUse={takeOffer}
+          onNotNow={notNow}
+        />
+      )}
+      {outNote && !declined && <OutNote out={outNote} />}
+      {dayYes && (
+        <div className="flex flex-wrap items-center justify-between gap-x-3 border-y border-rule py-1 text-small">
+          <span>{dayYesLine(dayYes)}</span>
+          <button
+            type="button"
+            onClick={stopDayYes}
+            className="min-h-11 font-semibold text-action underline underline-offset-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+          >
+            Stop
+          </button>
+        </div>
+      )}
 
       <label className="grid gap-1">
         <span className="text-small text-ink-2">Describe it, with weights if you have them</span>
@@ -312,17 +399,32 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
             </Button>
           </div>
         </div>
-      ) : (
+      ) : offer ? null : (
         <div className="flex flex-wrap gap-2">
           {/* Primary until there is an estimate; then saving it is the main
-              action and this steps back, so the panel never shows two. */}
+              action and this steps back, so the panel never shows two. While
+              the offer is on screen its own button is the way on, so this one
+              is left out (the prototype's B2). */}
           <Button
-            variant={analysis ? 'secondary' : 'primary'}
-            onClick={() => (shouldAskAboutHidden(files.length, note) ? setAsking(true) : analyze(false))}
+            variant={analysis || declined ? 'secondary' : 'primary'}
+            onClick={() => {
+              if (declined) {
+                setDeclined(false)
+                void estimate(false)
+              } else void estimate()
+            }}
             disabled={busy}
             className="flex-1"
           >
-            {analyzing ? 'Estimating…' : analysis ? 'Estimate again' : 'Estimate'}
+            {analyzing
+              ? 'Estimating…'
+              : analysis
+                ? 'Estimate again'
+                : declined
+                  ? 'Try the main AI again'
+                  : dayYes
+                    ? 'Estimate with the lighter AI'
+                    : 'Estimate'}
           </Button>
           {analysis && (
             <Button variant="secondary" onClick={() => analyze(true)} disabled={busy} className="flex-1">
@@ -371,11 +473,22 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
       />
 
       {/* Ink and words, never red (DESIGN.md, the No Red Rule). */}
-      {error && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
+      {error && !refusalSaid && <p className="border-l-2 border-ink pl-3 text-small">{error}</p>}
+      {offer && !offerUpFront && (
+        <LighterAiOffer
+          out={offer}
+          note={note}
+          photos={files.length}
+          busy={busy}
+          onUse={takeOffer}
+          onNotNow={notNow}
+        />
+      )}
+      {outNote && declined && <OutNote out={outNote} />}
       {/* A failed estimate is not a dead end, for anyone (decided 2026-10-11):
           the AI's daily limit is shared by the whole app and can run out on
           a busy day, and the server's message alone points nowhere useful. */}
-      {estimateFailed && onOtherWays && (
+      {(estimateFailed || declined) && onOtherWays && (
         <div className="grid gap-2">
           <p className="font-semibold">You can still log it.</p>
           <p className="text-small text-ink-2">
@@ -404,5 +517,16 @@ export default function MealAnalyzer({ onApply, alwaysOpen = false, onOtherWays 
         />
       )}
     </section>
+  )
+}
+
+/** The main AI's state in one ink-ruled line, where the offer isn't: after
+ *  "Not now", or up front when the lighter AI can't take the estimate either. */
+function OutNote({ out }: { out: MainAIOut }) {
+  const { head, line } = mainOutCopy(out)
+  return (
+    <p className="border-l-2 border-ink pl-3 text-small">
+      {head}. {line}
+    </p>
   )
 }
