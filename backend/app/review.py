@@ -635,6 +635,16 @@ def calibration_check(summary: CalibrationSummary | None) -> ReviewCheck | None:
         )
 
     moved = macro.median_signed_error_pct
+    # Every one of these estimates was changed, so a median that rounds to 0%
+    # means the changes went up about as often as down -- not "up 0%", which
+    # reads as a contradiction.
+    if round(abs(moved)) == 0:
+        how = "moved the calorie figure up about as often as down"
+    else:
+        how = (
+            f"typically moved the calorie figure "
+            f"{'up' if moved >= 0 else 'down'} {round(abs(moved))}%"
+        )
     return ReviewCheck(
         key="calibration",
         status=NOTE,
@@ -644,8 +654,7 @@ def calibration_check(summary: CalibrationSummary | None) -> ReviewCheck | None:
         sample_days=0,
         detail=(
             f"On the {_plural(macro.corrected, 'estimate')} you corrected, you "
-            f"typically moved the calorie figure "
-            f"{'up' if moved >= 0 else 'down'} {round(abs(moved))}%."
+            f"{how}."
         ),
     )
 

@@ -437,6 +437,15 @@ def test_calibration_says_which_direction_the_estimates_were_moved():
     assert up.status == NOTE
 
 
+@pytest.mark.parametrize("moved", [0.0, 0.4, -0.4])
+def test_a_typical_change_that_rounds_to_zero_is_not_called_up_0(moved):
+    """Every estimate here was changed; a 0% median means both ways, equally."""
+    check = calibration_check(summary(linked=12, moved=moved))
+
+    assert check.detail.endswith("moved the calorie figure up about as often as down.")
+    assert "0%" not in check.detail
+
+
 def test_weight_refuses_a_rate_whose_last_weigh_in_is_no_longer_current():
     """`weekly_rate` windows from the latest weigh-in, not from today.
 

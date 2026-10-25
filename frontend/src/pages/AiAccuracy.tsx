@@ -149,8 +149,13 @@ function MacroStat({ label, macro }: { label: string; macro: MacroCalibration })
       )}
       {macro.median_signed_error_pct !== null && (
         <span className="text-small text-ink-2">
-          typically moved {macro.median_signed_error_pct >= 0 ? 'up' : 'down'}{' '}
-          {round(Math.abs(macro.median_signed_error_pct))}%
+          {/* Every one was changed, so a median that rounds to 0% means up
+              about as often as down, not "up 0%". Same rule as review.py. */}
+          {round(Math.abs(macro.median_signed_error_pct)) === 0
+            ? 'moved up about as often as down'
+            : `typically moved ${macro.median_signed_error_pct >= 0 ? 'up' : 'down'} ${round(
+                Math.abs(macro.median_signed_error_pct),
+              )}%`}
         </span>
       )}
     </div>
